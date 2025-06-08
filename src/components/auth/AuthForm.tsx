@@ -9,17 +9,36 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Mail, Lock } from 'lucide-react'
-import Link from 'next/link'
+import { Building2, Mail, Lock, CheckCircle, ArrowLeft } from 'lucide-react'
 
-export function AuthForm() {
+interface AuthFormProps {
+  defaultTab?: 'signin' | 'signup'
+}
+
+export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+  const [activeTab, setActiveTab] = useState(defaultTab)
   const { signIn, signUp } = useAuth()
   const router = useRouter()
   const supabase = createClient()
+
+  const resetForm = () => {
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    setError('')
+    setSuccess(false)
+  }
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as 'signin' | 'signup')
+    resetForm()
+  }
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -36,12 +55,18 @@ export function AuthForm() {
       setError('Password must be at least 6 characters')
       setLoading(false)
       return
-    }
-
+    }    
     try {
       const { error } = await signIn(email.trim(), password)
       if (error) {
-        setError(error.message)
+        // Provide more helpful error messages
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please check your credentials and try again.')
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and confirm your account before signing in.')
+        } else {
+          setError(error.message)
+        }
       } else {
         router.push('/dashboard')
       }
@@ -58,14 +83,22 @@ export function AuthForm() {
     setError('')
 
     // Basic validation
-    if (!email || !password) {
-      setError('Please enter both email and password')
+    if (!email || !password || !confirmPassword) {
+      setError('Please fill in all fields')
       setLoading(false)
       return
     }
 
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    // Validate password strength
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError('Password must be at least 6 characters long')
       setLoading(false)
       return
     }
@@ -76,14 +109,16 @@ export function AuthForm() {
       setError('Please enter a valid email address')
       setLoading(false)
       return
-    }
-
-    try {
+    }    try {
       const { error } = await signUp(email.trim(), password)
       if (error) {
-        setError(error.message)
+        if (error.message.includes('User already registered')) {
+          setError('An account with this email already exists. Please sign in instead.')
+        } else {
+          setError(error.message)
+        }
       } else {
-        setError('Check your email for the confirmation link!')
+        setSuccess(true)
       }
     } catch (err) {
       console.error('Sign up error:', err)
@@ -110,8 +145,58 @@ export function AuthForm() {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
-    }
+    }  }
+
+  // Success state for signup
+  if (success) {
+    return (
+      <div className="flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4 min-h-[calc(100vh-140px)]">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-green-600 p-3 rounded-full">
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+            <CardDescription>
+              We&apos;ve sent you a confirmation link at {email}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-600 text-center">
+              Please check your email and click the confirmation link to activate your account.
+            </p>
+            <div className="flex flex-col space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setActiveTab('signin')
+                  resetForm()
+                }}
+                className="w-full"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Sign In
+              </Button>
+              <Button
+                onClick={() => {
+                  setSuccess(false)
+                  setEmail('')
+                  setPassword('')
+                  setConfirmPassword('')
+                }}
+                className="w-full"
+              >
+                Try Different Email
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
+
   return (
     <div className="flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 min-h-[calc(100vh-140px)]">
       <Card className="w-full max-w-md">
@@ -150,7 +235,7 @@ export function AuthForm() {
             </div>
           </div>
 
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -187,9 +272,22 @@ export function AuthForm() {
                       required
                     />
                   </div>
-                </div>
-                {error && (
-                  <p className="text-sm text-red-600">{error}</p>
+                </div>                {error && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600">{error}</p>
+                    {error.includes('Invalid email or password') && (
+                      <p className="text-sm text-gray-600">
+                        Don&apos;t have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('signup')}
+                          className="text-blue-600 hover:text-blue-500 font-medium underline"
+                        >
+                          Sign up here
+                        </button>
+                      </p>
+                    )}
+                  </div>
                 )}
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Signing In...' : 'Sign In'}
@@ -213,7 +311,7 @@ export function AuthForm() {
                       required
                     />
                   </div>
-                </div>
+                </div>                
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
                   <div className="relative">
@@ -230,28 +328,52 @@ export function AuthForm() {
                     />
                   </div>
                 </div>
-                {error && (
-                  <p className={`text-sm ${error.includes('Check your email') ? 'text-green-600' : 'text-red-600'}`}>
-                    {error}
-                  </p>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="signup-confirm-password"
+                      type="password"
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-10"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>                {error && (
+                  <div className="space-y-2">
+                    <p className={`text-sm ${error.includes('Check your email') ? 'text-green-600' : 'text-red-600'}`}>
+                      {error}
+                    </p>
+                    {error.includes('already exists') && (
+                      <p className="text-sm text-gray-600">
+                        Already have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('signin')}
+                          className="text-blue-600 hover:text-blue-500 font-medium underline"
+                        >
+                          Sign in here
+                        </button>
+                      </p>
+                    )}
+                  </div>
                 )}
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
               </form>
             </TabsContent>
-          </Tabs>        </CardContent>
-        <CardFooter className="text-center text-sm text-muted-foreground space-y-4">
+          </Tabs>        </CardContent>        <CardFooter className="text-center text-sm text-muted-foreground">
           <p className="w-full">
-            By continuing, you agree to our Terms of Service and Privacy Policy
+            By continuing, you agree to our{' '}
+            <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
+            {' '}and{' '}
+            <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
           </p>
-          <div className="w-full pt-4 border-t">            <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-blue-600 hover:text-blue-500 font-medium">
-                Sign up for free
-              </Link>
-            </p>
-          </div>
         </CardFooter>
       </Card>
     </div>
