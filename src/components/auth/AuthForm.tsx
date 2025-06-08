@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Mail, Lock, User } from 'lucide-react'
+import { Building2, Mail, Lock } from 'lucide-react'
 import Link from 'next/link'
 
 export function AuthForm() {
@@ -101,13 +101,12 @@ export function AuthForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
+          redirectTo: `${window.location.origin}/dashboard`        }
       })
       if (error) {
         setError(error.message)
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -246,9 +245,8 @@ export function AuthForm() {
           <p className="w-full">
             By continuing, you agree to our Terms of Service and Privacy Policy
           </p>
-          <div className="w-full pt-4 border-t">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+          <div className="w-full pt-4 border-t">            <p className="text-sm text-gray-600">
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="text-blue-600 hover:text-blue-500 font-medium">
                 Sign up for free
               </Link>

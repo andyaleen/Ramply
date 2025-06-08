@@ -41,11 +41,10 @@ export function OnboardingTypesList() {
     setSelectedTypeId(typeId)
     setShowSendDialog(true)
   }
-
   const copyOnboardingLink = async (typeId: string) => {
     // Generate a token for the onboarding request
     const token = generateToken()
-    const link = `${window.location.origin}/onboard/${token}`
+    const link = `${window.location.origin}/onboard/${token}?type=${typeId}`
     
     try {
       await navigator.clipboard.writeText(link)

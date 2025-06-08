@@ -12,7 +12,7 @@ import {
   ProfileData,
   ExtendedProfileData 
 } from '@/lib/profile-utils'
-import { Clock, CheckCircle, RefreshCw, Building2, User } from 'lucide-react'
+import { CheckCircle, RefreshCw, Building2, User } from 'lucide-react'
 
 interface ProfileDataReuseProps {
   onDataSelected: (data: ExtendedProfileData) => void

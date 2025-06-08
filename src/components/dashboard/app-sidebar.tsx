@@ -7,15 +7,13 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
+  SidebarHeader,  
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { useAuth } from '@/contexts/AuthContext'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,7 +90,7 @@ const navigation = [
 ]
 
 export function AppSidebar() {
-  const { userProfile, signOut } = useAuth()
+  const { userProfile } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
 

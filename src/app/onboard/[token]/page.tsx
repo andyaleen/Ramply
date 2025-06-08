@@ -5,13 +5,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { OnboardingForm } from '@/components/onboarding/OnboardingForm'
 import { Layout } from '@/components/layout'
-import { Building2, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { CheckCircle, AlertCircle, Clock } from 'lucide-react'
 
 export default function OnboardingPage() {
   const params = useParams()

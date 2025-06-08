@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, Plus, Settings, LogOut, Users, FileText, Link } from 'lucide-react'
 import { OnboardingTypesList } from '@/components/dashboard/OnboardingTypesList'
 import { OnboardingRequestsList } from '@/components/dashboard/OnboardingRequestsList'

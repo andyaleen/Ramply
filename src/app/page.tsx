@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Layout } from "@/components/layout"
 import { useRouter } from 'next/navigation'
 
@@ -10,12 +9,7 @@ import {
   FileText, 
   Shield, 
   Users, 
-  CheckCircle, 
   ArrowRight,
-  Globe,
-  Calendar,
-  Clock,
-  Star,
   MoreVertical
 } from "lucide-react"
 
@@ -171,7 +165,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <p className="text-gray-600 mb-8">
-              Trusted by more than <span className="font-semibold">100,000</span> of the world's leading organizations
+              Trusted by more than <span className="font-semibold">100,000</span> of the world&apos;s leading organizations
             </p>
             
             <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-8 items-center opacity-60">

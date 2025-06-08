@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
+import { User, AuthError } from '@supabase/supabase-js'
 import { Database } from '@/lib/database.types'
 
 type UserProfile = Database['public']['Tables']['users']['Row']
@@ -11,8 +11,8 @@ interface AuthContextType {
   user: User | null
   userProfile: UserProfile | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<any>
-  signUp: (email: string, password: string) => Promise<any>
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>
 }
@@ -25,37 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
-  useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        setUser(session.user)
-        await fetchUserProfile(session.user.id)
-      }
-      setLoading(false)
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          setUser(session.user)
-          await fetchUserProfile(session.user.id)
-        } else {
-          setUser(null)
-          setUserProfile(null)
-        }
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('users')
@@ -93,7 +63,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error in fetchUserProfile:', error)
     }
-  }
+  }, [supabase, user?.email])
+
+  useEffect(() => {
+    // Get initial session
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        setUser(session.user)
+        await fetchUserProfile(session.user.id)
+      }
+      setLoading(false)
+    }
+
+    getSession()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser(session.user)
+          await fetchUserProfile(session.user.id)
+        } else {
+          setUser(null)
+          setUserProfile(null)
+        }
+        setLoading(false)
+      }
+    )
+
+    return () => subscription.unsubscribe()  }, [fetchUserProfile, supabase.auth])
   const signIn = async (email: string, password: string) => {
     console.log('Attempting sign in for:', email)
     try {
@@ -106,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         console.log('Sign in successful:', data.user?.email)
       }
-      return { data, error }
+      return { error }
     } catch (err) {
       console.error('Sign in exception:', err)
       throw err
@@ -114,11 +113,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
     })
-    return { data, error }
+    return { error }
   }
 
   const signOut = async () => {

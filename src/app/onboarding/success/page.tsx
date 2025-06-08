@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Layout } from '@/components/layout'
-import { CheckCircle, Building2, ArrowLeft } from 'lucide-react'
+import { CheckCircle, ArrowLeft } from 'lucide-react'
 
 export default function OnboardingSuccessPage() {
   const router = useRouter()
@@ -36,14 +35,13 @@ export default function OnboardingSuccessPage() {
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     <span>Your information is being reviewed by our team</span>
+                  </li>                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span>You&apos;ll receive an email confirmation shortly</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>You'll receive an email confirmation shortly</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span>We'll contact you if any additional information is needed</span>
+                    <span>We&apos;ll contact you if any additional information is needed</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />

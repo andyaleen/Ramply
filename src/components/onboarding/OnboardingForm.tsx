@@ -15,19 +15,26 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { DocumentUpload } from './DocumentUpload'
 import { ProfileDataReuse } from './ProfileDataReuse'
-import { FIELD_TYPES, DOCUMENT_TYPES } from '@/lib/validations'
 import { ExtendedProfileData } from '@/lib/profile-utils'
 import { Building2, User, CreditCard, Building, Shield, Award, Upload, Check } from 'lucide-react'
 
 // Helper function to safely extract error messages
-const getErrorMessage = (error: any): string => {
+const getErrorMessage = (error: unknown): string => {
   if (typeof error === 'string') return error
-  if (error && typeof error.message === 'string') return error.message
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') return error.message
   return ''
 }
 
+interface OnboardingRequest {
+  id: string
+  onboarding_types?: {
+    required_fields: string[]
+    required_documents: string[]
+  }
+}
+
 interface OnboardingFormProps {
-  request: any // TODO: Add proper type
+  request: OnboardingRequest
   onComplete: () => void
   isCompleting: boolean
 }
@@ -108,23 +115,20 @@ export function OnboardingForm({ request, onComplete, isCompleting }: Onboarding
   
   const requiredFields = request.onboarding_types?.required_fields || []
   const requiredDocuments = request.onboarding_types?.required_documents || []
-  
-  const formSchema = createDynamicSchema(requiredFields)
+    const formSchema = createDynamicSchema(requiredFields)
   type FormData = z.infer<typeof formSchema>
-    const {
+  
+  const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setValue,
-    watch,
     reset,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
   })
-
   const handleDataReuse = (data: ExtendedProfileData) => {
     // Reset form with existing data
-    reset(data as any)
+    reset(data as FormData)
   }
 
   const submitMutation = useMutation({

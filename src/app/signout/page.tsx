@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Layout } from '@/components/layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Building2, LogOut, CheckCircle, ArrowLeft } from 'lucide-react'
+import { LogOut, CheckCircle, ArrowLeft } from 'lucide-react'
 
 export default function SignOutPage() {
   const [isSigningOut, setIsSigningOut] = useState(false)
@@ -91,9 +91,8 @@ export default function SignOutPage() {
             Are you sure you want to sign out of your account?
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-gray-600 text-center">
-            You'll need to sign in again to access your dashboard and onboarding data.
+        <CardContent className="space-y-4">          <p className="text-sm text-gray-600 text-center">
+            You&apos;ll need to sign in again to access your dashboard and onboarding data.
           </p>
           <div className="flex flex-col space-y-2">
             <Button

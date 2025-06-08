@@ -45,11 +45,10 @@ export default function SignUpPage() {
     try {
       const { error } = await signUp(email, password)
       if (error) {
-        setError(error.message)
-      } else {
+        setError(error.message)      } else {
         setSuccess(true)
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -64,13 +63,12 @@ export default function SignUpPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
+          redirectTo: `${window.location.origin}/dashboard`        }
       })
       if (error) {
         setError(error.message)
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -87,9 +85,8 @@ export default function SignUpPage() {
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
-            <CardDescription>
-              We've sent you a confirmation link at {email}
+            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>            <CardDescription>
+              We&apos;ve sent you a confirmation link at {email}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
