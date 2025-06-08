@@ -57,24 +57,24 @@ export type Database = {
           updated_at?: string
         }
       }
-      onboarding_types: {
+      onboarding_types: {        
         Row: {
           id: string
           user_id: string
           name: string
           description: string | null
-          required_fields: any
-          required_documents: any
+          required_fields: Record<string, unknown>
+          required_documents: Record<string, unknown>
           created_at: string
           updated_at: string
-        }
+        }        
         Insert: {
           id?: string
           user_id: string
           name: string
-          description?: string | null
-          required_fields?: any
-          required_documents?: any
+          description?: string | null          
+          required_fields?: Record<string, unknown>
+          required_documents?: Record<string, unknown>
           created_at?: string
           updated_at?: string
         }
@@ -83,8 +83,8 @@ export type Database = {
           user_id?: string
           name?: string
           description?: string | null
-          required_fields?: any
-          required_documents?: any
+          required_fields?: Record<string, unknown>
+          required_documents?: Record<string, unknown>
           created_at?: string
           updated_at?: string
         }
