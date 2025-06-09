@@ -8,16 +8,55 @@ import { Building2, Plus, Settings, LogOut, Users, FileText, Link } from 'lucide
 import { OnboardingTypesList } from '@/components/dashboard/OnboardingTypesList'
 import { OnboardingRequestsList } from '@/components/dashboard/OnboardingRequestsList'
 import { CreateOnboardingTypeDialog } from '@/components/dashboard/CreateOnboardingTypeDialog'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { DashboardService, DashboardStats } from '@/lib/services/dashboard'
 
 export function Dashboard() {
-  const { userProfile } = useAuth()
+  const { user, userProfile } = useAuth()
   const router = useRouter()
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalOnboardingTypes: 0,
+    pendingRequests: 0,
+    completedThisMonth: 0,
+    totalVendors: 0
+  })
+  const [loading, setLoading] = useState(true)
 
+  const dashboardService = new DashboardService()
+
+  useEffect(() => {
+    const loadDashboardStats = async () => {
+      if (!user) return
+      
+      try {
+        setLoading(true)
+        const stats = await dashboardService.getDashboardStats(user)
+        setDashboardStats(stats)
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboardStats()
+  }, [user])
   const handleCreateSuccess = () => {
     setShowCreateDialog(false)
-    // Refresh lists will be handled by React Query
+    // Refresh stats when new onboarding type is created
+    refreshDashboardStats()
+  }
+
+  const refreshDashboardStats = async () => {
+    if (!user) return
+    
+    try {
+      const stats = await dashboardService.getDashboardStats(user)
+      setDashboardStats(stats)
+    } catch (error) {
+      console.error('Error refreshing dashboard stats:', error)
+    }
   }
 
   return (
@@ -59,9 +98,7 @@ export function Dashboard() {
           <p className="text-gray-600 mt-2">
             Manage your onboarding flows and track vendor submissions
           </p>
-        </div>
-
-        {/* Quick Stats */}
+        </div>        {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -69,7 +106,13 @@ export function Dashboard() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">
+                {loading ? (
+                  <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                ) : (
+                  dashboardStats.totalOnboardingTypes
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Active onboarding flows
               </p>
@@ -82,7 +125,13 @@ export function Dashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">
+                {loading ? (
+                  <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                ) : (
+                  dashboardStats.pendingRequests
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Awaiting completion
               </p>
@@ -91,11 +140,17 @@ export function Dashboard() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CardTitle className="text-sm font-medium">Completed This Month</CardTitle>
               <Link className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">
+                {loading ? (
+                  <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                ) : (
+                  dashboardStats.completedThisMonth
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Successful onboardings
               </p>
