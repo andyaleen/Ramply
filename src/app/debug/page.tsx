@@ -149,6 +149,87 @@ This user may not exist yet. Try creating the account first.`)
       setAuthResult('❌ Failed to check user status')
     }
   }
+  const checkSchema = async () => {
+    setAuthResult('Checking database schema...')
+    try {
+      // Try a direct query to see what happens
+      const { data: testData, error: testError } = await supabase
+        .from('users')
+        .select('*')
+        .limit(1)
+
+      if (testError) {
+        if (testError.message.includes('invalid input syntax for type bigint')) {
+          setAuthResult(`❌ Schema Error Confirmed!
+          
+The users table has the wrong column type:
+- Current: id BIGINT 
+- Required: id UUID
+
+🔧 To fix this:
+1. Go to Supabase Dashboard > SQL Editor
+2. Run the "Fix Schema" instructions below
+
+Error: ${testError.message}`)
+        } else {
+          setAuthResult(`❌ Database error: ${testError.message}`)
+        }
+      } else {
+        setAuthResult(`✅ Schema looks correct!
+Found ${testData?.length || 0} users in database.
+Schema appears to be properly configured.`)
+      }    } catch (err) {
+      setAuthResult(`❌ Schema check failed: ${err}`)
+    }
+  }
+
+  const fixSchema = async () => {
+    setAuthResult('Attempting to fix database schema...')
+    try {
+      const createTableSQL = `CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email TEXT UNIQUE NOT NULL,
+  company_name TEXT,
+  contact_name TEXT,
+  contact_email TEXT,
+  tax_id TEXT,
+  business_type TEXT,
+  address_line1 TEXT,
+  address_line2 TEXT,
+  city TEXT,
+  state TEXT,
+  postal_code TEXT,
+  country TEXT,
+  role TEXT DEFAULT 'external' CHECK (role IN ('admin', 'external')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);`
+
+      setAuthResult(`⚠️ Schema fix requires manual intervention.
+
+📁 EASY OPTION: Use the fix-schema.sql file
+1. Go to your project root folder
+2. Open fix-schema.sql file  
+3. Copy the entire contents
+4. Go to Supabase Dashboard > SQL Editor
+5. Paste and run the SQL
+
+📝 MANUAL OPTION: Run step by step
+1. Go to your Supabase Dashboard > SQL Editor
+2. First, drop the existing table:
+   DROP TABLE IF EXISTS users CASCADE;
+
+3. Then create the new table with correct schema:
+${createTableSQL}
+
+4. After running the SQL, come back and test authentication again.
+
+The issue is that the users table was created with id as bigint instead of UUID.`)
+
+    } catch (err) {
+      setAuthResult(`❌ Schema fix failed: ${err}`)
+    }
+  }
 
   if (loading) {
     return <div className="p-8">Loading...</div>
@@ -214,6 +295,11 @@ This user may not exist yet. Try creating the account first.`)
                                         </Button>
                                         <Button onClick={checkUserStatus} className="w-full" variant="secondary">
                                             📊 Check User Status
+                                        </Button>                                        <Button onClick={checkSchema} className="w-full" variant="secondary">
+                                            📂 Check Schema
+                                        </Button>
+                                        <Button onClick={fixSchema} className="w-full" variant="destructive">
+                                            🔧 Fix Schema (Instructions)
                                         </Button>
                                     </div>
                                 </div>

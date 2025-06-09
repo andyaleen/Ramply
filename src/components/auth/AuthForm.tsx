@@ -127,7 +127,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       setLoading(false)
     }
   }
-
   const handleGoogleSignIn = async () => {
     setLoading(true)
     setError('')
@@ -136,7 +135,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`        }
+          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
+        }
       })
       if (error) {
         setError(error.message)
@@ -145,7 +145,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
-    }  }
+    }
+  }
 
   // Success state for signup
   if (success) {

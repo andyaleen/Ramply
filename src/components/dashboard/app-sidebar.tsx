@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,71 +24,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  Home,
   Building2,
-  Users,
-  FileText,
-  Settings,
-  HelpCircle,
-  LogOut,
   ChevronUp,
   User,
   Bell,
+  LogOut,
+  Settings,
 } from "lucide-react"
 import { usePathname, useRouter } from 'next/navigation'
-
-const navigation = [
-  {
-    title: "Overview",
-    items: [
-      {
-        title: "Dashboard",
-        url: "/dashboard",
-        icon: Home,
-      },
-      {
-        title: "Onboarding Types",
-        url: "/dashboard/onboarding-types",
-        icon: FileText,
-      },
-      {
-        title: "Requests",
-        url: "/dashboard/requests",
-        icon: Users,
-      },
-    ],
-  },
-  {
-    title: "Management",
-    items: [
-      {
-        title: "Vendors",
-        url: "/dashboard/vendors",
-        icon: Building2,
-      },
-      {
-        title: "Analytics",
-        url: "/dashboard/analytics",
-        icon: FileText,
-      },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
-      {
-        title: "Account",
-        url: "/dashboard/settings",
-        icon: Settings,
-      },
-      {
-        title: "Help & Support",
-        url: "/dashboard/help",
-        icon: HelpCircle,
-      },
-    ],
-  },
-]
+import { navigationConfig } from '@/lib/dashboard-config'
 
 export function AppSidebar() {
   const { userProfile } = useAuth()
@@ -120,22 +65,27 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent>
-        {navigation.map((group) => (
+        {navigationConfig.map((group) => (
           <SidebarGroup key={group.title}>
             <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
+              <SidebarMenu>                {group.items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
-                      asChild 
                       isActive={pathname === item.url}
                       onClick={() => router.push(item.url)}
+                      className="flex items-center gap-2 w-full cursor-pointer"
                     >
-                      <button className="flex items-center gap-2 w-full">
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </button>
+                      <item.icon className="h-4 w-4" />
+                      <span className="flex-1">{item.title}</span>
+                      {item.badge && (
+                        <Badge 
+                          variant={item.isNew ? "default" : "secondary"} 
+                          className="text-xs"
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

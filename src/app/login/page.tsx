@@ -1,22 +1,38 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
+import { createClient } from '@/lib/supabase/client'
+
+// ✅ Create supabase client outside the component
+const supabase = createClient()
 
 export default function LoginPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [checkingSession, setCheckingSession] = useState(true)
 
+  // ✅ Refresh Supabase session on mount
   useEffect(() => {
-    if (!loading && user) {
+    const refreshSession = async () => {
+      await supabase.auth.getSession()
+      setCheckingSession(false)
+    }
+    refreshSession()
+  }, [])
+
+  // ✅ Redirect if authenticated
+  useEffect(() => {
+    if (!checkingSession && !loading && user) {
       router.push('/dashboard')
     }
-  }, [user, loading, router])
+  }, [user, loading, checkingSession, router])
 
-  if (loading) {
+  // ✅ Don't render form until checks complete
+  if (loading || checkingSession) {
     return (
       <Layout showAuth={false}>
         <div className="min-h-screen flex items-center justify-center">
@@ -26,9 +42,8 @@ export default function LoginPage() {
     )
   }
 
-  if (user) {
-    return null // Will redirect to dashboard
-  }
+  // Prevent rendering login form if already logged in (redirect will fire)
+  if (user) return null
 
   return (
     <Layout showAuth={false}>

@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { useQuery } from '@tanstack/react-query'
+import { vendorsService } from '@/lib/services/vendors'
 import { 
   Search, 
   Filter, 
@@ -19,7 +22,8 @@ import {
   MoreVertical,
   Users,
   CheckCircle,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -29,93 +33,28 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 export default function VendorsPage() {
+  const { userProfile, user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
-  // Mock data - replace with real data later
-  const vendors = [
-    {
-      id: 1,
-      name: "Acme Corporation",
-      contactName: "John Doe",
-      email: "john.doe@acme.com",
-      phone: "+1 (555) 123-4567",
-      address: "123 Business St, New York, NY 10001",
-      status: "active",
-      onboardingType: "Vendor Onboarding",
-      joinedDate: "2024-01-15",
-      lastActivity: "2024-06-07",
-      totalRequests: 3,
-      completedRequests: 2,
-      businessType: "Corporation",
-      documents: ["Business License", "Tax Certificate", "Insurance"]
-    },
-    {
-      id: 2,
-      name: "Tech Solutions Ltd",
-      contactName: "Sarah Smith",
-      email: "sarah.smith@techsol.com",
-      phone: "+1 (555) 234-5678",
-      address: "456 Tech Ave, San Francisco, CA 94105",
-      status: "active",
-      onboardingType: "Supplier Registration",
-      joinedDate: "2024-02-20",
-      lastActivity: "2024-06-06",
-      totalRequests: 1,
-      completedRequests: 1,
-      businessType: "Limited Company",
-      documents: ["Quality Certificate", "Insurance", "References"]
-    },
-    {
-      id: 3,
-      name: "Global Services Inc",
-      contactName: "Mike Johnson",
-      email: "mike.johnson@global.com",
-      phone: "+1 (555) 345-6789",
-      address: "789 Service Blvd, Chicago, IL 60601",
-      status: "pending",
-      onboardingType: "Contractor Onboarding",
-      joinedDate: "2024-03-10",
-      lastActivity: "2024-06-07",
-      totalRequests: 2,
-      completedRequests: 1,
-      businessType: "LLC",
-      documents: ["Insurance Certificate", "Portfolio"]
-    },
-    {
-      id: 4,
-      name: "Enterprise Partners",
-      contactName: "Lisa Wang",
-      email: "lisa.wang@enterprise.com",
-      phone: "+1 (555) 456-7890",
-      address: "321 Enterprise Dr, Austin, TX 73301",
-      status: "inactive",
-      onboardingType: "Vendor Onboarding",
-      joinedDate: "2024-01-05",
-      lastActivity: "2024-05-15",
-      totalRequests: 4,
-      completedRequests: 3,
-      businessType: "Corporation",
-      documents: ["Business License", "Tax Certificate", "Bank Details", "Insurance"]
-    },
-    {
-      id: 5,
-      name: "StartupXYZ",
-      contactName: "Alex Chen",
-      email: "alex@startupxyz.com",
-      phone: "+1 (555) 567-8901",
-      address: "654 Innovation Way, Seattle, WA 98101",
-      status: "draft",
-      onboardingType: "Vendor Onboarding",
-      joinedDate: "2024-05-20",
-      lastActivity: "2024-06-04",
-      totalRequests: 1,
-      completedRequests: 0,
-      businessType: "Startup",
-      documents: ["Business License"]
-    }
-  ]
+  // Check for schema error
+  const hasSchemaError = userProfile?.contact_name === 'Schema Error - Please Fix Database'
 
+  // Fetch vendors data
+  const { data: vendors, isLoading, error, refetch } = useQuery({
+    queryKey: ['vendors', user?.id],
+    queryFn: () => vendorsService.getVendorsWithStats(user!),
+    enabled: !!user && !hasSchemaError,
+    retry: 2,
+  })
+
+  // Fetch vendor stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['vendor-stats', user?.id],
+    queryFn: () => vendorsService.getVendorStats(user!),
+    enabled: !!user && !hasSchemaError,
+    retry: 2,
+  })
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
@@ -145,23 +84,63 @@ export default function VendorsPage() {
       </Badge>
     )
   }
-
-  const filteredVendors = vendors.filter(vendor =>
+  const filteredVendors = vendors?.filter(vendor =>
     (statusFilter === 'all' || vendor.status === statusFilter) &&
-    (vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     vendor.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (vendorsService.getVendorDisplayName(vendor).toLowerCase().includes(searchQuery.toLowerCase()) ||
+     vendorsService.getContactDisplayName(vendor).toLowerCase().includes(searchQuery.toLowerCase()) ||
      vendor.email.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  const stats = {
-    total: vendors.length,
-    active: vendors.filter(v => v.status === 'active').length,
-    pending: vendors.filter(v => v.status === 'pending').length,
-    inactive: vendors.filter(v => v.status === 'inactive').length,
-  }
+  ) || []
 
   return (
     <div className="flex-1 space-y-6 p-6">
+      {/* Schema Error Banner */}
+      {hasSchemaError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-red-100 p-2 rounded-full">
+                <Building2 className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-800">Database Schema Error</h3>
+                <p className="text-sm text-red-700 mt-1">
+                  The users table has the wrong schema. Please visit the{' '}
+                  <a href="/debug" className="underline font-medium">debug page</a>{' '}
+                  and use the "Fix Schema" button for instructions.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error State */}
+      {error && !hasSchemaError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-red-100 p-2 rounded-full">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-800">Error Loading Vendors</h3>
+                <p className="text-sm text-red-700 mt-1">
+                  There was an error loading your vendors data. Please try refreshing the page.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => refetch()}
+                  className="mt-2"
+                >
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -171,11 +150,11 @@ export default function VendorsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" disabled={hasSchemaError || isLoading}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button>
+          <Button disabled={hasSchemaError || isLoading}>
             <Plus className="mr-2 h-4 w-4" />
             Add Vendor
           </Button>
@@ -190,7 +169,13 @@ export default function VendorsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded w-12 animate-pulse"></div>
+              ) : (
+                stats?.total || 0
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -199,7 +184,13 @@ export default function VendorsPage() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.active}</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded w-12 animate-pulse"></div>
+              ) : (
+                stats?.active || 0
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -208,7 +199,13 @@ export default function VendorsPage() {
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded w-12 animate-pulse"></div>
+              ) : (
+                stats?.pending || 0
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -217,7 +214,13 @@ export default function VendorsPage() {
             <div className="h-4 w-4 rounded-full bg-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.inactive}</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded w-12 animate-pulse"></div>
+              ) : (
+                stats?.inactive || 0
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -231,12 +234,14 @@ export default function VendorsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
+            disabled={hasSchemaError || isLoading}
           />
         </div>
         <select 
           value={statusFilter} 
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+          disabled={hasSchemaError || isLoading}
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
@@ -244,129 +249,163 @@ export default function VendorsPage() {
           <option value="inactive">Inactive</option>
           <option value="draft">Draft</option>
         </select>
-        <Button variant="outline">
+        <Button variant="outline" disabled={hasSchemaError || isLoading}>
           <Filter className="mr-2 h-4 w-4" />
           More Filters
         </Button>
       </div>
 
-      {/* Vendors Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredVendors.map((vendor) => (
-          <Card key={vendor.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-lg">{vendor.name}</CardTitle>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                   </div>
-                  <CardDescription className="text-sm">
-                    {vendor.businessType}
-                  </CardDescription>
+                  <div className="h-6 bg-gray-200 rounded w-6"></div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Send Email
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <div className="flex items-center gap-2">
-                {getStatusIcon(vendor.status)}
-                {getStatusBadge(vendor.status)}
-                <span className="text-xs text-muted-foreground">
-                  Since {new Date(vendor.joinedDate).toLocaleDateString()}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-4">
-              {/* Contact Info */}
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>{vendor.contactName}</span>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-4 w-4" />
-                  <span className="truncate">{vendor.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone className="h-4 w-4" />
-                  <span>{vendor.phone}</span>
-                </div>
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span className="text-xs">{vendor.address}</span>
-                </div>
-              </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-              {/* Onboarding Progress */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Onboarding Progress</span>
-                  <span className="font-medium">
-                    {vendor.completedRequests}/{vendor.totalRequests}
+      {/* Vendors Grid */}
+      {!isLoading && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredVendors.map((vendor) => (
+            <Card key={vendor.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-muted-foreground" />
+                      <CardTitle className="text-lg">{vendorsService.getVendorDisplayName(vendor)}</CardTitle>
+                    </div>
+                    <CardDescription className="text-sm">
+                      {vendor.business_type || 'Unknown Type'}
+                    </CardDescription>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Send Email
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <div className="flex items-center gap-2">
+                  {getStatusIcon(vendor.status)}
+                  {getStatusBadge(vendor.status)}
+                  <span className="text-xs text-muted-foreground">
+                    Since {vendorsService.formatJoinedDate(vendor)}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full" 
-                    style={{ 
-                      width: `${vendor.totalRequests > 0 ? (vendor.completedRequests / vendor.totalRequests) * 100 : 0}%` 
-                    }}
-                  ></div>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                {/* Contact Info */}
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>{vendorsService.getContactDisplayName(vendor)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    <span className="truncate">{vendor.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    <span>{vendorsService.formatPhone(vendor)}</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-muted-foreground">
+                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs">{vendorsService.formatAddress(vendor)}</span>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Type: {vendor.onboardingType}
-                </div>
-              </div>
 
-              {/* Documents */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Documents:</p>
-                <div className="flex flex-wrap gap-1">
-                  {vendor.documents.slice(0, 2).map((doc, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {doc}
-                    </Badge>
-                  ))}
-                  {vendor.documents.length > 2 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{vendor.documents.length - 2} more
-                    </Badge>
-                  )}
+                {/* Onboarding Progress */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Onboarding Progress</span>
+                    <span className="font-medium">
+                      {vendor.completed_requests}/{vendor.total_requests}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full" 
+                      style={{ 
+                        width: `${vendor.completion_rate}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Type: {vendor.onboarding_type || 'Not specified'}
+                  </div>
                 </div>
-              </div>
 
-              {/* Last Activity */}
-              <div className="pt-2 border-t">
-                <div className="text-xs text-muted-foreground">
-                  Last activity: {new Date(vendor.lastActivity).toLocaleDateString()}
+                {/* Documents */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Documents:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {vendor.documents.length > 0 ? (
+                      <>
+                        {vendor.documents.slice(0, 2).map((doc, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {doc}
+                          </Badge>
+                        ))}
+                        {vendor.documents.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{vendor.documents.length - 2} more
+                          </Badge>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No documents</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+
+                {/* Last Activity */}
+                <div className="pt-2 border-t">
+                  <div className="text-xs text-muted-foreground">
+                    Last activity: {vendorsService.formatLastActivity(vendor)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Empty State */}
-      {filteredVendors.length === 0 && (
+      {!isLoading && filteredVendors.length === 0 && !hasSchemaError && (
         <div className="text-center py-12">
           <Building2 className="mx-auto h-12 w-12 text-muted-foreground" />
           <h3 className="mt-4 text-lg font-semibold">No vendors found</h3>

@@ -1,6 +1,12 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { User, AuthError } from '@supabase/supabase-js'
 import { Database } from '@/lib/database.types'
@@ -25,48 +31,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
-  const fetchUserProfile = useCallback(async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user profile:', error)
-        return
-      }
-
-      if (data) {
-        setUserProfile(data)
-      } else {
-        // Create new user profile if it doesn't exist
-        const { data: newProfile, error: createError } = await supabase
+  const fetchUserProfile = useCallback(
+    async (userId: string) => {
+      try {
+        const { data, error } = await supabase
           .from('users')
-          .insert([
-            {
-              id: userId,
-              email: user?.email || '',
-              role: 'external',
-            },
-          ])
-          .select()
+          .select('*')
+          .eq('id', userId)
           .single()
 
-        if (createError) {
-          console.error('Error creating user profile:', createError)
-        } else {
-          setUserProfile(newProfile)
+        if (error) {
+          if (error.message.includes('invalid input syntax for type bigint')) {
+            console.error('🚨 DATABASE SCHEMA ERROR:', error)
+            setUserProfile({
+              id: userId,
+              email: user?.email || '',
+              contact_name: 'Schema Error - Please Fix Database',
+              role: 'external',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as any)
+            return
+          }
+
+          if (error.code !== 'PGRST116') {
+            console.error('Error fetching user profile:', error)
+            return
+          }
         }
+
+        if (data) {
+          setUserProfile(data)
+        } else {
+          const { data: newProfile, error: createError } = await supabase
+            .from('users')
+            .insert([
+              {
+                id: userId,
+                email: user?.email || '',
+                role: 'external',
+              },
+            ])
+            .select()
+            .single()
+
+          if (createError) {
+            console.error('Error creating user profile:', createError)
+          } else {
+            setUserProfile(newProfile)
+          }
+        }
+      } catch (err) {
+        console.error('Error in fetchUserProfile:', err)
       }
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error)
-    }
-  }, [supabase, user?.email])
+    },
+    [supabase, user?.email]
+  )
 
   useEffect(() => {
-    // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
@@ -78,21 +100,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getSession()
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session?.user) {
-          setUser(session.user)
-          await fetchUserProfile(session.user.id)
-        } else {
+        console.log('Auth state change:', event, session?.user?.email)
+
+        if (event === 'SIGNED_OUT') {
           setUser(null)
           setUserProfile(null)
+        } else if (session?.user) {
+          setUser(session.user)
+          await fetchUserProfile(session.user.id)
         }
+
         setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()  }, [fetchUserProfile, supabase.auth])
+    return () => subscription.unsubscribe()
+  }, [fetchUserProfile, supabase.auth])
+
   const signIn = async (email: string, password: string) => {
     console.log('Attempting sign in for:', email)
     try {
@@ -113,17 +139,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
+    const { error } = await supabase.auth.signUp({ email, password })
     return { error }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setUserProfile(null)
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error('Error during sign out:', error.message)
+      throw error
+    }
+    // `onAuthStateChange` will handle state reset
   }
 
   const updateProfile = async (profile: Partial<UserProfile>) => {
