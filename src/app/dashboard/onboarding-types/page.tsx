@@ -18,9 +18,12 @@ import {
   Search,
   Filter,
   AlertCircle,
-  Building2
+  Building2,
+  Send,
+  Link
 } from 'lucide-react'
 import { CreateOnboardingTypeDialog } from '@/components/dashboard/CreateOnboardingTypeDialog'
+import { SendOnboardingRequestDialog } from '@/components/dashboard/SendOnboardingRequestDialog'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
@@ -28,10 +31,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { generateToken } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export default function OnboardingTypesPage() {
   const { userProfile, user } = useAuth()
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showSendDialog, setShowSendDialog] = useState(false)
+  const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   // Check for schema error
@@ -44,12 +51,30 @@ export default function OnboardingTypesPage() {
     enabled: !!user && !hasSchemaError,
     retry: 2,
   })
-
   // Filter types based on search
   const filteredTypes = onboardingTypes?.filter(type =>
     type.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (type.description && type.description.toLowerCase().includes(searchQuery.toLowerCase()))
   ) || []
+
+  // Copy onboarding link function
+  const copyOnboardingLink = async (typeId: string) => {
+    try {
+      const token = generateToken()
+      const link = `${window.location.origin}/onboard/${token}?type=${typeId}`
+      await navigator.clipboard.writeText(link)
+      toast.success('Onboarding link copied to clipboard!')
+    } catch (error) {
+      console.error('Failed to copy link:', error)
+      toast.error('Failed to copy link')
+    }
+  }
+
+  // Handle send request
+  const handleSendRequest = (typeId: string) => {
+    setSelectedTypeId(typeId)
+    setShowSendDialog(true)
+  }
 
   // Calculate stats
   const stats = {
@@ -325,9 +350,7 @@ export default function OnboardingTypesPage() {
                         }}
                       ></div>
                     </div>
-                  </div>
-
-                  {/* Required Documents */}
+                  </div>                  {/* Required Documents */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Required Documents:</p>
                     <div className="flex flex-wrap gap-1">
@@ -350,6 +373,27 @@ export default function OnboardingTypesPage() {
                         </Badge>
                       )}
                     </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyOnboardingLink(type.id)}
+                      className="flex-1"
+                    >
+                      <Link className="mr-2 h-4 w-4" />
+                      Copy Link
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSendRequest(type.id)}
+                      className="flex-1"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Request
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -385,15 +429,25 @@ export default function OnboardingTypesPage() {
             </div>
           )}
         </>
-      )}
-
-      {/* Create Dialog */}
+      )}      {/* Create Dialog */}
       <CreateOnboardingTypeDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSuccess={() => {
           setShowCreateDialog(false)
           refetch() // Refresh the data after creating a new type
+        }}
+      />
+
+      {/* Send Request Dialog */}
+      <SendOnboardingRequestDialog
+        open={showSendDialog}
+        onOpenChange={setShowSendDialog}
+        onboardingTypeId={selectedTypeId}
+        onSuccess={() => {
+          setShowSendDialog(false)
+          setSelectedTypeId(null)
+          refetch() // Refresh the data after sending a request
         }}
       />
     </div>
