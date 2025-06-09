@@ -221,9 +221,8 @@ export default function HelpPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Send us a Message</CardTitle>
-                <CardDescription>
-                  Describe your issue and we'll get back to you soon
+                <CardTitle>Send us a Message</CardTitle>                <CardDescription>
+                  Describe your issue and we&apos;ll get back to you soon
                 </CardDescription>
               </CardHeader>
               <CardContent>

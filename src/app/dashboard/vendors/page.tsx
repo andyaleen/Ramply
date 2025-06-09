@@ -106,7 +106,7 @@ export default function VendorsPage() {
                 <p className="text-sm text-red-700 mt-1">
                   The users table has the wrong schema. Please visit the{' '}
                   <a href="/debug" className="underline font-medium">debug page</a>{' '}
-                  and use the "Fix Schema" button for instructions.
+                  and use the &quot;Fix Schema&quot; button for instructions.
                 </p>
               </div>
             </div>

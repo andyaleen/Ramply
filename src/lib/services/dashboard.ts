@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
+import { RequiredField, RequiredDocument } from './requests'
 
 interface OnboardingRequest {
   id: string
@@ -15,8 +16,8 @@ interface OnboardingTypeFromDB {
   created_at: string
   updated_at: string
   user_id: string
-  required_fields: any[]
-  required_documents: any[]
+  required_fields: RequiredField[]
+  required_documents: RequiredDocument[]
   onboarding_requests: OnboardingRequest[]
 }
 
@@ -34,8 +35,8 @@ export interface OnboardingTypeWithStats {
   created_at: string
   updated_at: string
   user_id: string
-  required_fields: any[]
-  required_documents: any[]
+  required_fields: RequiredField[]
+  required_documents: RequiredDocument[]
   totalRequests: number
   completedRequests: number
   pendingRequests: number
@@ -180,9 +181,7 @@ export class DashboardService {
 
       const activities: RecentActivity[] = []      // Add request activities
       requests?.forEach(request => {
-        const typeName = Array.isArray(request.onboarding_types) 
-          ? (request.onboarding_types[0] as any)?.name || 'Unknown Type'
-          : (request.onboarding_types as any)?.name || 'Unknown Type'
+        const typeName = this.getOnboardingTypeName(request.onboarding_types)
         
         if (request.status === 'completed' && request.completed_at) {
           activities.push({
@@ -278,6 +277,12 @@ export class DashboardService {
     
     // Fallback for date strings
     return new Date(timeString)
+  }
+  private getOnboardingTypeName(onboardingTypes: { name: string } | { name: string }[] | null | undefined): string {
+    if (Array.isArray(onboardingTypes)) {
+      return onboardingTypes[0]?.name || 'Unknown Type'
+    }
+    return onboardingTypes?.name || 'Unknown Type'
   }
 }
 

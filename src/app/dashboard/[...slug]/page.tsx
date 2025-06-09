@@ -13,8 +13,20 @@ import {
 } from 'lucide-react'
 import { dashboardRoutes, getRouteConfig, getAllCategories } from '@/lib/dashboard-config'
 
+interface RouteConfig {
+  title: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+  component: string
+  category?: string
+  badge?: string
+  permissions?: string[]
+  isNew?: boolean
+  isComingSoon?: boolean
+}
+
 // Generic page components for dynamic routes
-const GenericPageComponent = ({ route, routeConfig }: { route: string, routeConfig: any }) => {
+const GenericPageComponent = ({ route, routeConfig }: { route: string, routeConfig: RouteConfig }) => {
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -137,10 +149,9 @@ export default function DynamicDashboardPage() {
           <div className="text-center">
             <div className="p-4 bg-muted rounded-lg inline-block mb-4">
               <FileSearch className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <h1 className="text-3xl font-bold mb-2">Page Not Found</h1>
+            </div>            <h1 className="text-3xl font-bold mb-2">Page Not Found</h1>
             <p className="text-muted-foreground mb-6">
-              The dashboard section "/{route}" doesn't exist or hasn't been configured yet.
+              The dashboard section &quot;/{route}&quot; doesn&apos;t exist or hasn&apos;t been configured yet.
             </p>
             <div className="flex gap-4 justify-center">
               <Button onClick={() => router.back()} variant="outline">
@@ -166,9 +177,8 @@ export default function DynamicDashboardPage() {
                 {getAllCategories().map((category) => (
                   <div key={category} className="space-y-3">
                     <h3 className="text-lg font-semibold capitalize">{category}</h3>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {Object.entries(dashboardRoutes)
-                        .filter(([_, config]) => config.category === category)
+                    <div className="grid gap-3 md:grid-cols-2">                      {Object.entries(dashboardRoutes)
+                        .filter(([, config]) => config.category === category)
                         .map(([key, config]) => (
                           <Button
                             key={key}

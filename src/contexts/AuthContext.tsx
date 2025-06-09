@@ -33,25 +33,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = useCallback(
     async (userId: string) => {
-      try {
+      try {        
         const { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', userId)
-          .single()
+          .single();
 
-        if (error) {
+        if (error) {          
           if (error.message.includes('invalid input syntax for type bigint')) {
-            console.error('🚨 DATABASE SCHEMA ERROR:', error)
-            setUserProfile({
+            console.error('DATABASE SCHEMA ERROR:', error);            setUserProfile({
               id: userId,
               email: user?.email || '',
               contact_name: 'Schema Error - Please Fix Database',
               role: 'external',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
-            } as any)
-            return
+            } as UserProfile);
+            return;
           }
 
           if (error.code !== 'PGRST116') {

@@ -1,16 +1,14 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { UserSettings, settingsService } from '@/lib/services/settings'
+import { settingsService } from '@/lib/services/settings'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
@@ -20,7 +18,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
+  FormMessage
 } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -29,7 +27,6 @@ import {
   User, 
   Building2, 
   Mail, 
-  Phone, 
   MapPin, 
   Calendar,
   Shield,
@@ -53,9 +50,8 @@ export default function ProfilePage() {
   const { user, userProfile } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const queryClient = useQueryClient()
-
   // Fetch user settings for additional profile data
-  const { data: settings, isLoading } = useQuery({
+  const { isLoading } = useQuery({
     queryKey: ['user-settings', user?.id],
     queryFn: () => user ? settingsService.getUserSettings(user) : null,
     enabled: !!user,
@@ -83,13 +79,13 @@ export default function ProfilePage() {
       postal_code: userProfile?.postal_code || null,
       country: userProfile?.country || null,
     }
-  })
+  })  
   const profileMutation = useMutation({
-    mutationFn: (values: ProfileFormValues) => {
+    mutationFn: async (values: ProfileFormValues) => {
       if (!user) throw new Error('No user found')
       // Update user profile directly instead of using settings service
       const supabase = createClient()
-      return supabase
+      const { data, error } = await supabase
         .from('users')
         .update({
           ...values,
@@ -98,6 +94,9 @@ export default function ProfilePage() {
         .eq('id', user.id)
         .select()
         .single()
+      
+      if (error) throw error
+      return data
     },
     onSuccess: () => {
       toast.success('Profile updated successfully')

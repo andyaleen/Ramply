@@ -52,11 +52,14 @@ class SettingsService {
       return null
     }
   }
-
   async updateUserSettings(user: User, settings: Partial<UserSettings>): Promise<UserSettings | null> {
     try {
-      // Remove id and email from update payload
-      const { id, email, created_at, ...updatePayload } = settings as any
+      // Remove id, email, and created_at from update payload
+      const updatePayload = Object.fromEntries(
+        Object.entries(settings).filter(([key]) => 
+          !['id', 'email', 'created_at'].includes(key)
+        )
+      )
       
       const { data, error } = await this.supabase
         .from('users')

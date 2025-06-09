@@ -1,6 +1,47 @@
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
+export interface VendorUser {
+  id: string
+  email: string
+  company_name: string | null
+  contact_name: string | null
+  contact_email: string | null
+  business_type: string | null
+  address_line1: string | null
+  address_line2: string | null
+  city: string | null
+  state: string | null
+  postal_code: string | null
+  country: string | null
+  created_at: string
+  updated_at: string | null
+}
+
+export interface RequestDocument {
+  id: string
+  file_name: string
+  document_type: string
+}
+
+export interface OnboardingRequestWithRelations {
+  id: string
+  status: string
+  recipient_email: string
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+  completed_by: string | null
+  onboarding_types: {
+    id: string
+    name: string
+  } | {
+    id: string
+    name: string
+  }[]
+  documents: RequestDocument[]
+}
+
 export interface VendorWithStats {
   id: string
   name: string
@@ -56,15 +97,13 @@ class VendorsService {
         .eq('requester_user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (requestsError) throw requestsError
-
-      // Get user details for completed vendors
+      if (requestsError) throw requestsError      // Get user details for completed vendors
       const completedUserIds = requests
         ?.filter(req => req.completed_by)
         .map(req => req.completed_by)
         .filter(Boolean) || []
 
-      let vendorUsers: any[] = []
+      let vendorUsers: VendorUser[] = []
       if (completedUserIds.length > 0) {
         const { data: users, error: usersError } = await this.supabase
           .from('users')
@@ -91,9 +130,7 @@ class VendorsService {
       }
 
       // Create a map of user data by user ID
-      const userMap = new Map(vendorUsers.map(user => [user.id, user]))
-
-      // Group requests by recipient email to create vendor entries
+      const userMap = new Map(vendorUsers.map(user => [user.id, user]))      // Group requests by recipient email to create vendor entries
       const vendorMap = new Map<string, VendorWithStats>()
 
       requests?.forEach(request => {
@@ -103,17 +140,17 @@ class VendorsService {
         // Get user data if the request was completed
         const userData = request.completed_by ? userMap.get(request.completed_by) : null
 
-        if (!vendorMap.has(email)) {          // Create new vendor entry
-          const onboardingTypeName = (request as any).onboarding_types?.name || 'Unknown Type'
+        if (!vendorMap.has(email)) {
+          // Create new vendor entry
+          const onboardingTypeName = this.getOnboardingTypeName(request.onboarding_types)
           
           const vendor: VendorWithStats = {
             id: userData?.id || request.id,
             name: userData?.company_name || email.split('@')[0],
             contact_name: userData?.contact_name || 'Unknown Contact',
-            email: email,
-            phone: undefined, // Not available in current schema
+            email: email,            phone: userData?.contact_email || undefined,
             address: userData ? this.formatUserAddress(userData) : undefined,
-            business_type: userData?.business_type,
+            business_type: userData?.business_type || undefined,
             created_at: request.created_at,
             last_activity: request.updated_at,
             status: this.mapRequestStatusToVendorStatus(request.status),
@@ -141,11 +178,9 @@ class VendorsService {
         if (new Date(request.updated_at) > new Date(vendor.last_activity || '')) {
           vendor.last_activity = request.updated_at
           vendor.status = this.mapRequestStatusToVendorStatus(request.status)
-        }
-
-        // Collect documents
+        }        // Collect documents
         if (request.documents) {
-          request.documents.forEach((doc: any) => {
+          request.documents.forEach((doc: RequestDocument) => {
             if (doc.file_name && !vendor.documents.includes(doc.file_name)) {
               vendor.documents.push(doc.file_name)
             }
@@ -200,6 +235,13 @@ class VendorsService {
     }
   }
 
+  private getOnboardingTypeName(onboardingTypes: { id: string; name: string } | { id: string; name: string }[]): string {
+    if (Array.isArray(onboardingTypes)) {
+      return onboardingTypes[0]?.name || 'Unknown Type'
+    }
+    return onboardingTypes?.name || 'Unknown Type'
+  }
+
   // Helper functions for display
   getVendorDisplayName(vendor: VendorWithStats): string {
     return vendor.name || vendor.contact_name || 'Unknown Vendor'
@@ -211,8 +253,7 @@ class VendorsService {
   formatAddress(vendor: VendorWithStats): string {
     return vendor.address || 'No address provided'
   }
-
-  private formatUserAddress(user: any): string {
+  private formatUserAddress(user: VendorUser): string {
     const parts = [
       user.address_line1,
       user.address_line2,

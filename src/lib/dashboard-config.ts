@@ -11,7 +11,6 @@ import {
   Plus,
   Search,
   Shield,
-  Database,
   Workflow,
   Calendar,
   MessageSquare,
@@ -20,8 +19,6 @@ import {
   Upload,
   Globe,
   Lock,
-  CheckCircle,
-  AlertTriangle,
   TrendingUp,
   PieChart
 } from 'lucide-react'
@@ -29,7 +26,7 @@ import {
 export interface DashboardRoute {
   title: string
   description: string
-  icon: React.ComponentType<any>
+  icon: React.ComponentType<{ className?: string }>
   component: string
   category?: string
   badge?: string
@@ -46,7 +43,7 @@ export interface NavigationGroup {
 export interface NavigationItem {
   title: string
   url: string
-  icon: React.ComponentType<any>
+  icon: React.ComponentType<{ className?: string }>
   badge?: string
   isNew?: boolean
 }
@@ -353,7 +350,7 @@ export const getRouteConfig = (route: string): DashboardRoute | undefined => {
 
 export const getRoutesByCategory = (category: string): Record<string, DashboardRoute> => {
   return Object.fromEntries(
-    Object.entries(dashboardRoutes).filter(([_, config]) => config.category === category)
+    Object.entries(dashboardRoutes).filter(([, config]) => config.category === category)
   )
 }
 
@@ -364,12 +361,12 @@ export const getAllCategories = (): string[] => {
 
 export const getNewRoutes = (): Record<string, DashboardRoute> => {
   return Object.fromEntries(
-    Object.entries(dashboardRoutes).filter(([_, config]) => config.isNew)
+    Object.entries(dashboardRoutes).filter(([, config]) => config.isNew)
   )
 }
 
 export const getComingSoonRoutes = (): Record<string, DashboardRoute> => {
   return Object.fromEntries(
-    Object.entries(dashboardRoutes).filter(([_, config]) => config.isComingSoon)
+    Object.entries(dashboardRoutes).filter(([, config]) => config.isComingSoon)
   )
 }

@@ -8,12 +8,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Area, AreaChart 
 } from 'recharts'
 import { 
-  TrendingUp, Users, FileText, Clock, CheckCircle, 
-  AlertCircle, Calendar, BarChart3, Target, Award 
+  Users, FileText, 
+  AlertCircle, BarChart3, Target, Award 
 } from 'lucide-react'
 
 const CHART_COLORS = {
@@ -24,9 +24,7 @@ const CHART_COLORS = {
   accent: '#8b5cf6'
 }
 
-interface AnalyticsPageProps {}
-
-export default function AnalyticsPage({}: AnalyticsPageProps) {
+export default function AnalyticsPage() {
   const { user } = useAuth()
 
   // Check for potential schema errors

@@ -94,11 +94,10 @@ export default function OnboardingTypesPage() {
                 <Building2 className="h-5 w-5 text-red-600" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-red-800">Database Schema Error</h3>
-                <p className="text-sm text-red-700 mt-1">
+                <h3 className="font-semibold text-red-800">Database Schema Error</h3>                <p className="text-sm text-red-700 mt-1">
                   The users table has the wrong schema. Please visit the{' '}
                   <a href="/debug" className="underline font-medium">debug page</a>{' '}
-                  and use the "Fix Schema" button for instructions.
+                  and use the &quot;Fix Schema&quot; button for instructions.
                 </p>
               </div>
             </div>

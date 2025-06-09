@@ -1,6 +1,5 @@
 'use client'
 
-import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,16 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { 
   Bell, 
-  Mail, 
   Check, 
-  X, 
   Clock, 
   Users, 
   FileText, 
   Settings,
-  Trash2,
-  MarkAsUnread,
-  Archive
+  Trash2
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -81,7 +76,8 @@ const notificationSettings = {
 }
 
 export default function NotificationsPage() {
-  const { user } = useAuth()
+  // Remove unused user variable
+  // const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('all')
   const [settings, setSettings] = useState(notificationSettings)
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([])
@@ -344,29 +340,38 @@ export default function NotificationsPage() {
 }
 
 // Component for rendering the notifications list
-function NotificationsList({ 
-  notifications, 
-  selectedNotifications, 
+interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  timestamp: Date
+  read: boolean
+  category: string
+}
+
+function NotificationsList({
+  notifications,
+  selectedNotifications,
   onToggleSelection,
   getNotificationIcon,
   getBadgeVariant,
   formatTimeAgo
 }: {
-  notifications: any[]
+  notifications: Notification[]
   selectedNotifications: string[]
   onToggleSelection: (id: string) => void
   getNotificationIcon: (type: string) => React.ReactNode
-  getBadgeVariant: (type: string) => any
+  getBadgeVariant: (type: string) => "default" | "secondary" | "destructive" | "outline"
   formatTimeAgo: (timestamp: Date) => string
 }) {
   if (notifications.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
-          <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">No notifications</h3>
+          <Bell className="h-12 w-12 text-muted-foreground mb-4" />          <h3 className="text-lg font-medium mb-2">No notifications</h3>
           <p className="text-muted-foreground text-center max-w-sm">
-            You're all caught up! New notifications will appear here.
+            You&apos;re all caught up! New notifications will appear here.
           </p>
         </CardContent>
       </Card>

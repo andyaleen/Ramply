@@ -1,6 +1,20 @@
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 
+export interface RequiredField {
+  name: string
+  type: string
+  required: boolean
+  label: string
+}
+
+export interface RequiredDocument {
+  type: string
+  name: string
+  required: boolean
+  description?: string
+}
+
 export interface OnboardingRequestDetailed {
   id: string
   onboarding_type_id: string
@@ -17,8 +31,8 @@ export interface OnboardingRequestDetailed {
     id: string
     name: string
     description: string | null
-    required_fields: any[]
-    required_documents: any[]
+    required_fields: RequiredField[]
+    required_documents: RequiredDocument[]
   } | null
   completed_by_user: {
     id: string
