@@ -353,10 +353,10 @@ export default function OnboardingTypesPage() {
                   </div>                  {/* Required Documents */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Required Documents:</p>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1">                      
                       {type.required_documents && Array.isArray(type.required_documents) ? (
                         <>
-                          {type.required_documents.slice(0, 2).map((doc: any, index: number) => (
+                          {type.required_documents.slice(0, 2).map((doc: string | { name: string }, index: number) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {typeof doc === 'string' ? doc : doc.name || 'Document'}
                             </Badge>
