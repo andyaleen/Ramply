@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
+import { LoadingFallback } from '@/components/LoadingFallback'
 import { createClient } from '@/lib/supabase/client'
 
 // ✅ Create supabase client outside the component
@@ -36,14 +37,15 @@ export default function LoginPage() {
       }
     }
   }, [user, userProfile, loading, checkingSession, router])
-
   // ✅ Don't render form until checks complete
   if (loading || checkingSession) {
     return (
       <Layout showAuth={false}>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingFallback 
+          title="Checking Authentication"
+          description="Please wait while we verify your session..."
+          onRefresh={() => window.location.reload()}
+        />
       </Layout>
     )
   }

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { AdminDashboard } from '@/components/dashboard/AdminDashboard'
 import { ProfileSetup } from '@/components/profile/ProfileSetup'
 import { Layout } from '@/components/layout'
+import { LoadingFallback } from '@/components/LoadingFallback'
 
 export default function AdminPage() {
   const { user, userProfile, loading, isAdmin } = useAuth()
@@ -30,14 +31,15 @@ export default function AdminPage() {
       }
     }
   }, [user, loading, router, isAdmin, userProfile])
-
   // Show loading spinner while loading auth state
   if (loading) {
     return (
       <Layout showAuth={false}>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingFallback 
+          title="Loading Admin Dashboard"
+          description="Verifying your admin permissions..."
+          onRefresh={() => window.location.reload()}
+        />
       </Layout>
     )
   }
