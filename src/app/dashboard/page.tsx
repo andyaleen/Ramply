@@ -4,7 +4,6 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Dashboard } from '@/components/dashboard/Dashboard'
-import { AdminDashboard } from '@/components/dashboard/AdminDashboard'
 import { Layout } from '@/components/layout'
 
 export default function DashboardPage() {

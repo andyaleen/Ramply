@@ -16,8 +16,7 @@ export default function AdminPage() {
     () => userProfile && (!userProfile.company_name || !userProfile.contact_name),
     [userProfile]
   )
-  
-  useEffect(() => {
+    useEffect(() => {
     // Only log when there are actual state changes
     if (!loading) {
       if (!user) {
@@ -30,7 +29,7 @@ export default function AdminPage() {
         console.log('✅ AdminPage: Admin access confirmed. Role:', userProfile?.role)
       }
     }
-  }, [user, loading, router, isAdmin, userProfile?.role])
+  }, [user, loading, router, isAdmin, userProfile])
 
   // Show loading spinner while loading auth state
   if (loading) {
@@ -60,9 +59,8 @@ export default function AdminPage() {
       <Layout showAuth={false}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="max-w-md mx-auto text-center">
-            <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>
-            <p className="text-gray-700 mb-6">
-              You don't have administrator privileges to access this page.
+            <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>            <p className="text-gray-700 mb-6">
+              You don&apos;t have administrator privileges to access this page.
             </p>
             <button
               onClick={() => router.push('/dashboard')}

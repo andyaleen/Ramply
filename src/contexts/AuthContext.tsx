@@ -267,15 +267,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => reject(new Error('Sign out timeout after 5 seconds')), 5000)
       )
       
-      const { error } = await Promise.race([signOutPromise, timeoutPromise]) as any
+      const { error } = await Promise.race([signOutPromise, timeoutPromise]) as { error?: Error }
       
       if (error) {
         console.error('Supabase sign out error:', error.message)
       } else {
         console.log('Supabase sign out successful')
-      }
-    } catch (error: any) {
-      console.warn('Supabase sign out failed or timed out (this is OK, local state already cleared):', error.message)
+      }    } catch (error: unknown) {
+      console.warn('Supabase sign out failed or timed out (this is OK, local state already cleared):', error instanceof Error ? error.message : 'Unknown error')
     }
     
     console.log('Sign out process complete')
