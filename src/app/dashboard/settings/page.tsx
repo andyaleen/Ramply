@@ -153,29 +153,30 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
           </TabsList>
-          <TabsContent value="profile">
-            <Card>            <CardHeader>
-              <CardTitle><div><Skeleton className="h-8 w-40" /></div></CardTitle>
-              <CardDescription><div><Skeleton className="h-4 w-72" /></div></CardDescription>
-            </CardHeader>
+          <TabsContent value="profile">            
+            <Card>            
+              <CardHeader>
+              <CardTitle><Skeleton className="h-8 w-40" /></CardTitle>
+              <CardDescription><Skeleton className="h-4 w-72" /></CardDescription>
+            </CardHeader>            
             <CardContent>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <div><Skeleton className="h-4 w-24" /></div>
-                  <div><Skeleton className="h-10 w-full" /></div>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
                 </div>
                 <div className="space-y-2">
-                  <div><Skeleton className="h-4 w-24" /></div>
-                  <div><Skeleton className="h-10 w-full" /></div>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
                 </div>
                 <div className="space-y-2">
-                  <div><Skeleton className="h-4 w-24" /></div>
-                  <div><Skeleton className="h-10 w-full" /></div>
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
                 </div>
               </div>
             </CardContent>
             <CardFooter>
-              <div><Skeleton className="h-10 w-24" /></div>
+              <Skeleton className="h-10 w-24" />
               </CardFooter>
             </Card>
           </TabsContent>

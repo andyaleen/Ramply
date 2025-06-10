@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Copy, Users, Calendar, MoreHorizontal } from 'lucide-react'
-import { formatDate, generateToken } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { SendOnboardingRequestDialog } from './SendOnboardingRequestDialog'
+import { toast } from 'sonner'
 
 export function OnboardingTypesList() {
   const { user } = useAuth()
@@ -36,22 +37,21 @@ export function OnboardingTypesList() {
     },
     enabled: !!user,
   })
-
   const handleSendRequest = (typeId: string) => {
     setSelectedTypeId(typeId)
     setShowSendDialog(true)
   }
+  
   const copyOnboardingLink = async (typeId: string) => {
-    // Generate a token for the onboarding request
-    const token = generateToken()
-    const link = `${window.location.origin}/onboard/${token}?type=${typeId}`
+    // Generate a secure link for onboarding
+    const link = `${window.location.origin}/onboard/new?type=${typeId}`
     
     try {
       await navigator.clipboard.writeText(link)
-      // You would typically show a toast notification here
-      console.log('Link copied to clipboard')
+      toast.success('Onboarding link copied to clipboard!')
     } catch (error) {
       console.error('Failed to copy link:', error)
+      toast.error('Failed to copy link. Please try again.')
     }
   }
 

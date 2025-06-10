@@ -218,7 +218,7 @@ export const dashboardRoutes: Record<string, DashboardRoute> = {
 // Dynamic navigation configuration
 export const navigationConfig: NavigationGroup[] = [
   {
-    title: "Overview",
+    title: "Main",
     items: [
       {
         title: "Dashboard",
@@ -226,118 +226,24 @@ export const navigationConfig: NavigationGroup[] = [
         icon: Home,
       },
       {
-        title: "Analytics",
-        url: "/dashboard/analytics",
-        icon: BarChart3,
-      },
-      {
-        title: "Reports",
-        url: "/dashboard/reports",
-        icon: TrendingUp,
-        badge: "New",
-        isNew: true
-      },
-    ],
-  },
-  {
-    title: "Onboarding",
-    items: [
-      {
-        title: "Onboarding Types",
-        url: "/dashboard/onboarding-types",
-        icon: FileText,
-      },
-      {
         title: "Requests",
         url: "/dashboard/requests",
         icon: Users,
       },
-      {
-        title: "Vendors",
-        url: "/dashboard/vendors",
-        icon: Building2,
-      },
-      {
-        title: "Workflows",
-        url: "/dashboard/workflows",
-        icon: Workflow,
-        badge: "Soon"
-      },
     ],
   },
   {
-    title: "Management",
+    title: "Settings",
     items: [
       {
-        title: "Documents",
-        url: "/dashboard/documents",
-        icon: Archive,
-      },
-      {
-        title: "Communications",
-        url: "/dashboard/communications",
-        icon: MessageSquare,
-      },
-      {
-        title: "Calendar",
-        url: "/dashboard/calendar",
-        icon: Calendar,
-        badge: "Soon"
-      },
-    ],
-  },
-  {
-    title: "Governance",
-    items: [
-      {
-        title: "Compliance",
-        url: "/dashboard/compliance",
-        icon: Shield,
-      },
-      {
-        title: "Audit Trail",
-        url: "/dashboard/audit",
-        icon: Search,
-      },
-      {
-        title: "Security",
-        url: "/dashboard/security",
-        icon: Lock,
-      },
-    ],
-  },
-  {
-    title: "Tools & Settings",
-    items: [
-      {
-        title: "Data Import",
-        url: "/dashboard/data-import",
-        icon: Upload,
-      },
-      {
-        title: "Data Export",
-        url: "/dashboard/data-export",
-        icon: Download,
-      },
-      {
-        title: "Integrations",
-        url: "/dashboard/integrations",
-        icon: Plus,
-      },
-      {
-        title: "API Management",
-        url: "/dashboard/api",
-        icon: Globe,
+        title: "Profile",
+        url: "/dashboard/profile",
+        icon: User,
       },
       {
         title: "Settings",
         url: "/dashboard/settings",
         icon: Settings,
-      },
-      {
-        title: "Help & Support",
-        url: "/dashboard/help",
-        icon: HelpCircle,
       },
     ],
   },

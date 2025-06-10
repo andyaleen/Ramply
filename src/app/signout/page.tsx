@@ -11,6 +11,7 @@ import { LogOut, CheckCircle, ArrowLeft } from 'lucide-react'
 export default function SignOutPage() {
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isSignedOut, setIsSignedOut] = useState(false)
+  const [showForceSignOut, setShowForceSignOut] = useState(false)
   const { signOut, user } = useAuth()
   const router = useRouter()
 
@@ -21,19 +22,61 @@ export default function SignOutPage() {
     }
   }, [user])
 
+  useEffect(() => {
+    // Show force signout option if process takes too long
+    if (isSigningOut) {
+      const timer = setTimeout(() => {
+        setShowForceSignOut(true)
+      }, 8000) // Show after 8 seconds
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isSigningOut])
   const handleSignOut = async () => {
     setIsSigningOut(true)
+    console.log('SignOut page: Starting sign out process...')
+    
     try {
-      await signOut()
+      // Add timeout for the entire signout process
+      const signOutPromise = signOut()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign out process timeout')), 15000)
+      )
+      
+      await Promise.race([signOutPromise, timeoutPromise])
+      
+      console.log('SignOut page: Sign out successful, updating UI...')
       setIsSignedOut(true)
+      
       // Redirect after a brief delay to show confirmation
       setTimeout(() => {
+        console.log('SignOut page: Redirecting to home...')
         router.push('/')
       }, 2000)
+      
     } catch (error) {
-      console.error('Error signing out:', error)
-      setIsSigningOut(false)
+      console.error('SignOut page: Error during sign out:', error)
+      
+      // Even if there's an error, assume we're signed out and proceed
+      console.log('SignOut page: Proceeding with signout despite error...')
+      setIsSignedOut(true)
+      
+      setTimeout(() => {
+        router.push('/')
+      }, 1000)
+    } finally {      setIsSigningOut(false)
     }
+  }
+
+  const handleForceSignOut = () => {
+    console.log('Force signing out - clearing everything and redirecting...')
+    // Clear localStorage/sessionStorage
+    if (typeof window !== 'undefined') {
+      localStorage.clear()
+      sessionStorage.clear()
+    }
+    setIsSignedOut(true)
+    router.push('/')
   }
   if (isSignedOut) {
     return (
@@ -111,8 +154,7 @@ export default function SignOutPage() {
                   Yes, Sign Me Out
                 </>
               )}
-            </Button>
-            <Button
+            </Button>            <Button
               variant="outline"
               onClick={() => router.push('/dashboard')}
               disabled={isSigningOut}
@@ -121,7 +163,17 @@ export default function SignOutPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Cancel, Stay Signed In
             </Button>
-          </div>        </CardContent>
+            
+            {showForceSignOut && (
+              <Button
+                onClick={handleForceSignOut}
+                variant="destructive"
+                className="w-full mt-4 bg-orange-600 hover:bg-orange-700"
+              >
+                Force Sign Out (If Stuck)
+              </Button>
+            )}
+          </div></CardContent>
       </Card>
       </div>
     </Layout>

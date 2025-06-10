@@ -55,8 +55,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       setError('Password must be at least 6 characters')
       setLoading(false)
       return
-    }    
-    try {
+    }      try {
       const { error } = await signIn(email.trim(), password)
       if (error) {
         // Provide more helpful error messages
@@ -68,7 +67,32 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
           setError(error.message)
         }
       } else {
-        router.push('/dashboard')
+        // Wait a moment for the auth context to update with user profile
+        setTimeout(async () => {
+          // Get the latest auth state after sign in
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session?.user) {
+            // Fetch user profile to determine role
+            const { data: userProfile } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', session.user.id)
+              .single()
+            
+            // Redirect based on role
+            if (userProfile?.role === 'admin') {
+              console.log('Redirecting admin user to /admin')
+              router.push('/admin')
+            } else {
+              console.log('Redirecting regular user to /dashboard')
+              router.push('/dashboard')
+            }
+          } else {
+            // Fallback to dashboard if we can't determine role
+            router.push('/dashboard')
+          }
+        }, 500) // Small delay to ensure auth context is updated
       }
     } catch (err) {
       console.error('Sign in error:', err)
@@ -368,13 +392,27 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                 </Button>
               </form>
             </TabsContent>
-          </Tabs>        </CardContent>        <CardFooter className="text-center text-sm text-muted-foreground">
+          </Tabs>        
+          </CardContent>        
+          <CardFooter className="text-center text-sm text-muted-foreground space-y-3">
           <p className="w-full">
             By continuing, you agree to our{' '}
             <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
             {' '}and{' '}
             <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
           </p>
+          <div className="w-full pt-2 border-t">
+            <p className="text-xs">
+              Need admin access?{' '}
+              <button
+                type="button"
+                onClick={() => router.push('/admin/signup')}
+                className="text-blue-600 hover:text-blue-500 font-medium underline"
+              >
+                Register as Admin
+              </button>
+            </p>
+          </div>
         </CardFooter>
       </Card>
     </div>

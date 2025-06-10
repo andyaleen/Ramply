@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,11 +18,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { OnboardingTypeSchema, type OnboardingType, DOCUMENT_TYPES, FIELD_TYPES } from '@/lib/validations'
-import { X, Plus } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { OnboardingTypeSchema, DOCUMENT_TYPES, FIELD_TYPES, type OnboardingType } from '@/lib/validations'
+import { FileText, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface CreateOnboardingTypeDialogProps {
   open: boolean
@@ -36,14 +38,16 @@ export function CreateOnboardingTypeDialog({
   const { user } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
+  
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([])
   const [selectedFields, setSelectedFields] = useState<string[]>([])
+
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors },
-  } = useForm<OnboardingType>({
+    reset,
+  } = useForm({
     resolver: zodResolver(OnboardingTypeSchema),
     defaultValues: {
       name: '',
@@ -52,45 +56,53 @@ export function CreateOnboardingTypeDialog({
       required_documents: [],
     },
   })
-
   const createMutation = useMutation({
-    mutationFn: async (data: OnboardingType & { user_id: string }) => {
+    mutationFn: async (data: OnboardingType) => {
       const { error } = await supabase
         .from('onboarding_types')
-        .insert([{
-          ...data,
-          required_documents: selectedDocuments,
-          required_fields: selectedFields,
-        }])
+        .insert([
+          {
+            ...data,
+            user_id: user?.id,
+            required_documents: selectedDocuments,
+            required_fields: selectedFields,
+          },
+        ])
 
       if (error) throw error
     },
     onSuccess: () => {
+      console.log('Mutation success')
       queryClient.invalidateQueries({ queryKey: ['onboarding-types'] })
       reset()
       setSelectedDocuments([])
       setSelectedFields([])
+      toast.success('Onboarding type created successfully!')
       onSuccess()
+    },
+    onError: (error) => {
+      console.error('Error creating onboarding type:', error)
+      toast.error('Failed to create onboarding type. Please try again.')
     },
   })
 
   const onSubmit = (data: OnboardingType) => {
     if (!user) return
-    createMutation.mutate({ ...data, user_id: user.id })
+    createMutation.mutate(data)
   }
 
   const toggleDocument = (document: string) => {
-    setSelectedDocuments(prev =>
+    setSelectedDocuments((prev) =>
       prev.includes(document)
-        ? prev.filter(d => d !== document)
+        ? prev.filter((d) => d !== document)
         : [...prev, document]
     )
   }
 
   const toggleField = (field: string) => {
-    setSelectedFields(prev =>
+    setSelectedFields((prev) =>
       prev.includes(field)
-        ? prev.filter(f => f !== field)
+        ? prev.filter((f) => f !== field)
         : [...prev, field]
     )
   }
@@ -99,130 +111,107 @@ export function CreateOnboardingTypeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Onboarding Type</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Create Onboarding Flow
+          </DialogTitle>
           <DialogDescription>
-            Define what information and documents you need from vendors or customers
+            Define a new onboarding workflow with required fields and documents.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Basic Information */}
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+            <div>
+              <Label htmlFor="name">Flow Name *</Label>
               <Input
                 id="name"
                 {...register('name')}
-                placeholder="e.g., 1099 Vendor Onboarding"
+                placeholder="e.g., 1099 Setup, Vendor Onboarding"
+                className="mt-1"
               />
               {errors.name && (
-                <p className="text-sm text-red-600">{errors.name.message}</p>
+                <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>
               )}
             </div>
-
-            <div className="space-y-2">
+            
+            <div>
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 {...register('description')}
-                placeholder="Describe what this onboarding flow is for..."
+                placeholder="Brief description of this onboarding flow..."
+                className="mt-1"
                 rows={3}
               />
             </div>
-
-            <div className="space-y-3">
-              <Label>Required Documents</Label>
-              <p className="text-sm text-gray-600">
-                Select the documents that vendors need to provide
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {DOCUMENT_TYPES.map((document) => (
-                  <button
-                    key={document}
-                    type="button"
-                    onClick={() => toggleDocument(document)}
-                    className={`p-3 rounded-lg border text-left text-sm transition-colors ${
-                      selectedDocuments.includes(document)
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>{document}</span>
-                      {selectedDocuments.includes(document) && (
-                        <Plus className="h-4 w-4 rotate-45" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {selectedDocuments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {selectedDocuments.map((document) => (
-                    <Badge key={document} variant="outline" className="flex items-center gap-1">
-                      {document}
-                      <button
-                        type="button"
-                        onClick={() => toggleDocument(document)}
-                        className="ml-1 hover:bg-red-100 rounded"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <Label>Required Information Fields</Label>
-              <p className="text-sm text-gray-600">
-                Select the types of information you need to collect
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {FIELD_TYPES.map((field) => (
-                  <button
-                    key={field}
-                    type="button"
-                    onClick={() => toggleField(field)}
-                    className={`p-3 rounded-lg border text-left text-sm transition-colors ${
-                      selectedFields.includes(field)
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>{field}</span>
-                      {selectedFields.includes(field) && (
-                        <Plus className="h-4 w-4 rotate-45" />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {selectedFields.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {selectedFields.map((field) => (
-                    <Badge key={field} variant="outline" className="flex items-center gap-1">
-                      {field}
-                      <button
-                        type="button"
-                        onClick={() => toggleField(field)}
-                        className="ml-1 hover:bg-red-100 rounded"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
+
+          {/* Required Documents */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Required Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                {DOCUMENT_TYPES.map((document) => (
+                  <div key={document} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`doc-${document}`}
+                      checked={selectedDocuments.includes(document)}
+                      onCheckedChange={() => toggleDocument(document)}
+                    />
+                    <Label 
+                      htmlFor={`doc-${document}`} 
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {document}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Required Fields */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Required Information Fields
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3">
+                {FIELD_TYPES.map((field) => (
+                  <div key={field} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`field-${field}`}
+                      checked={selectedFields.includes(field)}
+                      onCheckedChange={() => toggleField(field)}
+                    />
+                    <Label 
+                      htmlFor={`field-${field}`} 
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {field}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={createMutation.isPending}
             >
               Cancel
             </Button>
@@ -230,7 +219,7 @@ export function CreateOnboardingTypeDialog({
               type="submit"
               disabled={createMutation.isPending}
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Onboarding Type'}
+              {createMutation.isPending ? 'Creating...' : 'Create Onboarding Flow'}
             </Button>
           </DialogFooter>
         </form>

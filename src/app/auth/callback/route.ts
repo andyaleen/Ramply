@@ -28,12 +28,26 @@ export async function GET(request: NextRequest) {
           },
         }
       )
-      
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
       
       if (!error && data.session) {
-        console.log('Auth successful, redirecting to:', `${origin}${next}`)
-        return NextResponse.redirect(`${origin}${next}`)
+        // Check user role to determine redirect destination
+        const { data: userProfile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', data.session.user.id)
+          .single()
+        
+        // Determine redirect URL based on role
+        let redirectUrl = next
+        if (next === '/dashboard' && userProfile?.role === 'admin') {
+          redirectUrl = '/admin'
+          console.log('Auth callback: Redirecting admin user to /admin')
+        } else {
+          console.log('Auth callback: Redirecting to:', redirectUrl)
+        }
+        
+        return NextResponse.redirect(`${origin}${redirectUrl}`)
       } else {
         console.error('Auth exchange error:', error)
         return NextResponse.redirect(`${origin}/auth/auth-code-error?error=${encodeURIComponent(error?.message || 'Authentication failed')}`)

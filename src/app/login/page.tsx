@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 const supabase = createClient()
 
 export default function LoginPage() {
-  const { user, loading } = useAuth()
+  const { user, userProfile, loading } = useAuth()
   const router = useRouter()
   const [checkingSession, setCheckingSession] = useState(true)
 
@@ -23,13 +23,19 @@ export default function LoginPage() {
     }
     refreshSession()
   }, [])
-
   // ✅ Redirect if authenticated
   useEffect(() => {
-    if (!checkingSession && !loading && user) {
-      router.push('/dashboard')
+    if (!checkingSession && !loading && user && userProfile) {
+      // Role-based redirection
+      if (userProfile.role === 'admin') {
+        console.log('Login page: Redirecting admin user to /admin')
+        router.push('/admin')
+      } else {
+        console.log('Login page: Redirecting regular user to /dashboard')
+        router.push('/dashboard')
+      }
     }
-  }, [user, loading, checkingSession, router])
+  }, [user, userProfile, loading, checkingSession, router])
 
   // ✅ Don't render form until checks complete
   if (loading || checkingSession) {

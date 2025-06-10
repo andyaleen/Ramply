@@ -4,17 +4,15 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, Plus, Settings, LogOut, Users, FileText, Link } from 'lucide-react'
-import { OnboardingTypesList } from '@/components/dashboard/OnboardingTypesList'
-import { OnboardingRequestsList } from '@/components/dashboard/OnboardingRequestsList'
-import { CreateOnboardingTypeDialog } from '@/components/dashboard/CreateOnboardingTypeDialog'
+import { Building2, Settings, LogOut, Users, FileText, Link } from 'lucide-react'
+import { ExternalOnboardingTypesList } from '@/components/dashboard/ExternalOnboardingTypesList'
+import { ExternalRequestsList } from '@/components/dashboard/ExternalRequestsList'
 import { useState, useEffect } from 'react'
 import { DashboardService, DashboardStats } from '@/lib/services/dashboard'
 
 export function Dashboard() {
   const { user, userProfile } = useAuth()
   const router = useRouter()
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalOnboardingTypes: 0,
     pendingRequests: 0,
@@ -22,37 +20,32 @@ export function Dashboard() {
     totalVendors: 0
   })
   const [loading, setLoading] = useState(true)
-
-  const dashboardService = new DashboardService()
-
   useEffect(() => {
+    const dashboardService = new DashboardService()
+    
     const loadDashboardStats = async () => {
       if (!user) return
       
       try {
         setLoading(true)
-        const stats = await dashboardService.getDashboardStats(user)
+        const stats = await dashboardService.getExternalUserStats(user)
         setDashboardStats(stats)
       } catch (error) {
         console.error('Error loading dashboard stats:', error)
       } finally {
         setLoading(false)
       }
-    }
-
-    loadDashboardStats()
-  }, [user])
-  const handleCreateSuccess = () => {
-    setShowCreateDialog(false)
-    // Refresh stats when new onboarding type is created
-    refreshDashboardStats()
-  }
-
+    }    
+    loadDashboardStats()  }, [user])
+  
+  // Function to refresh stats (currently unused but may be needed later)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const refreshDashboardStats = async () => {
     if (!user) return
     
+    const dashboardService = new DashboardService()
     try {
-      const stats = await dashboardService.getDashboardStats(user)
+      const stats = await dashboardService.getExternalUserStats(user)
       setDashboardStats(stats)
     } catch (error) {
       console.error('Error refreshing dashboard stats:', error)
@@ -89,20 +82,21 @@ export function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">        {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900">
             Welcome back, {userProfile?.contact_name || 'there'}!
           </h2>
           <p className="text-gray-600 mt-2">
-            Manage your onboarding flows and track vendor submissions
+            View your onboarding requests and track submission status
           </p>
-        </div>        {/* Quick Stats */}
+        </div>
+
+        {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Onboarding Types</CardTitle>
+              <CardTitle className="text-sm font-medium">Onboarding Requests</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -112,9 +106,9 @@ export function Dashboard() {
                 ) : (
                   dashboardStats.totalOnboardingTypes
                 )}
-              </div>
+              </div>              
               <p className="text-xs text-muted-foreground">
-                Active onboarding flows
+                Total requests received
               </p>
             </CardContent>
           </Card>
@@ -131,9 +125,9 @@ export function Dashboard() {
                 ) : (
                   dashboardStats.pendingRequests
                 )}
-              </div>
+              </div>              
               <p className="text-xs text-muted-foreground">
-                Awaiting completion
+                Awaiting your response
               </p>
             </CardContent>
           </Card>
@@ -150,47 +144,24 @@ export function Dashboard() {
                 ) : (
                   dashboardStats.completedThisMonth
                 )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Successful onboardings
+              </div>              <p className="text-xs text-muted-foreground">
+                Successfully completed
               </p>
             </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-          </div>
-          <div className="flex gap-4">
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Onboarding Flow
-            </Button>
-          </div>
-        </div>
+          </Card>        </div>
 
         {/* Onboarding Types */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Your Onboarding Types</h3>
-            <OnboardingTypesList />
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Available Onboarding Types</h3>
+            <ExternalOnboardingTypesList />
           </div>
           
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Requests</h3>
-            <OnboardingRequestsList />
-          </div>
-        </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Your Requests</h3>
+            <ExternalRequestsList />
+          </div>        </div>
       </main>
-
-      {/* Create Dialog */}
-      <CreateOnboardingTypeDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onSuccess={handleCreateSuccess}
-      />
     </div>
   )
 }

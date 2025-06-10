@@ -284,6 +284,56 @@ export class DashboardService {
     }
     return onboardingTypes?.name || 'Unknown Type'
   }
+
+  async getExternalUserStats(user: User): Promise<DashboardStats> {
+    try {
+      // Get total requests received by this user's email
+      const { count: totalRequests } = await this.supabase
+        .from('onboarding_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_email', user.email)
+
+      // Get pending requests for this user
+      const { count: pendingRequests } = await this.supabase
+        .from('onboarding_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_email', user.email)
+        .eq('status', 'pending')
+
+      // Get completed requests this month for this user
+      const startOfMonth = new Date()
+      startOfMonth.setDate(1)
+      startOfMonth.setHours(0, 0, 0, 0)
+
+      const { count: completedThisMonth } = await this.supabase
+        .from('onboarding_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_email', user.email)
+        .eq('status', 'completed')
+        .gte('completed_at', startOfMonth.toISOString())
+
+      // Get unique companies that have sent requests to this user
+      const { data: uniqueCompanies } = await this.supabase
+        .from('onboarding_requests')
+        .select('requester_user_id')
+        .eq('recipient_email', user.email)
+        .eq('status', 'completed')
+
+      const uniqueCompanyCount = uniqueCompanies 
+        ? new Set(uniqueCompanies.map(req => req.requester_user_id)).size 
+        : 0
+
+      return {
+        totalOnboardingTypes: totalRequests || 0,
+        pendingRequests: pendingRequests || 0,
+        completedThisMonth: completedThisMonth || 0,
+        totalVendors: uniqueCompanyCount
+      }
+    } catch (error) {
+      console.error('Error fetching external user stats:', error)
+      throw error
+    }
+  }
 }
 
 export const dashboardService = new DashboardService()
