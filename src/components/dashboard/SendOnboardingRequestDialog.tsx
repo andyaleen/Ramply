@@ -20,6 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { OnboardingRequestSchema, type OnboardingRequest } from '@/lib/validations'
 import { generateToken } from '@/lib/utils'
 import { Copy } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface SendOnboardingRequestDialogProps {
   open: boolean
@@ -49,7 +50,11 @@ export function SendOnboardingRequestDialog({
   })
 
   const createMutation = useMutation({
-    mutationFn: async (data: OnboardingRequest & { requester_user_id: string; token: string }) => {
+    mutationFn: async (data: OnboardingRequest & {
+      requester_user_id: string
+      token: string
+      expires_at: string
+    }) => {
       const { data: result, error } = await supabase
         .from('onboarding_requests')
         .insert([data])
@@ -58,20 +63,26 @@ export function SendOnboardingRequestDialog({
 
       if (error) throw error
       return result
-    },
-    onSuccess: (data) => {
+    },    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['onboarding-requests'] })
       const link = `${window.location.origin}/onboard/${data.token}`
       setGeneratedLink(link)
+      toast.success('Onboarding link generated successfully!')
     },
+    onError: (error) => {
+      console.error('Failed to create onboarding request:', error)
+      toast.error('Failed to create onboarding request. Please try again.')
+    }
   })
-
   const onSubmit = (data: OnboardingRequest) => {
-    if (!user || !onboardingTypeId) return
-    
+    if (!user || !onboardingTypeId) {
+      console.warn('Missing user or onboarding type ID')
+      return
+    }
+
     const token = generateToken()
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 30) // 30 days from now
+    expiresAt.setDate(expiresAt.getDate() + 30)
 
     createMutation.mutate({
       ...data,
@@ -84,13 +95,14 @@ export function SendOnboardingRequestDialog({
 
   const copyLink = async () => {
     if (!generatedLink) return
-    
+
     try {
       await navigator.clipboard.writeText(generatedLink)
-      // You would typically show a toast notification here
-      console.log('Link copied to clipboard')
+      console.log('✅ Link copied to clipboard')
+      toast.success('Link copied to clipboard!')
     } catch (error) {
-      console.error('Failed to copy link:', error)
+      console.error('❌ Failed to copy link:', error)
+      toast.error('Failed to copy link. Please try again.')
     }
   }
 
@@ -98,12 +110,8 @@ export function SendOnboardingRequestDialog({
     reset()
     setGeneratedLink(null)
     onOpenChange(false)
-    if (generatedLink) {
-      onSuccess()
-    }
+    if (generatedLink) onSuccess()
   }
-
-  if (!open) return null
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -114,9 +122,8 @@ export function SendOnboardingRequestDialog({
           </DialogTitle>
           <DialogDescription>
             {generatedLink
-              ? 'Share this link with your vendor or customer to complete the onboarding process'
-              : 'Enter the email address of the vendor or customer you want to onboard'
-            }
+              ? 'Share this link with your vendor or customer to complete the onboarding process.'
+              : 'Enter the email address of the vendor or customer you want to onboard.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -125,11 +132,7 @@ export function SendOnboardingRequestDialog({
             <div className="space-y-2">
               <Label>Onboarding Link</Label>
               <div className="flex gap-2">
-                <Input
-                  value={generatedLink}
-                  readOnly
-                  className="font-mono text-sm"
-                />
+                <Input value={generatedLink} readOnly className="font-mono text-sm" />
                 <Button onClick={copyLink} variant="outline" size="sm">
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -137,7 +140,7 @@ export function SendOnboardingRequestDialog({
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                This link will expire in 30 days. The recipient will need to create an account 
+                This link will expire in 30 days. The recipient will need to create an account
                 or log in to complete the onboarding process.
               </p>
             </div>
@@ -156,22 +159,16 @@ export function SendOnboardingRequestDialog({
                 <p className="text-sm text-red-600">{errors.recipient_email.message}</p>
               )}
             </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Generating...' : 'Generate Link'}
+              </Button>
+            </DialogFooter>
           </form>
         )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            {generatedLink ? 'Done' : 'Cancel'}
-          </Button>
-          {!generatedLink && (
-            <Button
-              onClick={handleSubmit(onSubmit)}
-              disabled={createMutation.isPending}
-            >
-              {createMutation.isPending ? 'Generating...' : 'Generate Link'}
-            </Button>
-          )}
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -11,7 +11,6 @@ import { formatDate } from '@/lib/utils'
 export function ExternalRequestsList() {
   const { user } = useAuth()
   const supabase = createClient()
-
   const { data: requests, isLoading } = useQuery({
     queryKey: ['external-onboarding-requests', user?.id],
     queryFn: async () => {
@@ -28,7 +27,10 @@ export function ExternalRequestsList() {
         .order('created_at', { ascending: false })
         .limit(10)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching external requests:', error)
+        throw error
+      }
       return data
     },
     enabled: !!user?.email,

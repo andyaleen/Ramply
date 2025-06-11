@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -115,8 +115,37 @@ export function OnboardingForm({ request, onComplete, isCompleting }: Onboarding
   
   const requiredFields = request.onboarding_types?.required_fields || []
   const requiredDocuments = request.onboarding_types?.required_documents || []
-    const formSchema = createDynamicSchema(requiredFields)
+  const formSchema = createDynamicSchema(requiredFields)
   type FormData = z.infer<typeof formSchema>
+
+  // Load existing uploaded documents when component mounts
+  useEffect(() => {
+    const loadUploadedDocuments = async () => {
+      if (!user || !request.id) return
+
+      try {
+        const { data: documents, error } = await supabase
+          .from('documents')
+          .select('document_type')
+          .eq('request_id', request.id)
+          .eq('user_id', user.id)
+
+        if (error) {
+          console.error('Error loading uploaded documents:', error)
+          return
+        }
+
+        if (documents && documents.length > 0) {
+          const documentTypes = documents.map(doc => doc.document_type)
+          setUploadedDocuments(documentTypes)
+        }
+      } catch (error) {
+        console.error('Error loading uploaded documents:', error)
+      }
+    }
+
+    loadUploadedDocuments()
+  }, [user, request.id, supabase])
   
   const {
     register,
@@ -141,14 +170,13 @@ export function OnboardingForm({ request, onComplete, isCompleting }: Onboarding
       
       if (missingDocuments.length > 0) {
         throw new Error(`Missing required documents: ${missingDocuments.join(', ')}`)
-      }
-
-      // Save form data to onboarding_consent table
+      }      // Save form data to onboarding_consent table
       const { error: consentError } = await supabase
         .from('onboarding_consent')
         .insert({
           request_id: request.id,
           user_id: user.id,
+          document_type: 'onboarding_form', // Add default document type
           form_data: data,
           submitted_at: new Date().toISOString(),
         })

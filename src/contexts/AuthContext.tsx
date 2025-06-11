@@ -322,13 +322,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('🔄 Auth state change: No session')
           setLoading(false)
         }
-      }
-    )
+      }    )
 
     return () => subscription.unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]) // Remove fetchUserProfile dependency to prevent infinite loop
-
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     console.log('🔐 Attempting sign in for:', email)
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -345,15 +344,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('💥 Sign in exception:', err)
       throw err
     }
-  }
+  }, [supabase])
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     console.log('📝 Attempting sign up for:', email)
     const { error } = await supabase.auth.signUp({ email, password })
     return { error }
-  }
+  }, [supabase])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     console.log('👋 Initiating sign out for user:', user?.email)
     
     // Clear local state immediately to ensure UI updates
@@ -377,11 +376,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: unknown) {
       console.warn('⚠️ Supabase sign out failed or timed out (this is OK, local state already cleared):', error instanceof Error ? error.message : 'Unknown error')
     }
-    
-    console.log('✅ Sign out process complete')
-  }
+      console.log('✅ Sign out process complete')
+  }, [user?.email, supabase])
 
-  const updateProfile = async (profile: Partial<UserProfile>) => {
+  const updateProfile = useCallback(async (profile: Partial<UserProfile>) => {
     if (!user) return
 
     // First try to update by auth user ID
@@ -410,19 +408,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) {
       throw error
-    }
+    }    setUserProfile(data)
+  }, [user, supabase])
 
-    setUserProfile(data)
-  }
-
-  const refreshUserProfile = async () => {
+  const refreshUserProfile = useCallback(async () => {
     if (!user) return
     
     console.log('🔄 Manually refreshing user profile...')
     await fetchUserProfile(user.id, user.email)
-  }
-
-  const promoteToAdmin = async (userId: string) => {
+  }, [user, fetchUserProfile])
+  const promoteToAdmin = useCallback(async (userId: string) => {
     if (!userProfile?.role || userProfile.role !== 'admin') {
       return { error: 'Only admins can promote users' }
     }
@@ -443,7 +438,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('💥 Error in promoteToAdmin:', err)
       return { error: 'An unexpected error occurred' }
     }
-  }
+  }, [userProfile?.role, supabase])
 
   const contextValue = useMemo(
     () => ({

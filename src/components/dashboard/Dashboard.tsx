@@ -10,6 +10,7 @@ import { ExternalRequestsList } from '@/components/dashboard/ExternalRequestsLis
 import { useState, useEffect } from 'react'
 import { DashboardService, DashboardStats } from '@/lib/services/dashboard'
 
+
 export function Dashboard() {
   const { user, userProfile } = useAuth()
   const router = useRouter()

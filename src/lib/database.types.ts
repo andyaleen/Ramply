@@ -162,30 +162,39 @@ export type Database = {
           file_name?: string
           file_size?: number | null
           mime_type?: string | null
-          uploaded_at?: string
+          uploaded_at?: string        
         }
       }
       onboarding_consent: {
         Row: {
           id: string
-          user_id: string
+          user_id: string          
           request_id: string
-          document_type: string
-          shared_at: string
+          document_type: string | null
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          form_data: Record<string, any> | null
+          shared_at: string          
+          submitted_at: string | null
         }
         Insert: {
           id?: string
           user_id: string
           request_id: string
-          document_type: string
+          document_type?: string | null
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          form_data?: Record<string, any> | null
           shared_at?: string
+          submitted_at?: string | null
         }
         Update: {
           id?: string
           user_id?: string
           request_id?: string
-          document_type?: string
+          document_type?: string | null
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          form_data?: Record<string, any> | null
           shared_at?: string
+          submitted_at?: string | null
         }
       }
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,13 +47,7 @@ export function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const supabase = createClient()
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchUsers()
-    }
-  }, [isAdmin])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('users')
@@ -73,7 +67,13 @@ export function UserManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchUsers()
+    }
+  }, [isAdmin, fetchUsers])
 
   const handlePromoteUser = async () => {
     if (!selectedUser) return

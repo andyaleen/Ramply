@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Plus, Settings, LogOut, Users, FileText, Link, Crown } from 'lucide-react'
+import { Plus, Settings, Users, FileText, Link, Crown } from 'lucide-react'
 import { OnboardingTypesList } from '@/components/dashboard/OnboardingTypesList'
 import { OnboardingRequestsList } from '@/components/dashboard/OnboardingRequestsList'
 import { CreateOnboardingTypeDialog } from '@/components/dashboard/CreateOnboardingTypeDialog'
@@ -133,48 +133,30 @@ export function AdminDashboard() {
       </div>
     )
   }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex-1 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-3">
-                <h1 className="text-xl font-semibold text-gray-900">Onbo</h1>
-                <p className="text-sm text-gray-600">{userProfile?.company_name}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/signout')}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Welcome back, {userProfile?.contact_name || 'Admin'}!
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Manage your onboarding flows and track vendor submissions
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">
-            Welcome back, {userProfile?.contact_name || 'there'}!
-          </h2>
-          <p className="text-gray-600 mt-2">
-            Manage your onboarding flows and track vendor submissions
-          </p>
-        </div>        
-        
+      <main className="flex-1 p-6 bg-gray-50">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -276,8 +258,7 @@ export function AdminDashboard() {
 
           <TabsContent value="users">
             <UserManagement />
-          </TabsContent>
-        </Tabs>
+          </TabsContent>        </Tabs>
       </main>
 
       {/* Create Dialog */}

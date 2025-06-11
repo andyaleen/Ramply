@@ -1,47 +1,55 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { LoadingFallback } from '@/components/LoadingFallback'
 import { createClient } from '@/lib/supabase/client'
 
-// ✅ Create supabase client outside the component
+// ✅ Create supabase client
 const supabase = createClient()
 
-export default function LoginPage() {
+function LoginContent() {
   const { user, userProfile, loading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [checkingSession, setCheckingSession] = useState(true)
 
-  // ✅ Refresh Supabase session on mount
+  // ✅ Extract redirect query param (default to /dashboard)
+  const redirectPath = searchParams.get('redirect') || '/dashboard'
+
+  // ✅ Check session once on mount
   useEffect(() => {
     const refreshSession = async () => {
-      await supabase.auth.getSession()
-      setCheckingSession(false)
+      try {
+        await supabase.auth.getSession()
+      } finally {
+        setCheckingSession(false)
+      }
     }
     refreshSession()
   }, [])
-  // ✅ Redirect if authenticated
+
+  // ✅ Redirect only if user + profile exist and checks are done
   useEffect(() => {
     if (!checkingSession && !loading && user && userProfile) {
-      // Role-based redirection
       if (userProfile.role === 'admin') {
-        console.log('Login page: Redirecting admin user to /admin')
+        console.log('Redirecting admin to /admin')
         router.push('/admin')
       } else {
-        console.log('Login page: Redirecting regular user to /dashboard')
-        router.push('/dashboard')
+        console.log(`Redirecting user to ${redirectPath}`)
+        router.push(redirectPath)
       }
     }
-  }, [user, userProfile, loading, checkingSession, router])
-  // ✅ Don't render form until checks complete
+  }, [user, userProfile, loading, checkingSession, redirectPath, router])
+
+  // ✅ While checking session or loading user info
   if (loading || checkingSession) {
     return (
       <Layout showAuth={false}>
-        <LoadingFallback 
+        <LoadingFallback
           title="Checking Authentication"
           description="Please wait while we verify your session..."
           onRefresh={() => window.location.reload()}
@@ -50,12 +58,26 @@ export default function LoginPage() {
     )
   }
 
-  // Prevent rendering login form if already logged in (redirect will fire)
-  if (user) return null
-
+  // ✅ Show AuthForm if not authenticated yet
   return (
     <Layout showAuth={false}>
       <AuthForm />
     </Layout>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <Layout showAuth={false}>
+        <LoadingFallback
+          title="Loading"
+          description="Loading login page..."
+          onRefresh={() => window.location.reload()}
+        />
+      </Layout>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }
