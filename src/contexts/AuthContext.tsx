@@ -39,6 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use ref to track current userProfile without causing effect re-runs
   const userProfileRef = useRef<UserProfile | null>(null)
   userProfileRef.current = userProfile
+  
+  // Add cache to prevent redundant profile fetches
+  const profileFetchCache = useRef<Map<string, { profile: UserProfile | null, timestamp: number }>>(new Map())
 
   // Create emergency fallback profile
   const createFallbackProfile = (userId: string, userEmail: string, reason: string, preserveRole?: string): UserProfile => ({
@@ -62,87 +65,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = useCallback(
     async (userId: string, userEmail?: string) => {
+      const fetchStartTime = performance.now()
+      const cacheKey = `${userId}-${userEmail}`
+      
+      // Check cache first (valid for 2 minutes)
+      const cached = profileFetchCache.current.get(cacheKey)
+      if (cached && Date.now() - cached.timestamp < 120000) {
+        console.log('📋 Using cached profile for:', userId)
+        if (cached.profile) {
+          setUserProfile(cached.profile)
+        }
+        return
+      }
+      
       try {        
         console.log('🔄 Fetching user profile for:', userId, userEmail)
         
-        // First try to fetch by user ID
-        console.log('📡 Attempting to fetch user by ID...')
-        let { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
-          .single()
-
-        // If that fails due to 406 or other errors, try fetching by email as fallback
-        if (error && userEmail) {
-          console.log('⚠️ Primary fetch failed, trying by email:', error.message)
-          const emailResult = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', userEmail)
-            .single()
+        // Create a promise that resolves with the first successful query
+        const fetchWithTimeout = async () => {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
           
-          if (!emailResult.error && emailResult.data) {
-            console.log('✅ Found user by email, checking for ID mismatch...')
-            data = emailResult.data
-            error = null
+          try {
+            const { data, error } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', userId)
+              .abortSignal(controller.signal)
+              .single()
             
-            // Check if the user ID from auth matches the database record
-            if (data.id !== userId) {
-              console.error('❌ ID MISMATCH DETECTED:')
-              console.error('Auth User ID:', userId)
-              console.error('Database User ID:', data.id)
-              console.error('This indicates a database synchronization issue that needs manual fixing.')
-              console.error('Please run the emergency-user-sync-fix.sql script in your database.')
-              console.error('Do NOT attempt automatic ID updates as this can break foreign key relationships.')
-              
-              // Instead of trying to update, use the auth user ID for the profile
-              // This allows the app to continue functioning while the DB issue is resolved
-              data = { ...data, id: userId }
-            }
+            clearTimeout(timeoutId)
+            return { data, error }
+          } catch (err) {
+            clearTimeout(timeoutId)
+            throw err
           }
         }
+
+        let { data, error } = await fetchWithTimeout()
+
+        // If that fails, try fetching by email as fallback
+        if (error && userEmail) {
+          console.log('⚠️ Primary fetch failed, trying by email:', error.message)
+          try {
+            const emailResult = await fetchWithTimeout()
+            if (!emailResult.error && emailResult.data) {
+              console.log('✅ Found user by email')
+              data = emailResult.data
+              error = null
+              
+              // Handle ID mismatch
+              if (data.id !== userId) {
+                console.error('❌ ID MISMATCH - using auth ID')
+                data = { ...data, id: userId }
+              }
+            }
+          } catch (emailErr) {
+            console.warn('⚠️ Email fetch also failed:', emailErr)
+          }
+        }
+
+        console.log(`⏱️ Profile fetch took ${performance.now() - fetchStartTime}ms`)
 
         if (error) {
           console.error('🚨 Database query failed:', error)
           
-          // Handle RLS policy issues (406 Not Acceptable errors)
-          if (error.message?.includes('JSON object requested, multiple (or no) rows returned') || 
-              error.code === 'PGRST116') {
-            console.error('🔒 RLS POLICY BLOCKING ACCESS - This is likely due to missing or incorrect RLS policies')
-            console.error('Run emergency-disable-rls.sql followed by fix-user-insert-policy.sql')
-            console.error('Error details:', error)
-            
-            setUserProfile(createFallbackProfile(userId, userEmail || '', 'RLS Policy Error - Check Database Policies'))
+          // Handle common error types
+          if (error.name === 'AbortError') {
+            console.warn('⏰ Database query timed out')
+            setUserProfile(createFallbackProfile(userId, userEmail || '', 'Database Timeout - Please Check Connection'))
+            profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
             return
           }
           
-          if (error.message?.includes('invalid input syntax for type bigint')) {
-            console.error('🗃️ DATABASE SCHEMA ERROR:', error)
-            setUserProfile(createFallbackProfile(userId, userEmail || '', 'Schema Error - Please Fix Database'))
+          if (error.message?.includes('JSON object requested, multiple (or no) rows returned') || 
+              error.code === 'PGRST116') {
+            console.error('🔒 RLS POLICY BLOCKING ACCESS')
+            setUserProfile(createFallbackProfile(userId, userEmail || '', 'RLS Policy Error - Check Database Policies'))
+            profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
             return
           }
-
-          // For production, if we can't fetch the user but they're authenticated,
-          // create a minimal profile to prevent app hanging
-          if (error.code !== 'PGRST116') {
-            console.error('🔥 Unhandled error fetching user profile:', error)
-            console.warn('🛟 Creating emergency fallback profile to prevent app crash')
-            setUserProfile(createFallbackProfile(userId, userEmail || '', 'Profile Load Error - Please Contact Support'))
-            return
-          }
+          
+          // Create fallback for any other error
+          console.warn('🛟 Creating emergency fallback profile')
+          setUserProfile(createFallbackProfile(userId, userEmail || '', 'Profile Load Error - Please Contact Support'))
+          profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
+          return
         }
 
         if (data) {
           console.log('✅ Found existing user profile:', data)
-          console.log('🔍 User role analysis:', {
-            userId: data.id,
-            email: data.email,
-            role: data.role,
-            isAdmin: data.role === 'admin',
-            shouldBeAdmin: data.role === 'admin'
-          })
           setUserProfile(data)
+          profileFetchCache.current.set(cacheKey, { profile: data, timestamp: Date.now() })
         } else {
           // User doesn't exist, create a new profile
           console.log('🆕 Creating new user profile for:', userId, userEmail)
@@ -150,71 +164,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const { data: newProfile, error: createError } = await supabase
               .from('users')
-              .insert([
-                {
-                  id: userId,
-                  email: userEmail || '',
-                  role: 'external',
-                },
-              ])
+              .insert([{
+                id: userId,
+                email: userEmail || '',
+                role: 'external',
+              }])
               .select()
               .single()
 
             if (createError) {
-              console.error('❌ Error creating user profile:', {
-                message: createError.message,
-                details: createError.details,
-                hint: createError.hint,
-                code: createError.code,
-                userId: userId,
-                userEmail: userEmail,
-                fullError: createError
-              })
-              
-              // Handle duplicate email constraint error
-              if (createError.code === '23505' && createError.message?.includes('users_email_key')) {
-                console.log('📧 User with this email already exists, trying to fetch by email...')
-                try {
-                  const { data: existingUser, error: fetchError } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('email', userEmail || '')
-                    .single()
-                  
-                  if (!fetchError && existingUser) {
-                    console.log('✅ Found existing user by email:', existingUser)
-                    setUserProfile(existingUser)
-                    return
-                  } else {
-                    console.error('❌ Could not fetch existing user by email:', fetchError)
-                  }
-                } catch (err) {
-                  console.error('💥 Error fetching existing user:', err)
-                }
-              }
-              
-              // Check for RLS policy issues
-              if (createError.message?.includes('new row violates row-level security policy') || 
-                  createError.code === '42501') {
-                console.error('🔒 RLS POLICY ERROR: User cannot insert their own profile. Missing INSERT policy on users table.')
-                console.error('Run the fix-user-insert-policy.sql script to resolve this issue.')
-              }
-
-              // Create fallback profile if user creation fails
-              console.warn('🛟 Creating emergency fallback profile after failed user creation')
-              setUserProfile(createFallbackProfile(userId, userEmail || '', 'Profile Creation Failed - Please Contact Support'))
+              console.error('❌ Error creating user profile:', createError)
+              setUserProfile(createFallbackProfile(userId, userEmail || '', 'Profile Creation Failed'))
+              profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
             } else {
               console.log('✅ Successfully created user profile:', newProfile)
               setUserProfile(newProfile)
+              profileFetchCache.current.set(cacheKey, { profile: newProfile, timestamp: Date.now() })
             }
           } catch (err) {
             console.error('💥 Error creating profile:', err)
-            setUserProfile(createFallbackProfile(userId, userEmail || '', 'Profile Creation Error - Please Try Again'))
+            setUserProfile(createFallbackProfile(userId, userEmail || '', 'Profile Creation Error'))
+            profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
           }
         }
       } catch (err) {
         console.error('💥 Unexpected error in fetchUserProfile:', err)
-        setUserProfile(createFallbackProfile(userId, userEmail || '', 'Unexpected Error - Please Contact Support'))
+        setUserProfile(createFallbackProfile(userId, userEmail || '', 'Unexpected Error'))
+        profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
       }
     },
     [supabase]
@@ -238,10 +214,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               session.user.id,
               session.user.email || '',
               'Profile Load Timeout - Please Refresh',
-              userProfileRef.current?.role // Preserve existing role if available
+              userProfileRef.current?.role
             ))
             setLoading(false)
-          }, 15000)
+          }, 6000) // Reduced to 6 seconds
 
           try {
             await fetchUserProfile(session.user.id, session.user.email)
@@ -249,12 +225,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (error) {
             clearTimeout(timeoutId)
             console.error('🚨 Initial profile fetch failed:', error)
-            setUserProfile(createFallbackProfile(
-              session.user.id,
-              session.user.email || '',
-              'Profile Load Error - Please Refresh',
-              userProfileRef.current?.role // Preserve existing role if available
-            ))
           }
         } else {
           console.log('👤 No session found')
@@ -274,59 +244,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🔄 Auth state change:', event, session?.user?.email || 'no user')
         
         if (event === 'SIGNED_OUT') {
-          console.log('👋 Auth state change: SIGNED_OUT - User successfully signed out')
+          console.log('👋 Auth state change: SIGNED_OUT')
           setUser(null)
           setUserProfile(null)
           setLoading(false)
+          profileFetchCache.current.clear() // Clear cache on signout
         } else if (session?.user) {
           console.log('👤 Auth state change: User signed in -', session.user.email)
           setUser(session.user)
           
-          // If we already have a valid user profile, don't refetch unless it's missing essential data
-          if (userProfileRef.current && userProfileRef.current.id === session.user.id && userProfileRef.current.role) {
-            console.log('👍 Already have valid profile for user, skipping refetch')
-            setLoading(false)
-            return
-          }
-          
-          setLoading(true)
-          
-          // Add timeout for profile fetch to prevent infinite loading
-          const timeoutId = setTimeout(() => {
-            console.warn('⏰ Auth state profile fetch timed out, creating fallback profile')
-            setUserProfile(createFallbackProfile(
-              session.user.id, 
-              session.user.email || '', 
-              'Profile Load Timeout - Please Refresh',
-              userProfileRef.current?.role // Preserve existing role if available
-            ))
-            setLoading(false)
-          }, 15000)
+          // Only refetch if we don't have a valid profile for this user
+          if (!userProfileRef.current || userProfileRef.current.id !== session.user.id) {
+            setLoading(true)
+            
+            const timeoutId = setTimeout(() => {
+              console.warn('⏰ Auth state profile fetch timed out')
+              setUserProfile(createFallbackProfile(
+                session.user.id, 
+                session.user.email || '', 
+                'Profile Load Timeout',
+                userProfileRef.current?.role
+              ))
+              setLoading(false)
+            }, 6000)
 
-          try {
-            await fetchUserProfile(session.user.id, session.user.email)
-            clearTimeout(timeoutId)
-            setLoading(false)
-          } catch (error) {
-            clearTimeout(timeoutId)
-            console.error('🚨 Profile fetch failed during auth state change:', error)
-            setUserProfile(createFallbackProfile(
-              session.user.id, 
-              session.user.email || '', 
-              'Profile Load Error - Please Refresh',
-              userProfileRef.current?.role // Preserve existing role if available
-            ))
+            try {
+              await fetchUserProfile(session.user.id, session.user.email)
+              clearTimeout(timeoutId)
+              setLoading(false)
+            } catch (error) {
+              clearTimeout(timeoutId)
+              console.error('🚨 Profile fetch failed during auth state change:', error)
+              setLoading(false)
+            }
+          } else {
+            console.log('👍 Already have valid profile for user')
             setLoading(false)
           }
         } else {
           console.log('🔄 Auth state change: No session')
           setLoading(false)
         }
-      }    )
+      }
+    )
 
     return () => subscription.unsubscribe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]) // Remove fetchUserProfile dependency to prevent infinite loop
+  }, [supabase, fetchUserProfile])
+
   const signIn = useCallback(async (email: string, password: string) => {
     console.log('🔐 Attempting sign in for:', email)
     try {
@@ -355,68 +319,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     console.log('👋 Initiating sign out for user:', user?.email)
     
-    // Clear local state immediately to ensure UI updates
-    console.log('🧹 Clearing local state immediately...')
+    // Clear local state immediately
     setUser(null)
     setUserProfile(null)
     setLoading(false)
-    console.log('✅ Local state cleared')
+    profileFetchCache.current.clear()
     
-    // Attempt Supabase signout in background with timeout
+    // Attempt Supabase signout with timeout
     try {
-      console.log('🔐 Attempting Supabase auth signOut...')
-      
       const signOutPromise = supabase.auth.signOut()
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Sign out timeout after 5 seconds')), 5000)
+        setTimeout(() => reject(new Error('Sign out timeout')), 3000)
       )
       
       await Promise.race([signOutPromise, timeoutPromise])
       console.log('✅ Supabase sign out successful')
-    } catch (error: unknown) {
-      console.warn('⚠️ Supabase sign out failed or timed out (this is OK, local state already cleared):', error instanceof Error ? error.message : 'Unknown error')
+    } catch (error) {
+      console.warn('⚠️ Supabase sign out failed or timed out:', error)
     }
-      console.log('✅ Sign out process complete')
   }, [user?.email, supabase])
 
   const updateProfile = useCallback(async (profile: Partial<UserProfile>) => {
     if (!user) return
 
-    // First try to update by auth user ID
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .update({ ...profile, updated_at: new Date().toISOString() })
       .eq('id', user.id)
       .select()
       .single()
 
-    // If that fails due to ID mismatch, try updating by email
-    if (error && user.email) {
-      console.log('⚠️ Update by ID failed, trying by email:', error.message)
-      const emailUpdate = await supabase
-        .from('users')
-        .update({ ...profile, updated_at: new Date().toISOString() })
-        .eq('email', user.email)
-        .select()
-        .single()
-      
-      if (!emailUpdate.error && emailUpdate.data) {
-        data = emailUpdate.data
-        error = null
-      }
-    }
-
     if (error) {
       throw error
-    }    setUserProfile(data)
+    }
+    
+    setUserProfile(data)
+    // Update cache
+    const cacheKey = `${user.id}-${user.email}`
+    profileFetchCache.current.set(cacheKey, { profile: data, timestamp: Date.now() })
   }, [user, supabase])
 
   const refreshUserProfile = useCallback(async () => {
     if (!user) return
     
     console.log('🔄 Manually refreshing user profile...')
+    // Clear cache for this user
+    const cacheKey = `${user.id}-${user.email}`
+    profileFetchCache.current.delete(cacheKey)
     await fetchUserProfile(user.id, user.email)
   }, [user, fetchUserProfile])
+
   const promoteToAdmin = useCallback(async (userId: string) => {
     if (!userProfile?.role || userProfile.role !== 'admin') {
       return { error: 'Only admins can promote users' }

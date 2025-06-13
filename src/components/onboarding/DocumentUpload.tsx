@@ -10,7 +10,7 @@ import { Upload, File, X, Check } from 'lucide-react'
 interface DocumentUploadProps {
   documentType: string
   requestId: string
-  onUploadSuccess: () => void
+  onUploadSuccess: (documentType: string) => void
   disabled?: boolean
 }
 
@@ -25,7 +25,7 @@ export function DocumentUpload({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
-
+  
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!user) throw new Error('User not authenticated')
@@ -51,17 +51,28 @@ export function DocumentUpload({
 
       // Create unique filename
       const fileExt = file.name.split('.').pop()
-      const fileName = `${requestId}/${documentType}-${Date.now()}.${fileExt}`
-
-      // Upload to Supabase Storage
+      const fileName = `${requestId}/${documentType}-${Date.now()}.${fileExt}`      // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documents')
         .upload(fileName, file)
 
       if (uploadError) throw uploadError
 
+      console.log('=== DOCUMENT UPLOAD TO DATABASE ===')
+      console.log('File uploaded to storage successfully:', uploadData.path)
+      console.log('Saving document record to database...')
+      console.log('Document data:', {
+        request_id: requestId,
+        user_id: user.id,
+        document_type: documentType,
+        file_name: file.name,
+        file_path: uploadData.path,
+        file_size: file.size,
+        mime_type: file.type,
+      })
+
       // Save document record to database
-      const { error: dbError } = await supabase
+      const { data: insertData, error: dbError } = await supabase
         .from('documents')
         .insert({
           request_id: requestId,
@@ -70,16 +81,20 @@ export function DocumentUpload({
           file_name: file.name,
           file_path: uploadData.path,
           file_size: file.size,
-          content_type: file.type,
+          mime_type: file.type,
         })
+        .select() // Add select to return the inserted data
 
-      if (dbError) throw dbError
+      if (dbError) {
+        console.error('Database insert error:', dbError)
+        throw dbError
+      }
 
+      console.log('Document saved to database successfully:', insertData)
       return uploadData
-    },
-    onSuccess: () => {
+    },    onSuccess: () => {
       setSelectedFile(null)
-      onUploadSuccess()
+      onUploadSuccess(documentType)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }

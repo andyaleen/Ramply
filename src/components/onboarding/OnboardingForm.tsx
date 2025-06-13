@@ -1,593 +1,636 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { useAuth } from '@/contexts/AuthContext'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DocumentUpload } from './DocumentUpload'
 import { ProfileDataReuse } from './ProfileDataReuse'
-import { ExtendedProfileData } from '@/lib/profile-utils'
-import { Building2, User, CreditCard, Building, Shield, Award, Upload, Check } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Upload, RefreshCw } from 'lucide-react'
 
-// Helper function to safely extract error messages
-const getErrorMessage = (error: unknown): string => {
-  if (typeof error === 'string') return error
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') return error.message
-  return ''
-}
-
-interface OnboardingRequest {
-  id: string
-  onboarding_types?: {
-    required_fields: string[]
-    required_documents: string[]
-  }
-}
+const supabase = createClient()
 
 interface OnboardingFormProps {
-  request: OnboardingRequest
+  request: any
   onComplete: () => void
   isCompleting: boolean
 }
 
-// Dynamic form schema based on required fields
-const createDynamicSchema = (requiredFields: string[]) => {
-  const schemaFields: Record<string, z.ZodTypeAny> = {}
-  
-  if (requiredFields.includes('Company Information')) {
-    schemaFields.company_name = z.string().min(1, 'Company name is required')
-    schemaFields.business_type = z.string().min(1, 'Business type is required')
-    schemaFields.tax_id = z.string().min(1, 'Tax ID is required')
-  }
-  
-  if (requiredFields.includes('Contact Details')) {
-    schemaFields.contact_name = z.string().min(1, 'Contact name is required')
-    schemaFields.contact_email = z.string().email('Valid email is required')
-    schemaFields.contact_phone = z.string().min(1, 'Phone number is required')
-  }
-  
-  if (requiredFields.includes('Tax Information')) {
-    schemaFields.tax_classification = z.string().min(1, 'Tax classification is required')
-    schemaFields.tax_exemption = z.string().optional()
-  }
-  
-  if (requiredFields.includes('Banking Information')) {
-    schemaFields.bank_name = z.string().min(1, 'Bank name is required')
-    schemaFields.account_type = z.string().min(1, 'Account type is required')
-    schemaFields.routing_number = z.string().min(9, 'Valid routing number is required')
-  }
-  
-  if (requiredFields.includes('Insurance Information')) {
-    schemaFields.insurance_provider = z.string().min(1, 'Insurance provider is required')
-    schemaFields.policy_number = z.string().min(1, 'Policy number is required')
-    schemaFields.coverage_amount = z.string().min(1, 'Coverage amount is required')
-  }
-  
-  if (requiredFields.includes('Certifications')) {
-    schemaFields.certifications = z.string().optional()
-    schemaFields.licenses = z.string().optional()
-  }
-  
-  // Address fields
-  schemaFields.address_line1 = z.string().min(1, 'Address is required')
-  schemaFields.address_line2 = z.string().optional()
-  schemaFields.city = z.string().min(1, 'City is required')
-  schemaFields.state = z.string().min(1, 'State is required')
-  schemaFields.postal_code = z.string().min(1, 'Postal code is required')
-  schemaFields.country = z.string().min(1, 'Country is required')
-  
-  return z.object(schemaFields)
+interface OnboardingType {
+  id: string
+  name: string
+  required_documents: string[]
+  required_fields: string[]
 }
 
-const getFieldIcon = (fieldType: string) => {
-  switch (fieldType) {
-    case 'Company Information':
-      return Building2
-    case 'Contact Details':
-      return User
-    case 'Tax Information':
-      return CreditCard
-    case 'Banking Information':
-      return Building
-    case 'Insurance Information':
-      return Shield
-    case 'Certifications':
-      return Award
-    default:
-      return Building2
-  }
+interface FormData {
+  company_name: string
+  contact_name: string
+  contact_email: string
+  tax_id: string
+  business_type: string
+  address_line1: string
+  address_line2: string
+  city: string
+  state: string
+  zip_code: string
+  phone: string
+  website: string
+  description: string
+  [key: string]: string
+}
+
+interface UploadedDocument {
+  document_type: string
 }
 
 export function OnboardingForm({ request, onComplete, isCompleting }: OnboardingFormProps) {
-  const { user } = useAuth()
-  const supabase = createClient()
-  const queryClient = useQueryClient()
-  const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([])
-  
-  const requiredFields = request.onboarding_types?.required_fields || []
-  const requiredDocuments = request.onboarding_types?.required_documents || []
-  const formSchema = createDynamicSchema(requiredFields)
-  type FormData = z.infer<typeof formSchema>
-
-  // Load existing uploaded documents when component mounts
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [onboardingType, setOnboardingType] = useState<OnboardingType | null>(null)
+  const [formData, setFormData] = useState<FormData>({
+    company_name: '',
+    contact_name: '',
+    contact_email: '',
+    tax_id: '',
+    business_type: '',
+    address_line1: '',
+    address_line2: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    phone: '',
+    website: '',
+    description: ''
+  })
+  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([])
+  const [consents, setConsents] = useState<Record<string, boolean>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  // Load onboarding request and user data
   useEffect(() => {
-    const loadUploadedDocuments = async () => {
-      if (!user || !request.id) return
+    if (request?.id) {
+      loadOnboardingData()
+      loadUploadedDocuments()
+    }
+  }, [request?.id])
+  const loadOnboardingData = async () => {
+    try {
+      console.log('Loading onboarding data for request:', request?.id)
+      
+      // Use the request data that's already passed in
+      if (request?.onboarding_types) {
+        console.log('Found onboarding request:', request)
+        setOnboardingType(request.onboarding_types)
+      } else {
+        // Fallback: Get onboarding request details from database
+        const { data: requestData, error: requestError } = await supabase
+          .from('onboarding_requests')
+          .select(`
+            *,
+            onboarding_types (
+              id,
+              name,
+              required_documents,
+              required_fields
+            )
+          `)
+          .eq('id', request?.id)
+          .single()
 
-      try {
-        const { data: documents, error } = await supabase
-          .from('documents')
-          .select('document_type')
-          .eq('request_id', request.id)
-          .eq('user_id', user.id)
-
-        if (error) {
-          console.error('Error loading uploaded documents:', error)
+        if (requestError) {
+          console.error('Error loading onboarding request:', requestError)
+          setError('Failed to load onboarding request')
           return
         }
 
-        if (documents && documents.length > 0) {
-          const documentTypes = documents.map(doc => doc.document_type)
-          setUploadedDocuments(documentTypes)
+        if (!requestData) {
+          setError('Onboarding request not found')
+          return
         }
-      } catch (error) {
-        console.error('Error loading uploaded documents:', error)
-      }
-    }
 
-    loadUploadedDocuments()
-  }, [user, request.id, supabase])
+        console.log('Found onboarding request:', requestData)
+        setOnboardingType(requestData.onboarding_types)
+      }
+
+      // Get user profile data to pre-populate form
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (profile) {
+          setFormData(prev => ({
+            ...prev,
+            company_name: profile.company_name || '',
+            contact_name: profile.contact_name || '',
+            contact_email: profile.contact_email || user.email || '',
+            tax_id: profile.tax_id || '',
+            business_type: profile.business_type || '',
+            address_line1: profile.address_line1 || '',
+            address_line2: profile.address_line2 || '',
+            city: profile.city || '',
+            state: profile.state || '',
+            zip_code: profile.zip_code || '',
+            phone: profile.phone || '',
+            website: profile.website || '',
+            description: profile.description || ''
+          }))
+        }
+      }    } catch (err) {
+      console.error('Error in loadOnboardingData:', err)
+      setError('Failed to load onboarding data')
+    }
+  }
   
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-  })
-  const handleDataReuse = (data: ExtendedProfileData) => {
-    // Reset form with existing data
-    reset(data as FormData)
+  const loadUploadedDocuments = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || !request?.id) {
+        console.log('Cannot load documents - missing user or request:', { 
+          hasUser: !!user, 
+          userId: user?.id, 
+          hasRequest: !!request, 
+          requestId: request?.id 
+        })
+        return
+      }
+
+      console.log('=== LOADING UPLOADED DOCUMENTS ===')
+      console.log('Request ID:', request.id)
+      console.log('User ID:', user.id)
+      console.log('Request object:', request)
+      
+      // First, try to get all documents for this request (without user filter)
+      console.log('Testing query without user filter...')
+      const { data: allDocsForRequest, error: allDocsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('request_id', request.id)
+
+      if (allDocsError) {
+        console.error('Error getting all docs for request:', allDocsError)
+      } else {
+        console.log('All documents for this request:', allDocsForRequest)
+      }
+      
+      // Now try the specific query
+      console.log('Testing query with user filter...')
+      const { data, error } = await supabase
+        .from('documents')
+        .select('document_type')
+        .eq('request_id', request.id)
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Database error loading uploaded documents:', { 
+          error, 
+          message: error.message, 
+          details: error.details, 
+          hint: error.hint, 
+          code: error.code,
+          request_id: request?.id,
+          user_id: user.id 
+        })
+        
+        // Try a broader query to see if RLS is the issue
+        console.log('Trying broader query to test RLS...')
+        const { data: broadData, error: broadError } = await supabase
+          .from('documents')
+          .select('document_type')
+          .limit(10)
+          
+        if (broadError) {
+          console.error('Broad query also failed:', broadError)
+        } else {
+          console.log('Broad query succeeded, found', broadData.length, 'documents')
+        }
+        
+        return
+      }
+
+      console.log('Loaded uploaded documents successfully:', data)
+      setUploadedDocuments(data || [])
+    } catch (err) {
+      console.error('Error loading uploaded documents:', err)
+    }
+  }
+  const handleProfileDataReuse = (data: any) => {
+    const cleanData: FormData = {
+      company_name: data.company_name || '',
+      contact_name: data.contact_name || '',
+      contact_email: data.contact_email || '',
+      tax_id: data.tax_id || '',
+      business_type: data.business_type || '',
+      address_line1: data.address_line1 || '',
+      address_line2: data.address_line2 || '',
+      city: data.city || '',
+      state: data.state || '',
+      zip_code: data.zip_code || '',
+      phone: data.phone || '',
+      website: data.website || '',
+      description: data.description || ''
+    }
+    setFormData(prev => ({ ...prev, ...cleanData }))
   }
 
-  const submitMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      if (!user) throw new Error('User not authenticated')
-        // Check if all required documents are uploaded
-      const missingDocuments = requiredDocuments.filter(
-        (doc: string) => !uploadedDocuments.includes(doc)
-      )
-      
-      if (missingDocuments.length > 0) {
-        throw new Error(`Missing required documents: ${missingDocuments.join(', ')}`)
-      }      // Save form data to onboarding_consent table
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handleConsentChange = (consentType: string, checked: boolean) => {
+    setConsents(prev => ({
+      ...prev,
+      [consentType]: checked
+    }))
+  }
+
+  const handleDocumentUploaded = (documentType: string) => {
+    console.log('Document uploaded:', documentType)
+    setUploadedDocuments(prev => [
+      ...prev.filter(doc => doc.document_type !== documentType),
+      { document_type: documentType }
+    ])
+  }
+
+  const validateForm = () => {
+    console.log('=== DOCUMENT VALIDATION DEBUG ===')
+    console.log('Required documents:', onboardingType?.required_documents || [])
+    console.log('Uploaded documents (from state):', uploadedDocuments)
+    console.log('Request onboarding type:', onboardingType)
+    console.log('Double-checking database state before validation...')
+
+    const requiredDocs = onboardingType?.required_documents || []
+    const uploadedDocTypes = uploadedDocuments.map(doc => doc.document_type)
+    const missingDocs = requiredDocs.filter(doc => !uploadedDocTypes.includes(doc))
+
+    console.log('Missing documents (from state):', missingDocs)
+
+    if (missingDocs.length > 0) {
+      console.log('Validation failed - missing documents:', missingDocs)
+      setError(`Missing required documents: ${missingDocs.join(', ')}`)
+      return false
+    }
+
+    const requiredFields = onboardingType?.required_fields || []
+    const missingFields = requiredFields.filter(field => !formData[field])
+
+    if (missingFields.length > 0) {
+      setError(`Missing required fields: ${missingFields.join(', ')}`)
+      return false
+    }
+
+    const requiredConsents = ['data_processing', 'terms_of_service']
+    const missingConsents = requiredConsents.filter(consent => !consents[consent])
+
+    if (missingConsents.length > 0) {
+      setError(`Please accept all required consents`)
+      return false
+    }
+
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setError('You must be logged in to submit')
+        return
+      }      // Save consent data
       const { error: consentError } = await supabase
         .from('onboarding_consent')
         .insert({
-          request_id: request.id,
+          request_id: request?.id,
           user_id: user.id,
-          document_type: 'onboarding_form', // Add default document type
-          form_data: data,
-          submitted_at: new Date().toISOString(),
+          form_data: formData,
+          consents: consents,
+          submitted_at: new Date().toISOString()
         })
 
-      if (consentError) throw consentError
+      if (consentError) {
+        console.error('Error saving consent:', consentError)
+        setError('Failed to save consent data')
+        return
+      }
 
-      // Update the request status
+      // Update request status
       const { error: updateError } = await supabase
         .from('onboarding_requests')
-        .update({
-          status: 'completed',
-          completed_by: user.id,
-          completed_at: new Date().toISOString(),
+        .update({ 
+          status: 'submitted',
+          updated_at: new Date().toISOString()
         })
-        .eq('id', request.id)
+        .eq('id', request?.id)
 
-      if (updateError) throw updateError
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['onboarding-request'] })
+      if (updateError) {
+        console.error('Error updating request status:', updateError)
+        setError('Failed to update request status')
+        return
+      }      // Call the completion callback instead of redirecting
       onComplete()
-    },
-  })
-
-  const onSubmit = (data: FormData) => {
-    submitMutation.mutate(data)
+    } catch (err) {
+      console.error('Error submitting form:', err)
+      setError('Failed to submit onboarding form')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const onDocumentUploaded = (documentType: string) => {
-    setUploadedDocuments(prev => [...prev, documentType])
+  const handleRefreshDocuments = () => {
+    console.log('Refreshing document list...')
+    loadUploadedDocuments()
   }
 
-  const renderFieldSection = (fieldType: string) => {
-    const Icon = getFieldIcon(fieldType)
-    
-    return (
-      <Card key={fieldType} className="mb-6">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Icon className="h-5 w-5" />
-            {fieldType}
-          </CardTitle>
+  if (!onboardingType) {
+    return <div>Loading...</div>
+  }
+
+  const requiredDocuments = onboardingType.required_documents || []
+  const uploadedDocTypes = uploadedDocuments.map(doc => doc.document_type)
+  const missingDocuments = requiredDocuments.filter(doc => !uploadedDocTypes.includes(doc))
+
+  console.log('=== DOCUMENT STATUS DEBUG ===')
+  console.log('Request ID:', request?.id)
+  console.log('Onboarding Type:', onboardingType)
+  console.log('Required Documents:', requiredDocuments)
+  console.log('Uploaded Documents:', uploadedDocuments)
+  console.log('Missing Documents:', missingDocuments)
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{onboardingType.name}</CardTitle>
+          <CardDescription>
+            Please complete all required information and upload necessary documents.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {fieldType === 'Company Information' && (
-            <>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">            {error && (
+              <div className="border border-red-200 bg-red-50 p-4 rounded-lg">
+                <div className="flex items-center">
+                  <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
+                  <span className="text-red-700">{error}</span>
+                </div>
+              </div>
+            )}            {/* Profile Data Reuse */}            <ProfileDataReuse 
+              onDataSelected={handleProfileDataReuse}
+              requiredFields={onboardingType?.required_fields || []}
+            />
+
+            {/* Form Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="company_name">Company Name *</Label>
                 <Input
                   id="company_name"
-                  {...register('company_name')}
-                  className="mt-1"
-                />                {errors.company_name && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.company_name)}</p>
-                )}
+                  value={formData.company_name}
+                  onChange={(e) => handleInputChange('company_name', e.target.value)}
+                  required
+                />
               </div>
-              <div>
-                <Label htmlFor="business_type">Business Type *</Label>
-                <Input
-                  id="business_type"
-                  {...register('business_type')}
-                  placeholder="LLC, Corporation, Partnership, etc."
-                  className="mt-1"
-                />                {errors.business_type && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.business_type)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="tax_id">Tax ID / EIN *</Label>
-                <Input
-                  id="tax_id"
-                  {...register('tax_id')}
-                  placeholder="XX-XXXXXXX"
-                  className="mt-1"
-                />                
-                {errors.tax_id && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.tax_id)}</p>
-                )}
-              </div>
-            </>
-          )}
-          
-          {fieldType === 'Contact Details' && (
-            <>
               <div>
                 <Label htmlFor="contact_name">Contact Name *</Label>
                 <Input
                   id="contact_name"
-                  {...register('contact_name')}
-                  className="mt-1"
+                  value={formData.contact_name}
+                  onChange={(e) => handleInputChange('contact_name', e.target.value)}
+                  required
                 />
-                {errors.contact_name && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.contact_name)}</p>
-                )}
               </div>
               <div>
                 <Label htmlFor="contact_email">Contact Email *</Label>
                 <Input
                   id="contact_email"
                   type="email"
-                  {...register('contact_email')}
-                  className="mt-1"
+                  value={formData.contact_email}
+                  onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                  required
                 />
-                {errors.contact_email && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.contact_email)}</p>
-                )}
               </div>
               <div>
-                <Label htmlFor="contact_phone">Phone Number *</Label>
+                <Label htmlFor="phone">Phone</Label>
                 <Input
-                  id="contact_phone"
-                  type="tel"
-                  {...register('contact_phone')}
-                  className="mt-1"
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
                 />
-                {errors.contact_phone && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.contact_phone)}</p>
-                )}
               </div>
-            </>
-          )}
-          
-          {fieldType === 'Tax Information' && (
-            <>
               <div>
-                <Label htmlFor="tax_classification">Tax Classification *</Label>
+                <Label htmlFor="tax_id">Tax ID</Label>
                 <Input
-                  id="tax_classification"
-                  {...register('tax_classification')}
-                  placeholder="Individual, Corporation, Partnership, etc."
-                  className="mt-1"
-                />
-                {errors.tax_classification && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.tax_classification)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="tax_exemption">Tax Exemption (if applicable)</Label>
-                <Input
-                  id="tax_exemption"
-                  {...register('tax_exemption')}
-                  className="mt-1"
-                />
-              </div>
-            </>
-          )}
-          
-          {fieldType === 'Banking Information' && (
-            <>
-              <div>
-                <Label htmlFor="bank_name">Bank Name *</Label>
-                <Input
-                  id="bank_name"
-                  {...register('bank_name')}
-                  className="mt-1"
-                />
-                {errors.bank_name && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.bank_name)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="account_type">Account Type *</Label>
-                <Input
-                  id="account_type"
-                  {...register('account_type')}
-                  placeholder="Checking, Savings, etc."
-                  className="mt-1"
-                />
-                {errors.account_type && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.account_type)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="routing_number">Routing Number *</Label>
-                <Input
-                  id="routing_number"
-                  {...register('routing_number')}
-                  placeholder="9-digit routing number"
-                  className="mt-1"
-                />
-                {errors.routing_number && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.routing_number)}</p>
-                )}
-              </div>
-            </>
-          )}
-          
-          {fieldType === 'Insurance Information' && (
-            <>
-              <div>
-                <Label htmlFor="insurance_provider">Insurance Provider *</Label>
-                <Input
-                  id="insurance_provider"
-                  {...register('insurance_provider')}
-                  className="mt-1"
-                />
-                {errors.insurance_provider && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.insurance_provider)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="policy_number">Policy Number *</Label>
-                <Input
-                  id="policy_number"
-                  {...register('policy_number')}
-                  className="mt-1"
-                />
-                {errors.policy_number && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.policy_number)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="coverage_amount">Coverage Amount *</Label>
-                <Input
-                  id="coverage_amount"
-                  {...register('coverage_amount')}
-                  placeholder="$1,000,000"
-                  className="mt-1"
-                />
-                {errors.coverage_amount && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.coverage_amount)}</p>
-                )}
-              </div>
-            </>
-          )}
-          
-          {fieldType === 'Certifications' && (
-            <>
-              <div>
-                <Label htmlFor="certifications">Professional Certifications</Label>
-                <Textarea
-                  id="certifications"
-                  {...register('certifications')}
-                  placeholder="List any relevant professional certifications..."
-                  className="mt-1"
+                  id="tax_id"
+                  value={formData.tax_id}
+                  onChange={(e) => handleInputChange('tax_id', e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="licenses">Business Licenses</Label>
-                <Textarea
-                  id="licenses"
-                  {...register('licenses')}
-                  placeholder="List any business licenses..."
-                  className="mt-1"
-                />
+                <Label htmlFor="business_type">Business Type</Label>
+                <Select 
+                  value={formData.business_type}
+                  onValueChange={(value) => handleInputChange('business_type', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select business type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="corporation">Corporation</SelectItem>
+                    <SelectItem value="llc">LLC</SelectItem>
+                    <SelectItem value="partnership">Partnership</SelectItem>
+                    <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    )
-  }
-  return (
-    <div className="space-y-6">
-      {/* Profile Data Reuse */}
-      <ProfileDataReuse 
-        onDataSelected={handleDataReuse}
-        requiredFields={requiredFields}
-      />
+            </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Required Fields Sections */}
-        {requiredFields.map(renderFieldSection)}
-        
-        {/* Address Section (Always Required) */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Building className="h-5 w-5" />
-              Business Address
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="address_line1">Address Line 1 *</Label>
-              <Input
-                id="address_line1"
-                {...register('address_line1')}
-                className="mt-1"
-              />
-              {errors.address_line1 && (
-                <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.address_line1)}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="address_line2">Address Line 2</Label>
-              <Input
-                id="address_line2"
-                {...register('address_line2')}
-                className="mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="city">City *</Label>
-                <Input
-                  id="city"
-                  {...register('city')}
-                  className="mt-1"
-                />
-                {errors.city && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.city)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="state">State *</Label>
-                <Input
-                  id="state"
-                  {...register('state')}
-                  className="mt-1"
-                />
-                {errors.state && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.state)}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="postal_code">Postal Code *</Label>
-                <Input
-                  id="postal_code"
-                  {...register('postal_code')}
-                  className="mt-1"
-                />
-                {errors.postal_code && (
-                  <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.postal_code)}</p>
-                )}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="country">Country *</Label>
-              <Input
-                id="country"
-                {...register('country')}
-                defaultValue="United States"
-                className="mt-1"
-              />
-              {errors.country && (
-                <p className="text-sm text-red-600 mt-1">{getErrorMessage(errors.country)}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Document Upload Section */}
-        {requiredDocuments.length > 0 && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Upload className="h-5 w-5" />
-                Required Documents
-              </CardTitle>
-              <CardDescription>
-                Please upload the following documents to complete your onboarding.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {requiredDocuments.map((docType: string) => (
-                <div key={docType} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {uploadedDocuments.includes(docType) ? (
-                      <Check className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <Upload className="h-5 w-5 text-gray-400" />
-                    )}
-                    <div>
-                      <p className="font-medium">{docType}</p>
-                      {uploadedDocuments.includes(docType) ? (
-                        <Badge className="bg-green-100 text-green-800">Uploaded</Badge>
-                      ) : (
-                        <Badge variant="outline">Required</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <DocumentUpload
-                    documentType={docType}
-                    requestId={request.id}
-                    onUploadSuccess={() => onDocumentUploaded(docType)}
-                    disabled={uploadedDocuments.includes(docType)}
+            {/* Address Fields */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Address Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <Label htmlFor="address_line1">Address Line 1</Label>
+                  <Input
+                    id="address_line1"
+                    value={formData.address_line1}
+                    onChange={(e) => handleInputChange('address_line1', e.target.value)}
                   />
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Submit Button */}
-        <div className="flex justify-end pt-6 border-t">
-          <Button
-            type="submit"
-            size="lg"
-            disabled={isSubmitting || submitMutation.isPending || isCompleting}
-            className="min-w-32"
-          >
-            {isSubmitting || submitMutation.isPending || isCompleting ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Submitting...
+                <div className="md:col-span-2">
+                  <Label htmlFor="address_line2">Address Line 2</Label>
+                  <Input
+                    id="address_line2"
+                    value={formData.address_line2}
+                    onChange={(e) => handleInputChange('address_line2', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    value={formData.state}
+                    onChange={(e) => handleInputChange('state', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="zip_code">ZIP Code</Label>
+                  <Input
+                    id="zip_code"
+                    value={formData.zip_code}
+                    onChange={(e) => handleInputChange('zip_code', e.target.value)}
+                  />
+                </div>
               </div>
-            ) : (
-              'Complete Onboarding'
-            )}
-          </Button>
-        </div>
+            </div>
 
-        {submitMutation.error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">
-              {submitMutation.error.message || 'An error occurred while submitting the form.'}
-            </p>
-          </div>
-        )}
-      </form>
+            {/* Additional Information */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Business Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            {/* Document Upload Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Required Documents</h3>
+                <Button 
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshDocuments}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+              
+              {requiredDocuments.map((documentType) => {
+                const isUploaded = uploadedDocTypes.includes(documentType)
+                return (
+                  <div key={documentType} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        {isUploaded ? (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Upload className="h-5 w-5 text-gray-400" />
+                        )}
+                        <span className="font-medium">{documentType}</span>
+                        {isUploaded && (
+                          <span className="text-sm text-green-600">(Uploaded)</span>
+                        )}
+                      </div>
+                    </div>
+                    <DocumentUpload
+                      requestId={request?.id}
+                      documentType={documentType}
+                      onUploadSuccess={() => handleDocumentUploaded(documentType)}
+                    />
+                  </div>
+                )
+              })}              {missingDocuments.length > 0 && (
+                <div className="border border-yellow-200 bg-yellow-50 p-4 rounded-lg">
+                  <div className="flex items-center">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500 mr-2" />
+                    <span className="text-yellow-700">
+                      Missing required documents: {missingDocuments.join(', ')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Consent Checkboxes */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Consents & Agreements</h3>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="data_processing"
+                    checked={consents.data_processing || false}
+                    onCheckedChange={(checked) => 
+                      handleConsentChange('data_processing', checked as boolean)
+                    }
+                  />
+                  <Label htmlFor="data_processing" className="text-sm leading-5">
+                    I consent to the processing of my personal data for onboarding purposes
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="terms_of_service"
+                    checked={consents.terms_of_service || false}
+                    onCheckedChange={(checked) => 
+                      handleConsentChange('terms_of_service', checked as boolean)
+                    }
+                  />
+                  <Label htmlFor="terms_of_service" className="text-sm leading-5">
+                    I agree to the terms of service and privacy policy
+                  </Label>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end">
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || missingDocuments.length > 0}
+                className="min-w-32"
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Onboarding'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
