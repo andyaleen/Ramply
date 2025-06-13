@@ -172,11 +172,12 @@ function PublicOnboardingContent() {
       </div>
     )
   }
-
   // User is authenticated, show the onboarding form
   const mockRequest = {
     id: `mock-${typeId}`,
     onboarding_types: {
+      id: onboardingType.id,
+      name: onboardingType.name,
       required_fields: onboardingType.required_fields || [],
       required_documents: onboardingType.required_documents || []
     }

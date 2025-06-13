@@ -1,7 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,12 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { DocumentUpload } from './DocumentUpload'
 import { ProfileDataReuse } from './ProfileDataReuse'
+import { ExtendedProfileData } from '@/lib/profile-utils'
 import { AlertTriangle, CheckCircle, Upload, RefreshCw } from 'lucide-react'
 
 const supabase = createClient()
 
+interface OnboardingRequest {
+  id: string
+  onboarding_types?: OnboardingType
+  [key: string]: unknown
+}
+
 interface OnboardingFormProps {
-  request: any
+  request: OnboardingRequest
   onComplete: () => void
   isCompleting: boolean
 }
@@ -50,9 +56,8 @@ interface UploadedDocument {
   document_type: string
 }
 
-export function OnboardingForm({ request, onComplete, isCompleting }: OnboardingFormProps) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
+export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
+  const [loading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [onboardingType, setOnboardingType] = useState<OnboardingType | null>(null)
   const [formData, setFormData] = useState<FormData>({
@@ -66,21 +71,14 @@ export function OnboardingForm({ request, onComplete, isCompleting }: Onboarding
     city: '',
     state: '',
     zip_code: '',
-    phone: '',
-    website: '',
+    phone: '',    website: '',
     description: ''
   })
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([])
   const [consents, setConsents] = useState<Record<string, boolean>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Load onboarding request and user data
-  useEffect(() => {
-    if (request?.id) {
-      loadOnboardingData()
-      loadUploadedDocuments()
-    }
-  }, [request?.id])
-  const loadOnboardingData = async () => {
+
+  const loadOnboardingData = useCallback(async () => {
     try {
       console.log('Loading onboarding data for request:', request?.id)
       
@@ -144,15 +142,14 @@ export function OnboardingForm({ request, onComplete, isCompleting }: Onboarding
             phone: profile.phone || '',
             website: profile.website || '',
             description: profile.description || ''
-          }))
-        }
-      }    } catch (err) {
+          }))        }
+      }
+    } catch (err) {
       console.error('Error in loadOnboardingData:', err)
       setError('Failed to load onboarding data')
     }
-  }
-  
-  const loadUploadedDocuments = async () => {
+  }, [request])
+    const loadUploadedDocuments = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || !request?.id) {
@@ -223,8 +220,16 @@ export function OnboardingForm({ request, onComplete, isCompleting }: Onboarding
     } catch (err) {
       console.error('Error loading uploaded documents:', err)
     }
-  }
-  const handleProfileDataReuse = (data: any) => {
+  }, [request])
+
+  // Load onboarding request and user data
+  useEffect(() => {
+    if (request?.id) {
+      loadOnboardingData()
+      loadUploadedDocuments()
+    }
+  }, [request?.id, loadOnboardingData, loadUploadedDocuments])
+    const handleProfileDataReuse = (data: ExtendedProfileData) => {
     const cleanData: FormData = {
       company_name: data.company_name || '',
       contact_name: data.contact_name || '',
@@ -235,10 +240,10 @@ export function OnboardingForm({ request, onComplete, isCompleting }: Onboarding
       address_line2: data.address_line2 || '',
       city: data.city || '',
       state: data.state || '',
-      zip_code: data.zip_code || '',
-      phone: data.phone || '',
-      website: data.website || '',
-      description: data.description || ''
+      zip_code: data.postal_code || '',
+      phone: data.contact_phone || '',
+      website: '',
+      description: ''
     }
     setFormData(prev => ({ ...prev, ...cleanData }))
   }
