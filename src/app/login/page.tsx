@@ -57,11 +57,18 @@ function LoginContent() {
       </Layout>
     )
   }
-
   // ✅ Show AuthForm if not authenticated yet
   return (
     <Layout showAuth={false}>
-      <AuthForm />
+      <Suspense fallback={
+        <LoadingFallback
+          title="Loading"
+          description="Loading authentication form..."
+          onRefresh={() => window.location.reload()}
+        />
+      }>
+        <AuthForm />
+      </Suspense>
     </Layout>
   )
 }

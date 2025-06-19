@@ -63,14 +63,20 @@ export function AdminSignUpForm() {
       return
     }
 
+    console.log('🔧 Admin signup initiated for:', email)
+
     try {
-      // First, sign up the user
+      // First, sign up the user with a redirect to admin
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/admin`
+        }
       })
 
       if (authError) {
+        console.error('❌ Auth signup error:', authError)
         if (authError.message.includes('User already registered')) {
           setError('An account with this email already exists.')
         } else {
@@ -81,6 +87,8 @@ export function AdminSignUpForm() {
       }
 
       if (authData.user) {
+        console.log('✅ User created successfully:', authData.user.id)
+        
         // Create user profile with admin role
         const { error: profileError } = await supabase
           .from('users')
@@ -93,15 +101,17 @@ export function AdminSignUpForm() {
           ])
 
         if (profileError) {
-          console.error('Error creating admin profile:', profileError)
+          console.error('❌ Error creating admin profile:', profileError)
           // Note: The auth user is already created, so we should handle this gracefully
           toast.error('Account created but role assignment failed. Please contact support.')
+        } else {
+          console.log('✅ Admin profile created successfully')
         }
 
         setSuccess(true)
       }
     } catch (err) {
-      console.error('Admin sign up error:', err)
+      console.error('💥 Admin sign up error:', err)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -119,14 +129,12 @@ export function AdminSignUpForm() {
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold">Admin Account Created!</CardTitle>
-            <CardDescription>
-              Check your email at {email} for confirmation
+            <CardTitle className="text-2xl font-bold">Admin Account Created!</CardTitle>            <CardDescription>
+              Check your email at {email} for confirmation. After confirming, you'll be redirected to the admin dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600 text-center">
-              Your admin account has been created successfully. Please check your email and click the confirmation link to activate your account.
+          <CardContent className="space-y-4">            <p className="text-sm text-gray-600 text-center">
+              Your admin account has been created successfully. Please check your email and click the confirmation link to activate your account. You will be redirected to the admin dashboard after confirmation.
             </p>
             <div className="flex flex-col space-y-2">
               <Button

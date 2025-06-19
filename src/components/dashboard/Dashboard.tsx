@@ -39,8 +39,7 @@ export function Dashboard() {
     }    
     loadDashboardStats()  }, [user])
   
-  // Function to refresh stats (currently unused but may be needed later)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   const refreshDashboardStats = async () => {
     if (!user) return
     
@@ -68,11 +67,7 @@ export function Dashboard() {
                 <p className="text-sm text-gray-600">{userProfile?.company_name}</p>
               </div>
             </div>
-              <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
+              <div className="flex items-center space-x-4">          
               <Button variant="ghost" size="sm" onClick={() => router.push('/signout')}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
@@ -145,11 +140,13 @@ export function Dashboard() {
                 ) : (
                   dashboardStats.completedThisMonth
                 )}
-              </div>              <p className="text-xs text-muted-foreground">
+              </div>              
+              <p className="text-xs text-muted-foreground">
                 Successfully completed
               </p>
             </CardContent>
-          </Card>        </div>
+          </Card>        
+          </div>
 
         {/* Onboarding Types */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -161,7 +158,8 @@ export function Dashboard() {
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Your Requests</h3>
             <ExternalRequestsList />
-          </div>        </div>
+          </div>        
+          </div>
       </main>
     </div>
   )

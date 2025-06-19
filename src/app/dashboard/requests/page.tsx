@@ -258,14 +258,8 @@ export default function RequestsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Onboarding Requests</h1>
           <p className="text-muted-foreground">
             Track and manage all vendor onboarding submissions
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" disabled={hasSchemaError || isLoading}>
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-        </div>
+          </p>        
+          </div>
       </div>
 
       {/* Stats */}
@@ -463,10 +457,11 @@ export default function RequestsPage() {
                           <MessageSquare className="h-4 w-4" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </TableCell>                  
+                    </TableRow>
                 ))}
-              </TableBody>            </Table>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

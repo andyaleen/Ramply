@@ -44,25 +44,36 @@ export async function GET(request: NextRequest) {
     if (error || !data.session) {
       return NextResponse.redirect(`${origin}/auth/auth-code-error?error=${encodeURIComponent(error?.message || 'Authentication failed')}`)
     }    const userId = data.session.user.id
-    const userEmail = data.session.user.email    // Check for user profile
+    const userEmail = data.session.user.email
+
+    // Check for user profile in the users table
     const { data: userProfile, error: fetchError } = await supabase
-      .from('profiles')
+      .from('users')
       .select('role')
       .eq('id', userId)
       .single()
 
-    // If profile not found, create one
+    // If profile not found, create one with default external role
     let finalUserProfile = userProfile
     if (fetchError || !userProfile) {
-      await supabase.from('profiles').insert([
-        {
-          id: userId,
-          email: userEmail,
-          role: 'user',
-          created_at: new Date().toISOString(),
-        },
-      ])
-      finalUserProfile = { role: 'user' }
+      const { data: newProfile, error: createError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: userId,
+            email: userEmail,
+            role: 'external',
+          },
+        ])
+        .select('role')
+        .single()
+
+      if (createError) {
+        console.error('Error creating user profile:', createError)
+        finalUserProfile = { role: 'external' }
+      } else {
+        finalUserProfile = newProfile
+      }
     }
 
     // Role-based redirect

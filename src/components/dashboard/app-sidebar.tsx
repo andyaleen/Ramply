@@ -152,10 +152,7 @@ export function AppSidebar() {
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
-                  <Bell className="mr-2 h-4 w-4" />
-                  Notifications
-                </DropdownMenuItem>                <DropdownMenuSeparator />
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/signout')}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Log out

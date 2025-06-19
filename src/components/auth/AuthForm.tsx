@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -16,21 +17,28 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
+  const searchParams = useSearchParams()
+  const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
+  const initialTab = tabFromUrl || defaultTab
+  
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [adminKey, setAdminKey] = useState('')
+  const [isAdminMode, setIsAdminMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [activeTab, setActiveTab] = useState(defaultTab)
+  const [activeTab, setActiveTab] = useState(initialTab)
   const { signIn, signUp } = useAuth()
   const router = useRouter()
   const supabase = createClient()
-
   const resetForm = () => {
     setEmail('')
     setPassword('')
     setConfirmPassword('')
+    setAdminKey('')
+    setIsAdminMode(false)
     setError('')
     setSuccess(false)
   }
@@ -96,11 +104,11 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       }
     } catch (err) {
       console.error('Sign in error:', err)
-      setError('An unexpected error occurred')
-    } finally {
+      setError('An unexpected error occurred')    } finally {
       setLoading(false)
     }
   }
+  
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -125,27 +133,97 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       setError('Password must be at least 6 characters long')
       setLoading(false)
       return
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    }    // Email validation with more comprehensive checks
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address')
       setLoading(false)
       return
-    }    try {
-      const { error } = await signUp(email.trim(), password)
-      if (error) {
-        if (error.message.includes('User already registered')) {
-          setError('An account with this email already exists. Please sign in instead.')
-        } else {
-          setError(error.message)
+    }
+
+    // Additional email validation checks
+    if (email.length < 5) {
+      setError('Email address is too short')
+      setLoading(false)
+      return
+    }
+
+    const emailParts = email.split('@')
+    if (emailParts.length !== 2 || emailParts[0].length < 2 || emailParts[1].length < 3) {
+      setError('Please enter a complete email address')
+      setLoading(false)
+      return
+    }
+
+    // Admin-specific validation
+    if (isAdminMode) {
+      if (!adminKey) {
+        setError('Admin registration key is required')
+        setLoading(false)
+        return
+      }
+
+      const validAdminKey = process.env.NEXT_PUBLIC_ADMIN_SIGNUP_KEY || 'admin123'
+      if (adminKey !== validAdminKey) {
+        setError('Invalid admin key. Please contact your system administrator.')
+        setLoading(false)
+        return
+      }
+    }
+
+    console.log(`🔧 ${isAdminMode ? 'Admin' : 'Regular'} signup initiated for:`, email)
+
+    try {
+      const redirectUrl = isAdminMode ? '/admin' : '/dashboard'
+      
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${redirectUrl}`
         }
-      } else {
+      })      
+      if (authError) {
+        console.error('❌ Auth signup error:', authError)
+        if (authError.message.includes('User already registered')) {
+          setError('An account with this email already exists. Please sign in instead.')
+        } else if (authError.message.includes('invalid') && authError.message.includes('email')) {
+          setError('The email address format is not accepted. Please try a different email address.')
+        } else if (authError.message.includes('Email address')) {
+          setError('There was an issue with the email address. Please try a different email or contact support.')
+        } else {
+          setError(authError.message)
+        }
+        setLoading(false)
+        return
+      }
+
+      if (authData.user) {
+        console.log('✅ User created successfully:', authData.user.id)
+        
+        // Create user profile with appropriate role
+        const userRole = isAdminMode ? 'admin' : 'external'
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: authData.user.id,
+              email: authData.user.email,
+              role: userRole,
+            },
+          ])
+
+        if (profileError) {
+          console.error('❌ Error creating user profile:', profileError)
+          setError('Account created but profile setup failed. Please contact support.')
+        } else {
+          console.log(`✅ ${userRole} profile created successfully`)
+        }
+
         setSuccess(true)
       }
     } catch (err) {
-      console.error('Sign up error:', err)
+      console.error('💥 Sign up error:', err)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
@@ -182,15 +260,21 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               <div className="bg-green-600 p-3 rounded-full">
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
-            </div>
-            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+            </div>            
+            <CardTitle className="text-2xl font-bold">
+              {isAdminMode ? 'Admin Account Created!' : 'Check Your Email'}
+            </CardTitle>
             <CardDescription>
               We&apos;ve sent you a confirmation link at {email}
+              {isAdminMode && '. After confirming, you\'ll be redirected to the admin dashboard.'}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4">            
             <p className="text-sm text-gray-600 text-center">
-              Please check your email and click the confirmation link to activate your account.
+              {isAdminMode 
+                ? 'Your admin account has been created successfully. Please check your email and click the confirmation link to activate your account. You will be redirected to the admin dashboard after confirmation.'
+                : 'Please check your email and click the confirmation link to activate your account.'
+              }
             </p>
             <div className="flex flex-col space-y-2">
               <Button
@@ -203,13 +287,14 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Sign In
-              </Button>
-              <Button
+              </Button>              <Button
                 onClick={() => {
                   setSuccess(false)
                   setEmail('')
                   setPassword('')
                   setConfirmPassword('')
+                  setAdminKey('')
+                  setIsAdminMode(false)
                 }}
                 className="w-full"
               >
@@ -356,8 +441,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                 <div className="space-y-2">
                   <Label htmlFor="signup-confirm-password">Confirm Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />                    <Input
                       id="signup-confirm-password"
                       type="password"
                       placeholder="Confirm your password"
@@ -368,7 +452,46 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                       minLength={6}
                     />
                   </div>
-                </div>                {error && (
+                </div>
+
+                {/* Admin Registration Toggle */}
+                <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="admin-toggle"
+                      type="checkbox"
+                      checked={isAdminMode}
+                      onChange={(e) => setIsAdminMode(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                    />
+                    <Label htmlFor="admin-toggle" className="text-sm font-medium text-blue-900">
+                      Register as Administrator
+                    </Label>
+                  </div>
+                  
+                  {isAdminMode && (
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-key" className="text-sm text-blue-900">Admin Registration Key</Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
+                        <Input
+                          id="admin-key"
+                          type="password"
+                          placeholder="Enter admin registration key"
+                          value={adminKey}
+                          onChange={(e) => setAdminKey(e.target.value)}
+                          className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500"
+                          required={isAdminMode}
+                        />
+                      </div>
+                      <p className="text-xs text-blue-700">
+                        Contact your system administrator for the admin registration key
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {error && (
                   <div className="space-y-2">
                     <p className={`text-sm ${error.includes('Check your email') ? 'text-green-600' : 'text-red-600'}`}>
                       {error}
@@ -386,33 +509,22 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                       </p>
                     )}
                   </div>
-                )}
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Creating Account...' : 'Create Account'}
+                )}                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading 
+                    ? (isAdminMode ? 'Creating Admin Account...' : 'Creating Account...') 
+                    : (isAdminMode ? 'Create Admin Account' : 'Create Account')
+                  }
                 </Button>
               </form>
             </TabsContent>
           </Tabs>        
-          </CardContent>        
-          <CardFooter className="text-center text-sm text-muted-foreground space-y-3">
+          </CardContent>            <CardFooter className="text-center text-sm text-muted-foreground">
           <p className="w-full">
             By continuing, you agree to our{' '}
             <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
             {' '}and{' '}
             <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
           </p>
-          <div className="w-full pt-2 border-t">
-            <p className="text-xs">
-              Need admin access?{' '}
-              <button
-                type="button"
-                onClick={() => router.push('/admin/signup')}
-                className="text-blue-600 hover:text-blue-500 font-medium underline"
-              >
-                Register as Admin
-              </button>
-            </p>
-          </div>
         </CardFooter>
       </Card>
     </div>
