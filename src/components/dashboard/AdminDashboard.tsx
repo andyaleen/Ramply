@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Settings, Users, FileText, Link, Crown } from 'lucide-react'
+import { Plus, Settings, Users, FileText, Link, Crown, Send } from 'lucide-react'
 import { OnboardingTypesList } from '@/components/dashboard/OnboardingTypesList'
 import { OnboardingRequestsList } from '@/components/dashboard/OnboardingRequestsList'
 import { CreateOnboardingTypeDialog } from '@/components/dashboard/CreateOnboardingTypeDialog'
@@ -56,22 +56,36 @@ export function AdminDashboard() {
       console.log('AdminDashboard: Admin user confirmed')
     }
   }, [authLoading, user, userProfile, isAdmin, router])
-
   useEffect(() => {
     const dashboardService = new DashboardService()
     
     const loadDashboardStats = async () => {
       // Only load stats if we have an authenticated admin user
       if (!user || !userProfile || !isAdmin || authLoading) {
+        console.log('AdminDashboard: Skipping stats load - missing requirements', {
+          hasUser: !!user,
+          hasProfile: !!userProfile,
+          isAdmin,
+          authLoading
+        })
         return
       }
       
       try {
+        console.log('AdminDashboard: Loading dashboard stats for user:', user.id)
         setLoading(true)
         const stats = await dashboardService.getDashboardStats(user)
+        console.log('AdminDashboard: Loaded stats:', stats)
         setDashboardStats(stats)
       } catch (error) {
         console.error('Error loading dashboard stats:', error)
+        // Set default values on error
+        setDashboardStats({
+          totalOnboardingTypes: 0,
+          pendingRequests: 0,
+          completedThisMonth: 0,
+          totalVendors: 0
+        })
       } finally {
         setLoading(false)
       }
@@ -85,15 +99,21 @@ export function AdminDashboard() {
     // Refresh stats when new onboarding type is created
     refreshDashboardStats()
   }
+  
   const refreshDashboardStats = async () => {
     if (!user) return
     
     const dashboardService = new DashboardService()
     try {
+      console.log('AdminDashboard: Refreshing dashboard stats')
+      setLoading(true)
       const stats = await dashboardService.getDashboardStats(user)
+      console.log('AdminDashboard: Refreshed stats:', stats)
       setDashboardStats(stats)
     } catch (error) {
       console.error('Error refreshing dashboard stats:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -136,7 +156,7 @@ export function AdminDashboard() {
   return (
     <div className="flex-1 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white border-b border-gray-200 px-6 py-4">        
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -146,19 +166,28 @@ export function AdminDashboard() {
               Manage your onboarding flows and track vendor submissions
             </p>
           </div>
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </div>
         </div>
-      </header>
-
-      {/* Main Content */}
+      </header>      {/* Main Content */}
       <main className="flex-1 p-6 bg-gray-50">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Dashboard Overview</h3>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshDashboardStats}
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+              ) : (
+                <Settings className="h-4 w-4 mr-2" />
+              )}
+              Refresh
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Onboarding Types</CardTitle>
@@ -212,18 +241,30 @@ export function AdminDashboard() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Successful onboardings
-              </p>
-            </CardContent>
+              </p>            </CardContent>
           </Card>
-        </div>        {/* Quick Actions */}
+        </div>
+        </div>{/* Quick Actions */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create Onboarding Flow
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/admin/send-links')}>
+              <Send className="h-4 w-4 mr-2" />
+              Send Links
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/admin/responses')}>
+              <FileText className="h-4 w-4 mr-2" />
+              View Responses
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/admin/request-types')}>
+              <Settings className="h-4 w-4 mr-2" />
+              Manage Types
             </Button>
           </div>
         </div>
@@ -258,7 +299,8 @@ export function AdminDashboard() {
 
           <TabsContent value="users">
             <UserManagement />
-          </TabsContent>        </Tabs>
+          </TabsContent>        
+          </Tabs>
       </main>
 
       {/* Create Dialog */}

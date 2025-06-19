@@ -15,20 +15,19 @@ export default function AdminLayout({
 }) {
   const { user, userProfile, loading, isAdmin } = useAuth()
   const router = useRouter()
-
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
     }
     
-    // Redirect non-admin users to dashboard
-    if (!loading && user && userProfile && !isAdmin) {
+    // Don't redirect if we're still loading or if we have a timeout fallback profile
+    // (indicated by contact_name being "Profile Load Timeout")
+    if (!loading && user && userProfile && userProfile.contact_name !== 'Profile Load Timeout' && !isAdmin) {
       console.log('Admin Layout: Non-admin user detected, redirecting to /dashboard')
       router.push('/dashboard')
     }
   }, [user, userProfile, loading, isAdmin, router])
-
-  if (loading) {
+  if (loading || (userProfile?.contact_name === 'Profile Load Timeout')) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>

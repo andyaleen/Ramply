@@ -94,6 +94,7 @@ export function DocumentUpload({
       console.log('Document saved to database successfully:', insertData)
       return uploadData
     },    onSuccess: () => {
+      console.log('Document upload successful, calling onUploadSuccess for:', documentType)
       setSelectedFile(null)
       onUploadSuccess(documentType)
       if (fileInputRef.current) {

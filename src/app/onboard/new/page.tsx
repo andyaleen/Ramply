@@ -3,8 +3,8 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
-import { useState, Suspense } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, Suspense, useEffect } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,9 +19,9 @@ function PublicOnboardingContent() {
   const { user } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [onboardingRequest, setOnboardingRequest] = useState(null)
   const supabase = createClient()
   const typeId = searchParams.get('type')
-
   const { data: onboardingType, isLoading, error } = useQuery({
     queryKey: ['onboarding-type', typeId],
     queryFn: async () => {
@@ -42,6 +42,46 @@ function PublicOnboardingContent() {
     enabled: !!typeId
   })
 
+  // Create a real onboarding request when user starts onboarding
+  const createRequestMutation = useMutation({
+    mutationFn: async () => {
+      if (!user || !onboardingType) throw new Error('Missing user or onboarding type')
+      
+      // Generate a unique token for this request
+      const token = crypto.randomUUID()
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 30) // 30 days expiry
+      
+      const { data, error } = await supabase
+        .from('onboarding_requests')
+        .insert({
+          onboarding_type_id: onboardingType.id,
+          requester_user_id: user.id, // In this case, the user is self-requesting
+          recipient_email: user.email,
+          token,
+          expires_at: expiresAt.toISOString(),
+          status: 'pending'
+        })
+        .select(`
+          *,
+          onboarding_types(*)
+        `)
+        .single()
+
+      if (error) throw error
+      return data
+    },    onSuccess: (data: any) => {
+      setOnboardingRequest(data)
+    }
+  })
+
+  // Create request when user is authenticated and onboarding type is loaded
+  useEffect(() => {
+    if (user && onboardingType && !onboardingRequest && !createRequestMutation.isPending) {
+      createRequestMutation.mutate()
+    }
+  }, [user, onboardingType, onboardingRequest])
+
   const handleComplete = () => {
     setIsCompleted(true)
   }
@@ -53,8 +93,56 @@ function PublicOnboardingContent() {
       </div>
     )
   }
-
-  if (error || !onboardingType) {
+  if (error || (!onboardingType && !isLoading)) {
+    // Create a mock onboarding type for testing if none exists
+    const mockOnboardingType = {
+      id: typeId || 'default-test',
+      name: 'Test Vendor Onboarding',
+      description: 'Standard vendor onboarding process for testing',
+      required_documents: ['W9 Form', 'Certificate of Insurance', 'Bank Details'],
+      required_fields: ['company_name', 'contact_name', 'contact_email', 'tax_id', 'business_type', 'address_line1', 'city', 'state', 'zip_code', 'phone'],
+      users: { company_name: 'Test Company', contact_name: 'Test Admin' }
+    }
+    
+    // If we have a user, proceed with the mock onboarding type
+    if (user) {
+      const mockRequest = {
+        id: 'mock-request-' + Date.now(),
+        onboarding_types: mockOnboardingType
+      }
+      
+      return (
+        <Layout>
+          <div className="min-h-screen bg-gray-50 py-8">
+            {isCompleted ? (
+              <div className="max-w-2xl mx-auto text-center">
+                <Card>
+                  <CardContent className="pt-6">
+                    <CircleCheckBig className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                    <h1 className="text-2xl font-bold text-green-700 mb-2">
+                      Onboarding Completed!
+                    </h1>
+                    <p className="text-gray-600 mb-6">
+                      Thank you for completing the onboarding process. Your information has been submitted successfully.
+                    </p>
+                    <Button onClick={() => router.push('/dashboard')}>
+                      Go to Dashboard
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <OnboardingForm 
+                request={mockRequest}
+                onComplete={handleComplete}
+                isCompleting={false}
+              />
+            )}
+          </div>
+        </Layout>
+      )
+    }
+    
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md">
@@ -170,39 +258,78 @@ function PublicOnboardingContent() {
           <AuthForm />
         </div>
       </div>
+    )  }
+  
+  // User is authenticated, show the onboarding form
+  if (user && onboardingRequest) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {onboardingType.name} - {onboardingType.users?.company_name}
+            </h1>
+            <p className="text-gray-600">
+              Please complete all required fields and upload necessary documents.
+            </p>
+          </div>
+
+          <OnboardingForm
+            request={onboardingRequest}
+            onComplete={handleComplete}
+            isCompleting={false}
+          />
+        </div>
+      </div>
     )
   }
-  // User is authenticated, show the onboarding form
-  const mockRequest = {
-    id: `mock-${typeId}`,
-    onboarding_types: {
-      id: onboardingType.id,
-      name: onboardingType.name,
-      required_fields: onboardingType.required_fields || [],
-      required_documents: onboardingType.required_documents || []
-    }
+
+  // Show loading while creating request
+  if (user && !onboardingRequest && createRequestMutation.isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Setting up your onboarding...</p>
+        </div>
+      </div>
+    )
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {onboardingType.name} - {onboardingType.users?.company_name}
-          </h1>
-          <p className="text-gray-600">
-            Please complete all required fields and upload necessary documents.
+  // If there was an error creating the request
+  if (createRequestMutation.error) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-md mx-auto text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Setup Error</h1>
+          <p className="text-gray-600 mb-4">
+            There was an error setting up your onboarding. Please try again.
           </p>
+          <button 
+            onClick={() => createRequestMutation.mutate()}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
         </div>
-
-        <OnboardingForm
-          request={mockRequest}
-          onComplete={handleComplete}
-          isCompleting={false}
-        />
       </div>
-    </div>
-  )
+    )
+  }
+
+  // If we get here and user is authenticated but no request yet, something is wrong
+  if (user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Default return - this should not be reached
+  return null
 }
 
 export default function PublicOnboardingPage() {

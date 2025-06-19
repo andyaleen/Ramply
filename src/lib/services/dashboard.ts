@@ -54,48 +54,76 @@ export interface RecentActivity {
 
 export class DashboardService {
   private supabase = createClient()
-
   async getDashboardStats(user: User): Promise<DashboardStats> {
     try {
+      console.log('DashboardService: Fetching stats for user:', user.id)
+      
       // Get total onboarding types
-      const { count: totalTypes } = await this.supabase
+      const { count: totalTypes, error: typesError } = await this.supabase
         .from('onboarding_types')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
 
+      if (typesError) {
+        console.error('Error fetching onboarding types count:', typesError)
+      }
+      console.log('Total onboarding types:', totalTypes)
+
       // Get pending requests
-      const { count: pendingRequests } = await this.supabase
+      const { count: pendingRequests, error: pendingError } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
         .eq('requester_user_id', user.id)
         .eq('status', 'pending')
+
+      if (pendingError) {
+        console.error('Error fetching pending requests count:', pendingError)
+      }
+      console.log('Pending requests:', pendingRequests)
 
       // Get completed requests this month
       const startOfMonth = new Date()
       startOfMonth.setDate(1)
       startOfMonth.setHours(0, 0, 0, 0)
 
-      const { count: completedThisMonth } = await this.supabase
+      const { count: completedThisMonth, error: completedError } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
         .eq('requester_user_id', user.id)
         .eq('status', 'completed')
         .gte('completed_at', startOfMonth.toISOString())
 
+      if (completedError) {
+        console.error('Error fetching completed requests count:', completedError)
+      }
+      console.log('Completed this month:', completedThisMonth)
+
       // Get total unique vendors (users who have completed at least one request)
-      const { count: totalVendors } = await this.supabase
+      const { data: vendorData, error: vendorError } = await this.supabase
         .from('onboarding_requests')
-        .select('completed_by', { count: 'exact', head: true })
+        .select('completed_by')
         .eq('requester_user_id', user.id)
         .eq('status', 'completed')
         .not('completed_by', 'is', null)
 
-      return {
+      if (vendorError) {
+        console.error('Error fetching vendor data:', vendorError)
+      }
+
+      // Count unique vendors
+      const uniqueVendors = new Set(vendorData?.map(v => v.completed_by) || [])
+      const totalVendors = uniqueVendors.size
+      console.log('Total unique vendors:', totalVendors)
+
+      const stats = {
         totalOnboardingTypes: totalTypes || 0,
         pendingRequests: pendingRequests || 0,
         completedThisMonth: completedThisMonth || 0,
         totalVendors: totalVendors || 0
       }
+
+      console.log('Final dashboard stats:', stats)
+      return stats
     } catch (error) {
       console.error('Error fetching dashboard stats:', error)
       throw error

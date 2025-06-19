@@ -26,7 +26,6 @@ import {
 import {
   ChevronUp,
   User,
-  Bell,
   LogOut,
   Settings,
   Users,
@@ -200,19 +199,10 @@ export function AdminSidebar() {
                 <DropdownMenuItem onClick={() => router.push('/admin/profile')}>
                   <User className="mr-2 h-4 w-4" />
                   Profile
-                </DropdownMenuItem>
+                </DropdownMenuItem>                
                 <DropdownMenuItem onClick={() => router.push('/admin/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/admin/notifications')}>
-                  <Bell className="mr-2 h-4 w-4" />
-                  Notifications
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  Switch to User View
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600">

@@ -10,12 +10,21 @@ import { Badge } from '@/components/ui/badge'
 import { FileText, Copy, Users, Calendar, MoreHorizontal } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { SendOnboardingRequestDialog } from './SendOnboardingRequestDialog'
+import { EditOnboardingTypeDialog } from './EditOnboardingTypeDialog'
+import { DeleteOnboardingTypeDialog } from './DeleteOnboardingTypeDialog'
 import { toast } from 'sonner'
 
-export function OnboardingTypesList() {
+interface OnboardingTypesListProps {
+  mode?: 'manage' | 'send' // 'manage' for Request Types page, 'send' for Send Links page
+}
+
+export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProps) {
   const { user } = useAuth()
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null)
   const [showSendDialog, setShowSendDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedTypeName, setSelectedTypeName] = useState<string | null>(null)
   const supabase = createClient()
 
   const { data: onboardingTypes, isLoading } = useQuery({
@@ -33,13 +42,23 @@ export function OnboardingTypesList() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      return data
-    },
+      return data    },
     enabled: !!user,
   })
+  
   const handleSendRequest = (typeId: string) => {
     setSelectedTypeId(typeId)
     setShowSendDialog(true)
+  }
+
+  const handleEditType = (typeId: string) => {
+    setSelectedTypeId(typeId)
+    setShowEditDialog(true)
+  }
+  const handleDeleteType = (typeId: string, typeName: string) => {
+    setSelectedTypeId(typeId)
+    setSelectedTypeName(typeName)
+    setShowDeleteDialog(true)
   }
   
   const copyOnboardingLink = async (typeId: string) => {
@@ -72,15 +91,19 @@ export function OnboardingTypesList() {
       </div>
     )
   }
-
   if (!onboardingTypes?.length) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <FileText className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No onboarding types yet</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {mode === 'send' ? 'No onboarding types available' : 'No onboarding types yet'}
+          </h3>
           <p className="text-gray-600 text-center mb-4">
-            Create your first onboarding flow to start collecting vendor information
+            {mode === 'send' 
+              ? 'Create onboarding types first before sending invitations to vendors'
+              : 'Create your first onboarding flow to start collecting vendor information'
+            }
           </p>
         </CardContent>
       </Card>
@@ -130,35 +153,79 @@ export function OnboardingTypesList() {
                     {formatDate(type.created_at)}
                   </span>
                 </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleSendRequest(type.id)}
-                >
-                  Send Request
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyOnboardingLink(type.id)}
-                >
-                  <Copy className="h-4 w-4 mr-1" />
-                  Copy Link
-                </Button>
+              </div>              <div className="flex gap-2">
+                {mode === 'send' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSendRequest(type.id)}
+                    >
+                      Send Invitation
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyOnboardingLink(type.id)}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy Link
+                    </Button>
+                  </>
+                ) : (                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEditType(type.id)}
+                    >
+                      Edit Type
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyOnboardingLink(type.id)}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Preview Link
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteType(type.id, type.name)}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
-          </Card>
-        ))}
-      </div>
+          </Card>        ))}
+      </div>      {mode === 'send' && (
+        <SendOnboardingRequestDialog
+          open={showSendDialog}
+          onOpenChange={setShowSendDialog}
+          onboardingTypeId={selectedTypeId}
+          onSuccess={() => setShowSendDialog(false)}
+        />
+      )}
 
-      <SendOnboardingRequestDialog
-        open={showSendDialog}
-        onOpenChange={setShowSendDialog}
-        onboardingTypeId={selectedTypeId}
-        onSuccess={() => setShowSendDialog(false)}
-      />
+      {mode === 'manage' && (
+        <>
+          <EditOnboardingTypeDialog
+            open={showEditDialog}
+            onOpenChange={setShowEditDialog}
+            onboardingTypeId={selectedTypeId}
+            onSuccess={() => setShowEditDialog(false)}
+          />
+          
+          <DeleteOnboardingTypeDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+            onboardingTypeId={selectedTypeId}
+            onboardingTypeName={selectedTypeName}
+            onSuccess={() => setShowDeleteDialog(false)}
+          />
+        </>
+      )}
     </>
   )
 }

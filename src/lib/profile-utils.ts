@@ -64,21 +64,30 @@ export async function getUserProfileData(userId: string): Promise<ProfileData | 
  */
 export async function getExtendedProfileData(userId: string): Promise<ExtendedProfileData | null> {
   const supabase = createClient()
-  
-  // Get the most recent onboarding submission for this user
-  const { data, error } = await supabase
-    .from('onboarding_consent')
-    .select('form_data')
-    .eq('user_id', userId)
-    .order('submitted_at', { ascending: false })
-    .limit(1)
-    .single()
+    try {
+    // Get the most recent onboarding submission for this user
+    const { data, error } = await supabase
+      .from('onboarding_consent')
+      .select('form_data')
+      .eq('user_id', userId)
+      .order('submitted_at', { ascending: false })
+      .limit(1)
 
-  if (error || !data?.form_data) {
+    if (error) {
+      console.warn('Could not fetch extended profile data from consent table:', error.message)
+      return null
+    }
+
+    // Check if we got any data and if the first record has form_data
+    if (!data || data.length === 0 || !data[0]?.form_data) {
+      return null
+    }
+
+    return data[0].form_data as ExtendedProfileData
+  } catch (error) {
+    console.warn('Error fetching extended profile data:', error)
     return null
   }
-
-  return data.form_data as ExtendedProfileData
 }
 
 /**
