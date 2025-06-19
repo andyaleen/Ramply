@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { 
   Search, 
   Filter, 
@@ -20,7 +21,10 @@ import {
   AlertCircle,
   User,
   Calendar,
-  Building2
+  Building2,
+  Mail,
+  MapPin,
+  FileText
 } from 'lucide-react'
 import {
   Table,
@@ -30,11 +34,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 export default function RequestsPage() {
   const { userProfile, user } = useAuth()
+  const supabase = createClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedRequest, setSelectedRequest] = useState<any>(null)
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
 
   // Check for schema error
   const hasSchemaError = userProfile?.contact_name === 'Schema Error - Please Fix Database'
@@ -72,8 +81,7 @@ export default function RequestsPage() {
     const variants = {
       completed: 'default',
       pending: 'secondary',
-      expired: 'destructive'
-    } as const
+      expired: 'destructive'    } as const
 
     return (
       <Badge variant={variants[status as keyof typeof variants] || 'secondary'}>
@@ -81,12 +89,118 @@ export default function RequestsPage() {
       </Badge>
     )
   }
+  
   const filteredRequests = requests?.filter(request =>
     (statusFilter === 'all' || request.status === statusFilter) &&
     (requestsService.getVendorDisplayName(request).toLowerCase().includes(searchQuery.toLowerCase()) ||
      requestsService.getContactEmail(request).toLowerCase().includes(searchQuery.toLowerCase()) ||
      request.onboarding_types?.name.toLowerCase().includes(searchQuery.toLowerCase()))
   ) || []
+
+  // Handle view details
+  const handleViewDetails = async (request: any) => {
+    try {
+      // Fetch additional details if needed
+      const { data: detailedRequest, error } = await supabase
+        .from('onboarding_requests')
+        .select(`
+          *,
+          onboarding_types (
+            id,
+            name,
+            description,
+            required_fields,
+            required_documents
+          ),
+          completed_by_user:users!onboarding_requests_completed_by_fkey (
+            id,
+            contact_name,
+            email,
+            company_name,
+            tax_id,
+            business_type,
+            address_line1,
+            address_line2,
+            city,
+            state,
+            postal_code,
+            country
+          )
+        `)
+        .eq('id', request.id)
+        .single()
+      
+      if (error) throw error
+      
+      // Get documents for this request
+      const { data: documents, error: docsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('request_id', request.id)
+      
+      if (docsError) throw docsError
+        // Get consent data
+      const { data: consentData, error: consentError } = await supabase
+        .from('onboarding_consent')
+        .select('*')
+        .eq('request_id', request.id)
+      
+      if (consentError) throw consentError
+      
+      setSelectedRequest({
+        ...detailedRequest,
+        documents: documents || [],
+        consent_data: consentData || []
+      })
+      setShowDetailsDialog(true)
+    } catch (error) {
+      console.error('Error loading request details:', error)
+      toast.error('Failed to load request details')
+    }
+  }
+
+  // Handle message/contact
+  const handleContact = (request: any) => {
+    const email = requestsService.getContactEmail(request)
+    const subject = `Regarding Onboarding Request - ${request.onboarding_types?.name || 'Onboarding'}`
+    const body = `Hi,\n\nI wanted to follow up on your onboarding request for ${request.onboarding_types?.name || 'our onboarding process'}.\n\nBest regards`
+    
+    const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.open(mailtoLink, '_blank')
+  }
+
+  // Download document function
+  const downloadDocument = async (doc: { id: string; file_name: string }) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(doc.id)
+
+      if (error) throw error
+
+      // Create blob URL and download
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = doc.file_name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      toast.success(`Downloaded ${doc.file_name}`)
+    } catch (error) {
+      console.error('Failed to download file:', error)
+      toast.error('Failed to download file. Please try again.')
+    }
+  }
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return 'Unknown size'
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i]
+  }
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -213,10 +327,11 @@ export default function RequestsPage() {
               ) : (
                 stats?.completed || 0
               )}
-            </div>
-          </CardContent>
+            </div>          </CardContent>
         </Card>
-      </div>      {/* Search and Filters */}
+      </div>
+
+      {/* Search and Filters */}
       <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -323,7 +438,7 @@ export default function RequestsPage() {
                         <Calendar className="h-4 w-4" />
                         {new Date(request.created_at).toLocaleDateString()}
                       </div>
-                    </TableCell>
+                    </TableCell>                    
                     <TableCell>
                       <div className="text-sm text-muted-foreground">
                         {requestsService.formatTimeAgo(request.updated_at)}
@@ -331,18 +446,27 @@ export default function RequestsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewDetails(request)}
+                          title="View Details"
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleContact(request)}
+                          title="Contact Vendor"
+                        >
                           <MessageSquare className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
-            </Table>
+              </TableBody>            </Table>
           )}
         </CardContent>
       </Card>
@@ -360,6 +484,235 @@ export default function RequestsPage() {
           </p>
         </div>
       )}
+
+      {/* Request Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Request Details
+            </DialogTitle>
+            <DialogDescription>
+              View comprehensive details about this onboarding request including company information, submitted documents, and contact details.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRequest && (
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Request Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Onboarding Type</label>
+                      <p className="mt-1 font-medium">{selectedRequest.onboarding_types?.name}</p>
+                      {selectedRequest.onboarding_types?.description && (
+                        <p className="text-sm text-muted-foreground mt-1">{selectedRequest.onboarding_types.description}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Status</label>
+                      <div className="mt-1 flex items-center gap-2">
+                        {getStatusIcon(selectedRequest.status)}
+                        {getStatusBadge(selectedRequest.status)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Submitted</label>
+                      <p className="mt-1">{new Date(selectedRequest.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Last Updated</label>
+                      <p className="mt-1">{requestsService.formatTimeAgo(selectedRequest.updated_at)}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Recipient Email</label>
+                      <p className="mt-1">{selectedRequest.recipient_email}</p>
+                    </div>
+                    {selectedRequest.completed_at && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Completed</label>
+                        <p className="mt-1">{new Date(selectedRequest.completed_at).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Company Information */}
+              {selectedRequest.completed_by_user && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Company Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Company Name</label>
+                        <p className="mt-1">{selectedRequest.completed_by_user.company_name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Business Type</label>
+                        <p className="mt-1">{selectedRequest.completed_by_user.business_type || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Tax ID</label>
+                        <p className="mt-1">{selectedRequest.completed_by_user.tax_id || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Contact Information */}
+              {selectedRequest.completed_by_user && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Contact Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Contact Name</label>
+                        <p className="mt-1">{selectedRequest.completed_by_user.contact_name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <Mail className="h-4 w-4" />
+                          Email
+                        </label>
+                        <p className="mt-1">{selectedRequest.completed_by_user.email}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Address */}
+                    {(selectedRequest.completed_by_user.address_line1 || 
+                      selectedRequest.completed_by_user.city || 
+                      selectedRequest.completed_by_user.state) && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          Address
+                        </label>
+                        <div className="mt-1 text-sm">
+                          {selectedRequest.completed_by_user.address_line1 && (
+                            <p>{selectedRequest.completed_by_user.address_line1}</p>
+                          )}
+                          {selectedRequest.completed_by_user.address_line2 && (
+                            <p>{selectedRequest.completed_by_user.address_line2}</p>
+                          )}
+                          <p>
+                            {[
+                              selectedRequest.completed_by_user.city,
+                              selectedRequest.completed_by_user.state,
+                              selectedRequest.completed_by_user.postal_code
+                            ].filter(Boolean).join(', ')}
+                          </p>
+                          {selectedRequest.completed_by_user.country && (
+                            <p>{selectedRequest.completed_by_user.country}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Submitted Documents */}
+              {selectedRequest.documents && selectedRequest.documents.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Submitted Documents ({selectedRequest.documents.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {selectedRequest.documents.map((doc: any) => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-blue-600" />
+                            <div>
+                              <p className="font-medium">{doc.document_type}</p>
+                              <p className="text-sm text-muted-foreground">{doc.file_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatFileSize(doc.file_size)} • Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadDocument(doc)}
+                            className="flex items-center gap-1"
+                          >
+                            <Download className="h-4 w-4" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Form Data */}
+              {selectedRequest.consent_data && selectedRequest.consent_data.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Form Data</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {selectedRequest.consent_data.map((consent: any, index: number) => (
+                        <div key={consent.id || index} className="p-4 border rounded-lg">
+                          <div className="mb-2">
+                            <span className="text-sm text-muted-foreground">
+                              Submitted: {new Date(consent.submitted_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            {Object.entries(consent.form_data || {}).map(([key, value]) => (
+                              <div key={key}>
+                                <label className="text-sm font-medium text-muted-foreground capitalize">
+                                  {key.replace(/_/g, ' ')}
+                                </label>
+                                <p className="mt-1">{String(value) || 'N/A'}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => handleContact(selectedRequest)}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Contact Vendor
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
