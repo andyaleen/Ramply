@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .select('*')
               .eq('id', userId)
               .abortSignal(controller.signal)
-              .single()
+              .maybeSingle()
             
             clearTimeout(timeoutId)
             return { data, error }
@@ -202,6 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('🚀 Getting initial session...')
         const { data: { session } } = await supabase.auth.getSession()
+        console.log(session ? '👤 Session found' : '👤 No session found');
+        
         
         if (session?.user) {
           console.log('👤 Session found for user:', session.user.email)

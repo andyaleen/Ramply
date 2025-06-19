@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { FileText, Calendar } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function ExternalOnboardingTypesList() {
   const supabase = createClient()
-
+  const {user }= useAuth()
   const { data: onboardingTypes, isLoading } = useQuery({
     queryKey: ['public-onboarding-types'],
     queryFn: async () => {
@@ -18,7 +19,7 @@ export function ExternalOnboardingTypesList() {
         .select(`
           *,
           users:user_id(company_name, contact_name)
-        `)
+        `).eq('user_id', user?.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error

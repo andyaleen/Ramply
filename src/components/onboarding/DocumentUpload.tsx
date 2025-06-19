@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { dataTagErrorSymbol, useMutation } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -51,11 +51,12 @@ export function DocumentUpload({
 
       // Create unique filename
       const fileExt = file.name.split('.').pop()
-      const fileName = `${requestId}/${documentType}-${Date.now()}.${fileExt}`      // Upload to Supabase Storage
+      const fileName = `${user.id}/${requestId}/${documentType}-${Date.now()}.${fileExt}`      // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documents')
         .upload(fileName, file)
 
+      console.log("uploadError",uploadError)
       if (uploadError) throw uploadError
 
       console.log('=== DOCUMENT UPLOAD TO DATABASE ===')
@@ -84,7 +85,7 @@ export function DocumentUpload({
           mime_type: file.type,
         })
         .select() // Add select to return the inserted data
-
+        console.log("res ",insertData)
       if (dbError) {
         console.error('Database insert error:', dbError)
         throw dbError

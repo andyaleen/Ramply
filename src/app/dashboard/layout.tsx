@@ -14,6 +14,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { user, userProfile, loading, isAdmin } = useAuth()
+  console.log(userProfile, 'Dashboard Layout: User Profile')
   const router = useRouter()
 
   useEffect(() => {
