@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, Settings, LogOut, Users, FileText, Link } from 'lucide-react'
+import { Building2, LogOut, Users, FileText, Link } from 'lucide-react'
 import { ExternalOnboardingTypesList } from '@/components/dashboard/ExternalOnboardingTypesList'
 import { ExternalRequestsList } from '@/components/dashboard/ExternalRequestsList'
 import { useState, useEffect } from 'react'
@@ -32,25 +32,13 @@ export function Dashboard() {
         const stats = await dashboardService.getExternalUserStats(user)
         setDashboardStats(stats)
       } catch (error) {
-        console.error('Error loading dashboard stats:', error)
-      } finally {
+        console.error('Error loading dashboard stats:', error)      } finally {
         setLoading(false)
       }
-    }    
-    loadDashboardStats()  }, [user])
-  
-
-  const refreshDashboardStats = async () => {
-    if (!user) return
-    
-    const dashboardService = new DashboardService()
-    try {
-      const stats = await dashboardService.getExternalUserStats(user)
-      setDashboardStats(stats)
-    } catch (error) {
-      console.error('Error refreshing dashboard stats:', error)
     }
-  }
+    
+    loadDashboardStats()
+  }, [user])
 
   return (
     <div className="min-h-screen bg-gray-50">

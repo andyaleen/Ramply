@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -49,19 +49,11 @@ export function EditOnboardingTypeDialog({
     handleSubmit,
     formState: { errors },
     reset,
-    setValue,
-  } = useForm({
+    setValue,  } = useForm({
     resolver: zodResolver(OnboardingTypeSchema.omit({ required_fields: true, required_documents: true })),
   })
 
-  // Load existing data when dialog opens
-  useEffect(() => {
-    if (open && onboardingTypeId) {
-      loadOnboardingType()
-    }
-  }, [open, onboardingTypeId])
-
-  const loadOnboardingType = async () => {
+  const loadOnboardingType = useCallback(async () => {
     if (!onboardingTypeId) return
     
     setIsLoading(true)
@@ -84,7 +76,14 @@ export function EditOnboardingTypeDialog({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [onboardingTypeId, setValue, supabase])
+
+  // Load existing data when dialog opens
+  useEffect(() => {
+    if (open && onboardingTypeId) {
+      loadOnboardingType()
+    }
+  }, [open, onboardingTypeId, loadOnboardingType])
   const updateMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string }) => {
       console.log('Starting mutation with:', { data, selectedDocuments, selectedFields })

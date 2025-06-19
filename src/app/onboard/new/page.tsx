@@ -123,13 +123,12 @@ function PublicOnboardingContent() {
       setOnboardingRequest(data)
     }
   })
-
   // Create request when user is authenticated and onboarding type is loaded
   useEffect(() => {
     if (user && onboardingType && !onboardingRequest && !createRequestMutation.isPending) {
       createRequestMutation.mutate()
     }
-  }, [user, onboardingType, onboardingRequest])
+  }, [user, onboardingType, onboardingRequest, createRequestMutation])
 
   const handleComplete = () => {
     setIsCompleted(true)

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
-import { requestsService } from '@/lib/services/requests'
+import { requestsService, OnboardingRequestDetailed } from '@/lib/services/requests'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -36,13 +36,19 @@ import {
 } from '@/components/ui/table'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { Database } from '@/lib/database.types'
 
-export default function RequestsPage() {
-  const { userProfile, user } = useAuth()
+type ExtendedRequest = OnboardingRequestDetailed & {
+  documents?: Database['public']['Tables']['documents']['Row'][]
+  consent_data?: Database['public']['Tables']['onboarding_consent']['Row'][]
+  completed_by_user?: Database['public']['Tables']['users']['Row']
+}
+
+export default function RequestsPage() {  const { userProfile, user } = useAuth()
   const supabase = createClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [selectedRequest, setSelectedRequest] = useState<any>(null)
+  const [selectedRequest, setSelectedRequest] = useState<ExtendedRequest | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
 
   // Check for schema error
@@ -95,10 +101,8 @@ export default function RequestsPage() {
     (requestsService.getVendorDisplayName(request).toLowerCase().includes(searchQuery.toLowerCase()) ||
      requestsService.getContactEmail(request).toLowerCase().includes(searchQuery.toLowerCase()) ||
      request.onboarding_types?.name.toLowerCase().includes(searchQuery.toLowerCase()))
-  ) || []
-
-  // Handle view details
-  const handleViewDetails = async (request: any) => {
+  ) || []  // Handle view details
+  const handleViewDetails = async (request: OnboardingRequestDetailed) => {
     try {
       // Fetch additional details if needed
       const { data: detailedRequest, error } = await supabase
@@ -158,9 +162,8 @@ export default function RequestsPage() {
       toast.error('Failed to load request details')
     }
   }
-
   // Handle message/contact
-  const handleContact = (request: any) => {
+  const handleContact = (request: OnboardingRequestDetailed) => {
     const email = requestsService.getContactEmail(request)
     const subject = `Regarding Onboarding Request - ${request.onboarding_types?.name || 'Onboarding'}`
     const body = `Hi,\n\nI wanted to follow up on your onboarding request for ${request.onboarding_types?.name || 'our onboarding process'}.\n\nBest regards`
@@ -633,7 +636,7 @@ export default function RequestsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {selectedRequest.documents.map((doc: any) => (
+                      {selectedRequest.documents.map((doc: Database['public']['Tables']['documents']['Row']) => (
                         <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">
                             <FileText className="h-5 w-5 text-blue-600" />
@@ -669,11 +672,10 @@ export default function RequestsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedRequest.consent_data.map((consent: any, index: number) => (
+                      {selectedRequest.consent_data.map((consent: Database['public']['Tables']['onboarding_consent']['Row'], index: number) => (
                         <div key={consent.id || index} className="p-4 border rounded-lg">
-                          <div className="mb-2">
-                            <span className="text-sm text-muted-foreground">
-                              Submitted: {new Date(consent.submitted_at).toLocaleDateString()}
+                          <div className="mb-2">                            <span className="text-sm text-muted-foreground">
+                              Submitted: {consent.submitted_at ? new Date(consent.submitted_at).toLocaleDateString() : 'Not submitted'}
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-4">

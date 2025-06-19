@@ -27,7 +27,6 @@ import {
   Building2,
   ChevronUp,
   User,
-  Bell,
   LogOut,
   Settings,
 } from "lucide-react"

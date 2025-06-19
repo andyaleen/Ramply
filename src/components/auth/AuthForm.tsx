@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -30,7 +29,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [activeTab, setActiveTab] = useState(initialTab)
-  const { signIn, signUp } = useAuth()
+  const { signIn } = useAuth()
   const router = useRouter()
   const supabase = createClient()
   const resetForm = () => {

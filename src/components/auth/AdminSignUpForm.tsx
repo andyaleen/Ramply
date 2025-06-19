@@ -128,12 +128,14 @@ export function AdminSignUpForm() {
               <div className="bg-blue-600 p-3 rounded-full">
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
-            </div>
-            <CardTitle className="text-2xl font-bold">Admin Account Created!</CardTitle>            <CardDescription>
-              Check your email at {email} for confirmation. After confirming, you'll be redirected to the admin dashboard.
+            </div>            
+            <CardTitle className="text-2xl font-bold">Admin Account Created!</CardTitle>            
+            <CardDescription>
+              Check your email at {email} for confirmation. After confirming, you&apos;ll be redirected to the admin dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">            <p className="text-sm text-gray-600 text-center">
+          <CardContent className="space-y-4">            
+            <p className="text-sm text-gray-600 text-center">
               Your admin account has been created successfully. Please check your email and click the confirmation link to activate your account. You will be redirected to the admin dashboard after confirmation.
             </p>
             <div className="flex flex-col space-y-2">
