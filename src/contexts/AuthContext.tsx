@@ -125,8 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        console.log(`⏱️ Profile fetch took ${performance.now() - fetchStartTime}ms`)
-
+        console.log(`⏱️ Profile fetch took ${performance.now() - fetchStartTime}ms`)        
         if (error) {
           console.error('🚨 Database query failed:', error)
           
@@ -142,6 +141,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               error.code === 'PGRST116') {
             console.error('🔒 RLS POLICY BLOCKING ACCESS')
             setUserProfile(createFallbackProfile(userId, userEmail || '', 'RLS Policy Error - Check Database Policies'))
+            profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
+            return
+          }
+          
+          // Check for RLS INSERT policy error during user creation
+          if (error.message?.includes('new row violates row-level security policy') ||
+              error.code === '42501' ||
+              error.message?.includes('permission denied') ||
+              error.message?.includes('policy')) {
+            console.error('🚫 RLS INSERT POLICY MISSING - User creation blocked')
+            console.error('💡 Solution: Run the fix-insert-policy.sql file in your Supabase SQL Editor')
+            setUserProfile(createFallbackProfile(userId, userEmail || '', 'Database Policy Error - Missing INSERT permission'))
             profileFetchCache.current.set(cacheKey, { profile: null, timestamp: Date.now() })
             return
           }

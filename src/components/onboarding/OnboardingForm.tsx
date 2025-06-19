@@ -322,32 +322,72 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     } catch (err) {
       console.error('Error getting fresh document data:', err)
     }
-    
-    // Validate documents
+      // Validate documents
     const requiredDocs = onboardingType?.required_documents || []
     const uploadedDocTypes = currentUploadedDocs.map(doc => doc.document_type)
     const missingDocs = requiredDocs.filter(doc => !uploadedDocTypes.includes(doc))
 
+    console.log('📋 Document validation:')
+    console.log('  Required docs:', requiredDocs)
+    console.log('  Uploaded docs:', uploadedDocTypes)
+    console.log('  Missing docs:', missingDocs)
+
     if (missingDocs.length > 0) {
+      console.log('❌ Document validation failed')
       setError(`Missing required documents: ${missingDocs.join(', ')}. Please upload all required documents before submitting.`)
       return false
-    }
-
-    // Validate required fields more intelligently
+    }    // Validate required fields more intelligently
     const requiredFields = onboardingType?.required_fields || []
-    const missingFields = requiredFields.filter(field => !formData[field] || formData[field].trim() === '')
+    
+    // Map required field names to actual form field names
+    const mapRequiredFieldToFormField = (requiredField: string): string[] => {
+      const fieldMapping: Record<string, string[]> = {
+        'Tax Information': ['tax_id'],
+        'Company Information': ['company_name'],
+        'Contact Information': ['contact_name', 'contact_email'],
+        'Address Information': ['address_line1', 'city', 'state', 'zip_code'],
+        'Business Type': ['business_type'],
+        'Phone': ['phone'],
+        'Website': ['website'],
+        'Description': ['description']
+      }
+      
+      // If there's a mapping, use it; otherwise assume it's a direct field name
+      return fieldMapping[requiredField] || [requiredField]
+    }
+    
+    // Check each required field against its mapped form fields
+    const missingFields: string[] = []
+    requiredFields.forEach(requiredField => {
+      const formFields = mapRequiredFieldToFormField(requiredField)
+      const hasAllRequiredData = formFields.some(field => formData[field] && formData[field].trim() !== '')
+      
+      if (!hasAllRequiredData) {
+        missingFields.push(requiredField)
+      }
+    })
+
+    console.log('📝 Field validation:')
+    console.log('  Required fields:', requiredFields)
+    console.log('  Form data keys:', Object.keys(formData))
+    console.log('  Missing fields:', missingFields)
 
     if (missingFields.length > 0) {
-      const missingFieldNames = missingFields.map(field => getFieldDisplayName(field))
+      console.log('❌ Field validation failed')
+      const missingFieldNames = missingFields.map(field => field) // Use the display name directly
       setError(`Missing required information: ${missingFieldNames.join(', ')}. Please fill in all required fields.`)
       return false
-    }
-
-    // Validate consents
+    }// Validate consents
     const requiredConsents = ['data_processing', 'terms_of_service']
     const missingConsents = requiredConsents.filter(consent => !consents[consent])
 
+    console.log('✅ Consent validation:')
+    console.log('  Required consents:', requiredConsents)
+    console.log('  Current consents:', consents)
+    console.log('  Missing consents:', missingConsents)
+
     if (missingConsents.length > 0) {
+      console.log('❌ Consent validation failed')
       setError(`Please accept all required consents before submitting.`)
       return false
     }
@@ -355,14 +395,20 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     console.log('✅ Form validation passed')
     return true
   }
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('🚀 Form submission started...')
     const isValid = await validateForm()
+    console.log('✅ Validation result:', isValid)
+    
     if (!isValid) {
+      console.log('❌ Validation failed, stopping submission')
       return
     }
 
+    console.log('✅ Validation passed, proceeding with submission...')
     setIsSubmitting(true)
     setError(null)
 
@@ -377,8 +423,10 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
         .insert({
           request_id: request?.id,
           user_id: user.id,
-          form_data: formData,
-          consents: consents,
+          form_data: {
+            ...formData,
+            consents: consents
+          },
           submitted_at: new Date().toISOString()
         })
 
@@ -386,13 +434,13 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
         console.error('Error saving consent:', consentError)
         setError('Failed to save consent data')
         return
-      }
-
-      // Update request status
+      }      // Update request status
       const { error: updateError } = await supabase
         .from('onboarding_requests')
         .update({ 
-          status: 'submitted',
+          status: 'completed',
+          completed_by: user.id,
+          completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', request?.id)
@@ -414,11 +462,30 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     console.log('Refreshing document list...')
     await loadUploadedDocuments()
   }
-
-  // Helper function to analyze what fields are missing vs what's already available
-  const analyzeMissingFields = useCallback(() => {
+  // Helper function to get field display name
+  const getFieldDisplayName = (fieldName: string): string => {
+    const fieldMap: Record<string, string> = {
+      company_name: 'Company Name',
+      contact_name: 'Contact Name', 
+      contact_email: 'Contact Email',
+      tax_id: 'Tax ID',
+      business_type: 'Business Type',
+      address_line1: 'Address Line 1',
+      address_line2: 'Address Line 2',
+      city: 'City',
+      state: 'State',
+      zip_code: 'ZIP Code',
+      phone: 'Phone Number',
+      website: 'Website',
+      description: 'Description'
+    }
+    return fieldMap[fieldName] || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }
+  // Run analysis when the actual data changes, not when the functions change
+  useEffect(() => {
     if (!onboardingType) return
 
+    // Analyze missing fields
     const requiredFields = onboardingType.required_fields || []
     const missing: string[] = []
     const available: string[] = []
@@ -445,59 +512,28 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     const docsProgress = requiredDocs.length > 0 ? (completedDocs / requiredDocs.length) * 50 : 0
 
     setFormCompletionProgress(Math.round(fieldsProgress + docsProgress))
+
+    // Analyze missing documents
+    const missingDocs = requiredDocs.filter(doc => !uploadedDocTypes.includes(doc))
+    setMissingDocumentsList(missingDocs)
+
   }, [onboardingType, formData, uploadedDocuments])
-
-  // Helper function to analyze missing documents
-  const analyzeMissingDocuments = useCallback(() => {
-    if (!onboardingType) return
-
-    const requiredDocs = onboardingType.required_documents || []
-    const uploadedDocTypes = uploadedDocuments.map(doc => doc.document_type)
-    const missing = requiredDocs.filter(doc => !uploadedDocTypes.includes(doc))
-    
-    setMissingDocumentsList(missing)
-  }, [onboardingType, uploadedDocuments])
-
-  // Helper function to get field display name
-  const getFieldDisplayName = (fieldName: string): string => {
-    const fieldMap: Record<string, string> = {
-      company_name: 'Company Name',
-      contact_name: 'Contact Name', 
-      contact_email: 'Contact Email',
-      tax_id: 'Tax ID',
-      business_type: 'Business Type',
-      address_line1: 'Address Line 1',
-      address_line2: 'Address Line 2',
-      city: 'City',
-      state: 'State',
-      zip_code: 'ZIP Code',
-      phone: 'Phone Number',
-      website: 'Website',
-      description: 'Description'
-    }
-    return fieldMap[fieldName] || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-  }
-
-  // Run analysis when form data or documents change
-  useEffect(() => {
-    analyzeMissingFields()
-    analyzeMissingDocuments()
-  }, [analyzeMissingFields, analyzeMissingDocuments])
 
   if (!onboardingType) {
     return <div>Loading...</div>
-  }
-
-  const requiredDocuments = onboardingType.required_documents || []
+  }  const requiredDocuments = onboardingType.required_documents || []
   const uploadedDocTypes = uploadedDocuments.map(doc => doc.document_type)
   const missingDocuments = requiredDocuments.filter(doc => !uploadedDocTypes.includes(doc))
-
-  console.log('=== DOCUMENT STATUS DEBUG ===')
-  console.log('Request ID:', request?.id)
-  console.log('Onboarding Type:', onboardingType)
-  console.log('Required Documents:', requiredDocuments)
-  console.log('Uploaded Documents:', uploadedDocuments)
-  console.log('Missing Documents:', missingDocuments)
+  
+  // Only log debug info when there are issues or during initial load
+  const shouldDebug = process.env.NODE_ENV === 'development' && (missingDocuments.length > 0 || uploadedDocuments.length !== requiredDocuments.length)
+  if (shouldDebug) {
+    console.log('=== DOCUMENT STATUS DEBUG ===')
+    console.log('Request ID:', request?.id)
+    console.log('Required Documents:', requiredDocuments)
+    console.log('Uploaded Documents:', uploadedDocuments)
+    console.log('Missing Documents:', missingDocuments)
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
