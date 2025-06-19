@@ -86,7 +86,7 @@ export function EditOnboardingTypeDialog({
     }
   }
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { name: string; description?: string }) => {
       console.log('Starting mutation with:', { data, selectedDocuments, selectedFields })
       
       if (!user || !onboardingTypeId) {
@@ -154,7 +154,7 @@ export function EditOnboardingTypeDialog({
     }
   }
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: { name: string; description?: string }) => {
     console.log('Form submitted with data:', data)
     console.log('Selected documents:', selectedDocuments)
     console.log('Selected fields:', selectedFields)

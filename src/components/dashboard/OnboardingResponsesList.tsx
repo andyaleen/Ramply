@@ -15,7 +15,6 @@ import {
   Download, 
   FileText, 
   Building, 
-  Calendar,
   User,
   Mail,
   MapPin
@@ -36,8 +35,8 @@ interface OnboardingResponse {
     id: string
     name: string
     description: string | null
-    required_fields: any[]
-    required_documents: any[]
+    required_fields: string[]
+    required_documents: string[]
   } | null
   completed_by_user: {
     id: string
@@ -62,7 +61,7 @@ interface OnboardingResponse {
   }[]
   consent_data: {
     id: string
-    form_data: any
+    form_data: Record<string, unknown>
     submitted_at: string
   }[]
 }
@@ -72,12 +71,13 @@ export function OnboardingResponsesList() {
   const supabase = createClient()
   const [selectedResponse, setSelectedResponse] = useState<OnboardingResponse | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  
   // Download document function
-  const downloadDocument = async (doc: any) => {
+  const downloadDocument = async (doc: { id: string; file_name: string }) => {
     try {
       const { data, error } = await supabase.storage
         .from('documents')
-        .download(doc.file_path)
+        .download(doc.id) // Use the document ID as the file path
 
       if (error) throw error
 
@@ -506,7 +506,7 @@ export function OnboardingResponsesList() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {selectedResponse.consent_data.map((consent, index) => (
+                    {selectedResponse.consent_data.map((consent) => (
                       <div key={consent.id} className="space-y-3">
                         <div className="text-sm text-gray-500">
                           Submitted on {formatDate(consent.submitted_at)}

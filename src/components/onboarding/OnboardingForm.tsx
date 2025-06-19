@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { DocumentUpload } from './DocumentUpload'
 import { ProfileDataReuse } from './ProfileDataReuse'
 import { ExtendedProfileData } from '@/lib/profile-utils'
-import { AlertTriangle, CheckCircle, Upload, RefreshCw, Clock, TrendingUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Upload, RefreshCw, Clock } from 'lucide-react'
 
 const supabase = createClient()
 
@@ -71,13 +71,13 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     city: '',
     state: '',
     zip_code: '',
-    phone: '',    website: '',
-    description: ''  
+    phone: '',
+    website: '',    
+    description: ''
   })
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([])
   const [consents, setConsents] = useState<Record<string, boolean>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [existingProfileData, setExistingProfileData] = useState<ExtendedProfileData | null>(null)
   const [missingFieldsList, setMissingFieldsList] = useState<string[]>([])
   const [missingDocumentsList, setMissingDocumentsList] = useState<string[]>([])
   const [documentUploadProgress, setDocumentUploadProgress] = useState<Record<string, 'uploading' | 'completed' | 'error'>>({})

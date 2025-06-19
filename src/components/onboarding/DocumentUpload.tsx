@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { dataTagErrorSymbol, useMutation } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'

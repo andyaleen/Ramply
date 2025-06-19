@@ -13,13 +13,25 @@ import { OnboardingForm } from '@/components/onboarding/OnboardingForm'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { Layout } from '@/components/layout/Layout'
 
+interface OnboardingRequest {
+  id: string
+  onboarding_types?: {
+    id: string
+    name: string
+    description: string | null
+    required_fields: string[]
+    required_documents: string[]
+  }
+  [key: string]: unknown
+}
+
 function PublicOnboardingContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
-  const [onboardingRequest, setOnboardingRequest] = useState(null)
+  const [onboardingRequest, setOnboardingRequest] = useState<OnboardingRequest | null>(null)
   const supabase = createClient()
   const typeId = searchParams.get('type')
   const { data: onboardingType, isLoading, error } = useQuery({
@@ -70,7 +82,7 @@ function PublicOnboardingContent() {
 
       if (error) throw error
       return data
-    },    onSuccess: (data: any) => {
+    },    onSuccess: (data: OnboardingRequest) => {
       setOnboardingRequest(data)
     }
   })

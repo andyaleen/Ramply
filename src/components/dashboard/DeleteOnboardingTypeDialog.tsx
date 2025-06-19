@@ -93,7 +93,7 @@ export function DeleteOnboardingTypeDialog({
           </DialogTitle>
           <DialogDescription className="text-left">
             Are you sure you want to delete{' '}
-            <span className="font-medium">"{onboardingTypeName}"</span>?
+            <span className="font-medium">&quot;{onboardingTypeName}&quot;</span>?
             <br />
             <br />
             This action cannot be undone and will permanently remove this onboarding type. 

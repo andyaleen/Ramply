@@ -164,30 +164,7 @@ export function ProfileDataReuse({ onDataSelected, requiredFields, currentFormDa
       }
     })
     
-    onDataSelected(selectedData)
-  }
-
-  const getFieldDisplayName = (fieldName: string): string => {
-    const fieldMap: Record<string, string> = {
-      company_name: 'Company Name',
-      contact_name: 'Contact Name', 
-      contact_email: 'Contact Email',
-      tax_id: 'Tax ID',
-      business_type: 'Business Type',
-      address_line1: 'Address Line 1',
-      address_line2: 'Address Line 2',
-      city: 'City',
-      state: 'State',
-      postal_code: 'ZIP Code',
-      contact_phone: 'Phone Number',
-      tax_classification: 'Tax Classification',
-      bank_name: 'Bank Name',
-      insurance_provider: 'Insurance Provider',
-      certifications: 'Certifications',
-      licenses: 'Licenses'
-    }
-    return fieldMap[fieldName] || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-  }
+    onDataSelected(selectedData)  }
 
   if (loading) {
     return (
