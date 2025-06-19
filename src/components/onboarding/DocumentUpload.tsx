@@ -11,13 +11,19 @@ interface DocumentUploadProps {
   documentType: string
   requestId: string
   onUploadSuccess: (documentType: string) => void
+  onUploadStart?: (documentType: string) => void
+  onUploadError?: (documentType: string, error: string) => void
+  isUploaded?: boolean
   disabled?: boolean
 }
 
 export function DocumentUpload({ 
   documentType, 
   requestId, 
-  onUploadSuccess, 
+  onUploadSuccess,
+  onUploadStart,
+  onUploadError,
+  isUploaded = false,
   disabled = false 
 }: DocumentUploadProps) {
   const { user } = useAuth()
@@ -25,10 +31,12 @@ export function DocumentUpload({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
-  
-  const uploadMutation = useMutation({
+    const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!user) throw new Error('User not authenticated')
+      
+      // Call upload start callback
+      onUploadStart?.(documentType)
       
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
@@ -92,14 +100,18 @@ export function DocumentUpload({
       }
 
       console.log('Document saved to database successfully:', insertData)
-      return uploadData
-    },    onSuccess: () => {
+      return uploadData    },
+    onSuccess: () => {
       console.log('Document upload successful, calling onUploadSuccess for:', documentType)
       setSelectedFile(null)
       onUploadSuccess(documentType)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+    },
+    onError: (error: Error) => {
+      console.error('Document upload failed:', error)
+      onUploadError?.(documentType, error.message)
     },
   })
 
@@ -153,12 +165,11 @@ export function DocumentUpload({
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
-
-  if (disabled) {
+  if (disabled || isUploaded) {
     return (
-      <div className="flex items-center gap-2 text-green-600">
+      <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg border border-green-200">
         <Check className="h-4 w-4" />
-        <span className="text-sm font-medium">Uploaded</span>
+        <span className="text-sm font-medium">{documentType} - Uploaded</span>
       </div>
     )
   }

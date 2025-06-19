@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { DocumentUpload } from './DocumentUpload'
 import { ProfileDataReuse } from './ProfileDataReuse'
 import { ExtendedProfileData } from '@/lib/profile-utils'
-import { AlertTriangle, CheckCircle, Upload, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Upload, RefreshCw, Clock, TrendingUp } from 'lucide-react'
 
 const supabase = createClient()
 
@@ -72,11 +72,16 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     state: '',
     zip_code: '',
     phone: '',    website: '',
-    description: ''
+    description: ''  
   })
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([])
   const [consents, setConsents] = useState<Record<string, boolean>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [existingProfileData, setExistingProfileData] = useState<ExtendedProfileData | null>(null)
+  const [missingFieldsList, setMissingFieldsList] = useState<string[]>([])
+  const [missingDocumentsList, setMissingDocumentsList] = useState<string[]>([])
+  const [documentUploadProgress, setDocumentUploadProgress] = useState<Record<string, 'uploading' | 'completed' | 'error'>>({})
+  const [formCompletionProgress, setFormCompletionProgress] = useState(0)
 
   const loadOnboardingData = useCallback(async () => {
     try {
@@ -269,29 +274,33 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
       [consentType]: checked
     }))
   }
-
-  const handleDocumentUploaded = (documentType: string) => {
+  const handleDocumentUploaded = async (documentType: string) => {
     console.log('Document uploaded callback triggered for:', documentType)
+    
+    // Set upload progress to completed
+    setDocumentUploadProgress(prev => ({
+      ...prev,
+      [documentType]: 'completed'
+    }))
+    
+    // Update the uploaded documents list immediately
     setUploadedDocuments(prev => {
       const filtered = prev.filter(doc => doc.document_type !== documentType)
       const updated = [...filtered, { document_type: documentType }]
       console.log('Updated uploaded documents:', updated)
       return updated
     })
+    
     // Clear any validation errors when a document is uploaded
     setError(null)
-    // Refresh document list from database to ensure consistency
-    setTimeout(() => {
-      loadUploadedDocuments()
-    }, 1000)
-  }
-
-  const validateForm = async () => {
-    console.log('=== DOCUMENT VALIDATION DEBUG ===')
-    console.log('Required documents:', onboardingType?.required_documents || [])
-    console.log('Uploaded documents (from state):', uploadedDocuments)
     
-    // Get fresh document data from database
+    // Refresh document list from database to ensure consistency
+    await loadUploadedDocuments()
+  }
+  const validateForm = async () => {
+    console.log('=== ENHANCED FORM VALIDATION ===')
+    
+    // Get fresh document data from database to ensure accuracy
     let currentUploadedDocs = uploadedDocuments
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -305,44 +314,45 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
         if (!error && data) {
           currentUploadedDocs = data
           console.log('Fresh uploaded documents from DB:', currentUploadedDocs)
-          // Update state with fresh data
           setUploadedDocuments(currentUploadedDocs)
+        } else if (error) {
+          console.warn('Could not verify documents from database:', error.message)
         }
       }
     } catch (err) {
       console.error('Error getting fresh document data:', err)
     }
     
+    // Validate documents
     const requiredDocs = onboardingType?.required_documents || []
     const uploadedDocTypes = currentUploadedDocs.map(doc => doc.document_type)
     const missingDocs = requiredDocs.filter(doc => !uploadedDocTypes.includes(doc))
 
-    console.log('Missing documents:', missingDocs)
-
     if (missingDocs.length > 0) {
-      console.log('Validation failed - missing documents:', missingDocs)
-      setError(`Missing required documents: ${missingDocs.join(', ')}`)
-      return false
-    }    const requiredFields = onboardingType?.required_fields || []
-    // For this test, just check basic required fields
-    const basicRequiredFields = ['company_name', 'contact_name', 'contact_email']
-    const missingFields = basicRequiredFields.filter(field => !formData[field] || formData[field].trim() === '')
-
-    console.log('Required fields check:', { requiredFields, basicRequiredFields, missingFields, formData })
-
-    if (missingFields.length > 0) {
-      setError(`Missing required fields: ${missingFields.join(', ')}`)
+      setError(`Missing required documents: ${missingDocs.join(', ')}. Please upload all required documents before submitting.`)
       return false
     }
 
+    // Validate required fields more intelligently
+    const requiredFields = onboardingType?.required_fields || []
+    const missingFields = requiredFields.filter(field => !formData[field] || formData[field].trim() === '')
+
+    if (missingFields.length > 0) {
+      const missingFieldNames = missingFields.map(field => getFieldDisplayName(field))
+      setError(`Missing required information: ${missingFieldNames.join(', ')}. Please fill in all required fields.`)
+      return false
+    }
+
+    // Validate consents
     const requiredConsents = ['data_processing', 'terms_of_service']
     const missingConsents = requiredConsents.filter(consent => !consents[consent])
 
     if (missingConsents.length > 0) {
-      setError(`Please accept all required consents`)
+      setError(`Please accept all required consents before submitting.`)
       return false
     }
 
+    console.log('✅ Form validation passed')
     return true
   }
   const handleSubmit = async (e: React.FormEvent) => {
@@ -405,6 +415,75 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     await loadUploadedDocuments()
   }
 
+  // Helper function to analyze what fields are missing vs what's already available
+  const analyzeMissingFields = useCallback(() => {
+    if (!onboardingType) return
+
+    const requiredFields = onboardingType.required_fields || []
+    const missing: string[] = []
+    const available: string[] = []
+
+    requiredFields.forEach(field => {
+      if (formData[field] && formData[field].trim() !== '') {
+        available.push(field)
+      } else {
+        missing.push(field)
+      }
+    })
+
+    setMissingFieldsList(missing)
+    
+    // Calculate form completion progress
+    const totalFields = requiredFields.length
+    const completedFields = available.length
+    const fieldsProgress = totalFields > 0 ? (completedFields / totalFields) * 50 : 0
+
+    // Document progress
+    const requiredDocs = onboardingType.required_documents || []
+    const uploadedDocTypes = uploadedDocuments.map(doc => doc.document_type)
+    const completedDocs = requiredDocs.filter(doc => uploadedDocTypes.includes(doc)).length
+    const docsProgress = requiredDocs.length > 0 ? (completedDocs / requiredDocs.length) * 50 : 0
+
+    setFormCompletionProgress(Math.round(fieldsProgress + docsProgress))
+  }, [onboardingType, formData, uploadedDocuments])
+
+  // Helper function to analyze missing documents
+  const analyzeMissingDocuments = useCallback(() => {
+    if (!onboardingType) return
+
+    const requiredDocs = onboardingType.required_documents || []
+    const uploadedDocTypes = uploadedDocuments.map(doc => doc.document_type)
+    const missing = requiredDocs.filter(doc => !uploadedDocTypes.includes(doc))
+    
+    setMissingDocumentsList(missing)
+  }, [onboardingType, uploadedDocuments])
+
+  // Helper function to get field display name
+  const getFieldDisplayName = (fieldName: string): string => {
+    const fieldMap: Record<string, string> = {
+      company_name: 'Company Name',
+      contact_name: 'Contact Name', 
+      contact_email: 'Contact Email',
+      tax_id: 'Tax ID',
+      business_type: 'Business Type',
+      address_line1: 'Address Line 1',
+      address_line2: 'Address Line 2',
+      city: 'City',
+      state: 'State',
+      zip_code: 'ZIP Code',
+      phone: 'Phone Number',
+      website: 'Website',
+      description: 'Description'
+    }
+    return fieldMap[fieldName] || fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }
+
+  // Run analysis when form data or documents change
+  useEffect(() => {
+    analyzeMissingFields()
+    analyzeMissingDocuments()
+  }, [analyzeMissingFields, analyzeMissingDocuments])
+
   if (!onboardingType) {
     return <div>Loading...</div>
   }
@@ -422,12 +501,63 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <Card>
-        <CardHeader>
+      <Card>        <CardHeader>
           <CardTitle>{onboardingType.name}</CardTitle>
           <CardDescription>
             Please complete all required information and upload necessary documents.
           </CardDescription>
+          
+          {/* Progress Indicator */}
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Completion Progress</span>
+              <span className="text-sm font-medium text-blue-600">{formCompletionProgress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${formCompletionProgress}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Missing Items Summary */}
+          {(missingFieldsList.length > 0 || missingDocumentsList.length > 0) && (
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-medium text-amber-800">Still needed to complete:</span>
+              </div>
+              
+              {missingFieldsList.length > 0 && (
+                <div className="mb-2">
+                  <span className="text-xs text-amber-700 font-medium">Information: </span>
+                  <span className="text-xs text-amber-700">
+                    {missingFieldsList.map(field => getFieldDisplayName(field)).join(', ')}
+                  </span>
+                </div>
+              )}
+              
+              {missingDocumentsList.length > 0 && (
+                <div>
+                  <span className="text-xs text-amber-700 font-medium">Documents: </span>
+                  <span className="text-xs text-amber-700">
+                    {missingDocumentsList.join(', ')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Completion Status */}
+          {formCompletionProgress === 100 && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">Ready to submit!</span>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">            {error && (
@@ -437,9 +567,11 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
                   <span className="text-red-700">{error}</span>
                 </div>
               </div>
-            )}            {/* Profile Data Reuse */}            <ProfileDataReuse 
+            )}            {/* Profile Data Reuse */}            
+            <ProfileDataReuse 
               onDataSelected={handleProfileDataReuse}
               requiredFields={onboardingType?.required_fields || []}
+              currentFormData={formData}
             />
 
             {/* Form Fields */}
@@ -596,24 +728,39 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
               {requiredDocuments.map((documentType) => {
                 const isUploaded = uploadedDocTypes.includes(documentType)
                 return (
-                  <div key={documentType} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div key={documentType} className="border rounded-lg p-4">                    <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
-                        {isUploaded ? (
+                        {documentUploadProgress[documentType] === 'uploading' ? (
+                          <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />
+                        ) : documentUploadProgress[documentType] === 'error' ? (
+                          <AlertTriangle className="h-5 w-5 text-red-500" />
+                        ) : isUploaded ? (
                           <CheckCircle className="h-5 w-5 text-green-500" />
                         ) : (
                           <Upload className="h-5 w-5 text-gray-400" />
                         )}
                         <span className="font-medium">{documentType}</span>
+                        {documentUploadProgress[documentType] === 'uploading' && (
+                          <span className="text-sm text-blue-600">(Uploading...)</span>
+                        )}
+                        {documentUploadProgress[documentType] === 'error' && (
+                          <span className="text-sm text-red-600">(Upload failed)</span>
+                        )}
                         {isUploaded && (
                           <span className="text-sm text-green-600">(Uploaded)</span>
                         )}
                       </div>
-                    </div>
-                    <DocumentUpload
+                    </div><DocumentUpload
                       requestId={request?.id}
                       documentType={documentType}
                       onUploadSuccess={() => handleDocumentUploaded(documentType)}
+                      onUploadStart={(docType) => setDocumentUploadProgress(prev => ({ ...prev, [docType]: 'uploading' }))}
+                      onUploadError={(docType, error) => {
+                        setDocumentUploadProgress(prev => ({ ...prev, [docType]: 'error' }))
+                        setError(`Failed to upload ${docType}: ${error}`)
+                      }}
+                      isUploaded={isUploaded}
+                      disabled={isUploaded}
                     />
                   </div>
                 )
