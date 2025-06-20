@@ -33,22 +33,28 @@ export function DeleteOnboardingTypeDialog({
   const { user } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
-
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!user || !onboardingTypeId) throw new Error('Missing user or type ID')
+      if (!user || !onboardingTypeId) 
+        {
+        throw new Error('Missing user or onboarding type ID')
+      }
 
-      // First check if there are any onboarding requests associated with this type
-      const { data: requests, error: requestsError } = await supabase
+      // Check if there are any pending onboarding requests associated with this type
+      const { data: pendingRequests, error: requestsError } = await supabase
         .from('onboarding_requests')
-        .select('id')
+        .select('id, recipient_email, status')
         .eq('onboarding_type_id', onboardingTypeId)
-        .limit(1)
+        .eq('status', 'pending')
 
-      if (requestsError) throw requestsError
+      if (requestsError) {
+        console.error('Error checking pending requests:', requestsError)
+        throw new Error('Failed to check for pending requests')
+      }
 
-      if (requests && requests.length > 0) {
-        throw new Error('Cannot delete onboarding type that has active requests')
+      if (pendingRequests && pendingRequests.length > 0) {
+        const errorMessage = `Cannot delete onboarding type with ${pendingRequests.length} pending request${pendingRequests.length > 1 ? 's' : ''}`
+        throw new Error(errorMessage)
       }
 
       // Delete the onboarding type
@@ -58,17 +64,30 @@ export function DeleteOnboardingTypeDialog({
         .eq('id', onboardingTypeId)
         .eq('user_id', user.id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error deleting onboarding type:', error)
+        throw new Error('Failed to delete onboarding type')
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['onboarding-types'] })
       toast.success('Onboarding type deleted successfully!')
       onSuccess()
-    },
-    onError: (error) => {
-      console.error('Error deleting onboarding type:', error)
-      if (error.message.includes('active requests')) {
-        toast.error('Cannot delete onboarding type that has active requests. Please complete or cancel all requests first.')
+    },      onError: (error) => {
+      // Don't log expected business rule errors to console
+      const isBusinessRuleError = error.message.includes('pending request') || 
+                                   error.message.includes('check for pending requests')
+      
+      if (!isBusinessRuleError) {
+        console.error('Unexpected error deleting onboarding type:', error)
+      }
+        // Provide specific error messages based on the error type
+      if (error.message.includes('pending request')) {
+        toast.error('Cannot delete this onboarding type because it has pending requests. Go to the Requests tab to cancel them, or wait for them to be completed or expired.')
+      } else if (error.message.includes('check for pending requests')) {
+        toast.error('Failed to verify if this onboarding type can be deleted. Please try again.')
+      } else if (error.message.includes('Failed to delete')) {
+        toast.error('An error occurred while deleting the onboarding type. Please try again.')
       } else {
         toast.error('Failed to delete onboarding type. Please try again.')
       }
@@ -95,9 +114,11 @@ export function DeleteOnboardingTypeDialog({
             Are you sure you want to delete{' '}
             <span className="font-medium">&quot;{onboardingTypeName}&quot;</span>?
             <br />
+            <br />            This action cannot be undone and will permanently remove this onboarding type. 
             <br />
-            This action cannot be undone and will permanently remove this onboarding type. 
-            You cannot delete a type that has active onboarding requests.
+            <br />
+            <strong>Note:</strong> You cannot delete a type that has pending onboarding requests. 
+            Completed and expired requests will not prevent deletion.
           </DialogDescription>
         </DialogHeader>
 

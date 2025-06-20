@@ -35,6 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { createClient } from '@/lib/supabase/client'
+import { downloadDocument } from '@/lib/file-utils'
 import { toast } from 'sonner'
 import { Database } from '@/lib/database.types'
 
@@ -170,32 +171,13 @@ export default function RequestsPage() {  const { userProfile, user } = useAuth(
     
     const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     window.open(mailtoLink, '_blank')
-  }
-
-  // Download document function
-  const downloadDocument = async (doc: { id: string; file_name: string }) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .download(doc.id)
-
-      if (error) throw error
-
-      // Create blob URL and download
-      const url = URL.createObjectURL(data)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = doc.file_name
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      
-      toast.success(`Downloaded ${doc.file_name}`)
-    } catch (error) {
-      console.error('Failed to download file:', error)
-      toast.error('Failed to download file. Please try again.')
-    }
+  }  // Download document function
+  const handleDownloadDocument = async (doc: { file_path: string; file_name: string; document_type?: string }) => {
+    await downloadDocument({
+      file_path: doc.file_path,
+      file_name: doc.file_name,
+      document_type: doc.document_type
+    })
   }
 
   const formatFileSize = (bytes: number | null) => {
@@ -651,7 +633,7 @@ export default function RequestsPage() {  const { userProfile, user } = useAuth(
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => downloadDocument(doc)}
+                            onClick={() => handleDownloadDocument(doc)}
                             className="flex items-center gap-1"
                           >
                             <Download className="h-4 w-4" />

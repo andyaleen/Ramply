@@ -8,7 +8,7 @@ import { CreateOnboardingTypeDialog } from '@/components/dashboard/CreateOnboard
 import { LoadingFallback } from '@/components/LoadingFallback'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, ArrowLeft, Settings, BarChart3 } from 'lucide-react'
+import { Plus, ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 
 export default function RequestTypesPage() {
@@ -120,26 +120,6 @@ export default function RequestTypesPage() {
                 </p>
               </div>
             </div>            <div className="flex items-center space-x-4">
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  // TODO: Implement analytics/reporting
-                  alert('Analytics feature coming soon!')
-                }}
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Analytics
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  // TODO: Implement global settings
-                  alert('Global settings coming soon!')
-                }}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
               <Button onClick={() => setShowCreateDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create New Type

@@ -12,6 +12,8 @@ import { formatDate } from '@/lib/utils'
 import { SendOnboardingRequestDialog } from './SendOnboardingRequestDialog'
 import { EditOnboardingTypeDialog } from './EditOnboardingTypeDialog'
 import { DeleteOnboardingTypeDialog } from './DeleteOnboardingTypeDialog'
+import { ViewRequestsDialog } from './ViewRequestsDialog'
+import { ViewDocumentsDialog } from './ViewDocumentsDialog'
 import { toast } from 'sonner'
 
 interface OnboardingTypesListProps {
@@ -24,6 +26,8 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
   const [showSendDialog, setShowSendDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showRequestsDialog, setShowRequestsDialog] = useState(false)
+  const [showDocumentsDialog, setShowDocumentsDialog] = useState(false)
   const [selectedTypeName, setSelectedTypeName] = useState<string | null>(null)
   const supabase = createClient()
 
@@ -31,12 +35,11 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
     queryKey: ['onboarding-types', user?.id],
     queryFn: async () => {
       if (!user) return []
-      
-      const { data, error } = await supabase
+        const { data, error } = await supabase
         .from('onboarding_types')
         .select(`
           *,
-          onboarding_requests(count)
+          onboarding_requests(id, status)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -50,15 +53,26 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
     setSelectedTypeId(typeId)
     setShowSendDialog(true)
   }
-
   const handleEditType = (typeId: string) => {
     setSelectedTypeId(typeId)
     setShowEditDialog(true)
   }
+  
   const handleDeleteType = (typeId: string, typeName: string) => {
     setSelectedTypeId(typeId)
     setSelectedTypeName(typeName)
     setShowDeleteDialog(true)
+  }
+  const handleViewRequests = (typeId: string, typeName: string) => {
+    setSelectedTypeId(typeId)
+    setSelectedTypeName(typeName)
+    setShowRequestsDialog(true)
+  }
+
+  const handleViewDocuments = (typeId: string, typeName: string) => {
+    setSelectedTypeId(typeId)
+    setSelectedTypeName(typeName)
+    setShowDocumentsDialog(true)
   }
   
   const copyOnboardingLink = async (typeId: string) => {
@@ -140,20 +154,24 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
                     {type.required_fields.length} Fields
                   </Badge>
                 )}
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+              </div>              <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    0 requests
+                    {type.onboarding_requests?.length || 0} requests                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {type.onboarding_requests?.filter((req: any) => req.status === 'pending').length > 0 && (
+                      <Badge variant="secondary" className="ml-1 bg-yellow-100 text-yellow-800">
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {type.onboarding_requests?.filter((req: any) => req.status === 'pending').length} pending
+                      </Badge>
+                    )}
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
                     {formatDate(type.created_at)}
                   </span>
                 </div>
-              </div>              <div className="flex gap-2">
+              </div><div className="flex gap-2">
                 {mode === 'send' ? (
                   <>
                     <Button
@@ -170,15 +188,36 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
                       <Copy className="h-4 w-4 mr-1" />
                       Copy Link
                     </Button>
-                  </>
-                ) : (                  <>
+                  </>                ) : (
+                  <>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleEditType(type.id)}
                     >
                       Edit Type
-                    </Button>
+                    </Button>                    {(type.onboarding_requests?.length || 0) > 0 && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewRequests(type.id, type.name)}
+                          className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                        >
+                          <Users className="h-4 w-4 mr-1" />
+                          View Requests ({type.onboarding_requests?.length})
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDocuments(type.id, type.name)}
+                          className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          View Documents
+                        </Button>
+                      </>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -216,13 +255,25 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
             onboardingTypeId={selectedTypeId}
             onSuccess={() => setShowEditDialog(false)}
           />
-          
-          <DeleteOnboardingTypeDialog
+            <DeleteOnboardingTypeDialog
             open={showDeleteDialog}
             onOpenChange={setShowDeleteDialog}
             onboardingTypeId={selectedTypeId}
             onboardingTypeName={selectedTypeName}
             onSuccess={() => setShowDeleteDialog(false)}
+          />
+            <ViewRequestsDialog
+            open={showRequestsDialog}
+            onOpenChange={setShowRequestsDialog}
+            onboardingTypeId={selectedTypeId}
+            onboardingTypeName={selectedTypeName}
+          />
+          
+          <ViewDocumentsDialog
+            open={showDocumentsDialog}
+            onOpenChange={setShowDocumentsDialog}
+            onboardingTypeId={selectedTypeId}
+            onboardingTypeName={selectedTypeName}
           />
         </>
       )}

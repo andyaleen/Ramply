@@ -1,16 +1,19 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Mail, Clock, CheckCircle, AlertCircle, X } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export function OnboardingRequestsList() {
   const { user } = useAuth()
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ['onboarding-requests', user?.id],
@@ -33,6 +36,33 @@ export function OnboardingRequestsList() {
     },
     enabled: !!user,
   })
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      if (!user) throw new Error('User not authenticated')
+
+      const { error } = await supabase
+        .from('onboarding_requests')
+        .update({ status: 'expired' })
+        .eq('id', requestId)
+        .eq('requester_user_id', user.id)
+        .eq('status', 'pending')
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding-requests'] })
+      toast.success('Request cancelled successfully!')
+    },
+    onError: (error) => {
+      console.error('Error cancelling request:', error)
+      toast.error('Failed to cancel request. Please try again.')
+    },
+  })
+
+  const handleCancelRequest = (requestId: string) => {
+    cancelRequestMutation.mutate(requestId)
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -112,9 +142,20 @@ export function OnboardingRequestsList() {
                     <span>Completed {formatDate(request.completed_at)}</span>
                   )}
                 </div>
-              </div>
-              <div className="ml-4">
+              </div>              <div className="ml-4 flex items-center gap-2">
                 {getStatusBadge(request.status)}
+                {request.status === 'pending' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCancelRequest(request.id)}
+                    disabled={cancelRequestMutation.isPending}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Cancel
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

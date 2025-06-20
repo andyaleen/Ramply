@@ -20,7 +20,15 @@ import {
   MapPin
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import { toast } from 'sonner'
+import { downloadDocument } from '@/lib/file-utils'
+
+// Helper function to format file size
+const formatFileSize = (bytes: number | null): string => {
+  if (!bytes) return 'Unknown size'
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+}
 
 interface OnboardingResponse {
   id: string
@@ -50,12 +58,12 @@ interface OnboardingResponse {
     city: string | null
     state: string | null
     postal_code: string | null
-    country: string | null
-  } | null
+    country: string | null  } | null
   documents: {
     id: string
     document_type: string
     file_name: string
+    file_path: string
     file_size: number | null
     uploaded_at: string
   }[]
@@ -70,32 +78,13 @@ export function OnboardingResponsesList() {
   const { user } = useAuth()
   const supabase = createClient()
   const [selectedResponse, setSelectedResponse] = useState<OnboardingResponse | null>(null)
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
-  
-  // Download document function
-  const downloadDocument = async (doc: { id: string; file_name: string }) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .download(doc.id) // Use the document ID as the file path
-
-      if (error) throw error
-
-      // Create blob URL and download
-      const url = URL.createObjectURL(data)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = doc.file_name
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      
-      toast.success(`Downloaded ${doc.file_name}`)
-    } catch (error) {
-      console.error('Failed to download file:', error)
-      toast.error('Failed to download file. Please try again.')
-    }
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)  // Download document function
+  const handleDownloadDocument = async (doc: { file_path: string; file_name: string; document_type?: string }) => {
+    await downloadDocument({
+      file_path: doc.file_path,
+      file_name: doc.file_name,
+      document_type: doc.document_type
+    })
   }
   const { data: responses, isLoading, error } = useQuery({
     queryKey: ['onboarding-responses', user?.id],
@@ -138,11 +127,10 @@ export function OnboardingResponsesList() {
 
       // For each request, get documents and consent data
       const responsePromises = allRequests.map(async (request) => {
-        try {
-          // Get documents for this request
+        try {          // Get documents for this request
           const { data: documents, error: docsError } = await supabase
             .from('documents')
-            .select('*')
+            .select('id, document_type, file_name, file_path, file_size, uploaded_at')
             .eq('request_id', request.id)
 
           if (docsError) {
@@ -157,14 +145,12 @@ export function OnboardingResponsesList() {
 
           if (consentError) {
             console.error(`❌ Error fetching consent for request ${request.id}:`, consentError)
-          }
-
-          // Get user who completed this (if any)
+          }          // Get user who completed this (if any)
           let completedByUser = null
           if (request.completed_by) {
             const { data: userData, error: userError } = await supabase
-              .from('user_profiles')
-              .select('id, contact_name, email, company_name')
+              .from('users')
+              .select('id, contact_name, email, company_name, tax_id, business_type, address_line1, address_line2, city, state, postal_code, country')
               .eq('id', request.completed_by)
               .single()
 
@@ -203,17 +189,9 @@ export function OnboardingResponsesList() {
     },
     enabled: !!user,
   })
-
   const handleViewDetails = (response: OnboardingResponse) => {
     setSelectedResponse(response)
     setShowDetailsDialog(true)
-  }
-
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return 'Unknown size'
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(1024))
-    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i]
   }
 
   if (isLoading) {
@@ -484,7 +462,7 @@ export function OnboardingResponsesList() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => downloadDocument(doc)}
+                            onClick={() => handleDownloadDocument(doc)}
                           >
                             <Download className="h-4 w-4 mr-1" />
                             Download
