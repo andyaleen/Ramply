@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Copy, Users, Calendar, MoreHorizontal } from 'lucide-react'
+import { FileText, Copy, Calendar, MoreHorizontal } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { SendOnboardingRequestDialog } from './SendOnboardingRequestDialog'
 import { EditOnboardingTypeDialog } from './EditOnboardingTypeDialog'
@@ -63,11 +63,7 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
     setSelectedTypeName(typeName)
     setShowDeleteDialog(true)
   }
-  const handleViewRequests = (typeId: string, typeName: string) => {
-    setSelectedTypeId(typeId)
-    setSelectedTypeName(typeName)
-    setShowRequestsDialog(true)
-  }
+
 
   const handleViewDocuments = (typeId: string, typeName: string) => {
     setSelectedTypeId(typeId)
@@ -75,18 +71,40 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
     setShowDocumentsDialog(true)
   }
   
+
   const copyOnboardingLink = async (typeId: string) => {
-    // Generate a secure link for onboarding
-    const link = `${window.location.origin}/onboard/new?type=${typeId}`
-    
-    try {
-      await navigator.clipboard.writeText(link)
-      toast.success('Onboarding link copied to clipboard!')
-    } catch (error) {
-      console.error('Failed to copy link:', error)
-      toast.error('Failed to copy link. Please try again.')
+  const link = `${window.location.origin}/onboard/new?type=${typeId}`;
+  try {
+    //navigator clipboard only works in secure context localhost/https
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(link);
+      toast.success('Onboarding link copied to clipboard!');
+    } else {
+      // Fallback method
+      const textarea = document.createElement("textarea");
+      textarea.value = link;
+      textarea.style.position = "fixed"; // avoid scrolling to bottom
+      textarea.style.opacity = "0";
+
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+
+      if (success) {
+        toast.success('Onboarding link copied to clipboard!');
+      } else {
+        toast.error('Failed to copy link. Please copy it manually.');
+      }
     }
+  } catch (error) {
+    console.error('Failed to copy link:', error);
+    toast.error('Failed to copy link. Please try again.');
   }
+};
+
 
   if (isLoading) {
     return (
@@ -157,16 +175,6 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
               </div>              <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {type.onboarding_requests?.length || 0} requests                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {type.onboarding_requests?.filter((req: any) => req.status === 'pending').length > 0 && (
-                      <Badge variant="secondary" className="ml-1 bg-yellow-100 text-yellow-800">
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                        {type.onboarding_requests?.filter((req: any) => req.status === 'pending').length} pending
-                      </Badge>
-                    )}
-                  </span>
-                  <span className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
                     {formatDate(type.created_at)}
                   </span>
@@ -198,15 +206,6 @@ export function OnboardingTypesList({ mode = 'manage' }: OnboardingTypesListProp
                       Edit Type
                     </Button>                    {(type.onboarding_requests?.length || 0) > 0 && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewRequests(type.id, type.name)}
-                          className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                        >
-                          <Users className="h-4 w-4 mr-1" />
-                          View Requests ({type.onboarding_requests?.length})
-                        </Button>
                         <Button
                           size="sm"
                           variant="outline"

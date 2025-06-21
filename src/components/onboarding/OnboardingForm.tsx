@@ -853,7 +853,7 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
             <div className="flex justify-end">
               <Button 
                 type="submit" 
-                disabled={isSubmitting || missingDocuments.length > 0 || consents.data_processing === false || consents.terms_of_service === false}
+                disabled={consents.data_processing === false || consents.terms_of_service === false || missingDocuments.length > 0 ||  isSubmitting}
                 className="min-w-32"
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Onboarding'}

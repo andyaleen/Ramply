@@ -1,21 +1,28 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { Mail, Clock, CheckCircle, AlertCircle, ChevronRightIcon, ChevronLeftIcon } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { useState } from 'react'
 
 export function ExternalRequestsList() {
   const { user } = useAuth()
   const supabase = createClient()
+  const queryClient = useQueryClient()
+  const [page, setPage] = useState(1);
+  const limit = 10;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
   const { data: requests, isLoading } = useQuery({
     queryKey: ['external-onboarding-requests', user?.id],
     queryFn: async () => {
       if (!user) return []
-      
+
       const { data, error } = await supabase
         .from('onboarding_requests')
         .select(`
@@ -25,7 +32,7 @@ export function ExternalRequestsList() {
         `)
         .eq('recipient_email', user.email)
         .order('created_at', { ascending: false })
-        .limit(10)
+        .range(from, to)
 
       if (error) {
         console.error('Error fetching external requests:', error)
@@ -57,6 +64,18 @@ export function ExternalRequestsList() {
         return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
     }
   }
+  const handleBackwardPage = () => {
+    if (page > 1) {
+      setPage((prev) => prev - 1);
+    }
+  };
+
+  const handleForwardPage = () => {
+    setPage((prev) => prev + 1);
+    queryClient.invalidateQueries({
+      queryKey: ['external-onboarding-requests', user?.id],
+    });
+  };
 
   if (isLoading) {
     return (
@@ -69,6 +88,7 @@ export function ExternalRequestsList() {
             </CardContent>
           </Card>
         ))}
+        <button>dd</button>
       </div>
     )
   }
@@ -78,7 +98,7 @@ export function ExternalRequestsList() {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Mail className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No requests yet</h3>          
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No requests yet</h3>
           <p className="text-gray-600 text-center">
             You haven&apos;t received any onboarding requests yet
           </p>
@@ -117,6 +137,15 @@ export function ExternalRequestsList() {
           </CardContent>
         </Card>
       ))}
+      <div className="flex gap-3">
+        <button onClick={handleBackwardPage}>
+          <ChevronLeftIcon />
+        </button>
+        <span>count</span>
+        <button onClick={handleForwardPage}>
+          <ChevronRightIcon />
+        </button>
+      </div>
     </div>
   )
 }

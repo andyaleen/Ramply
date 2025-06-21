@@ -47,11 +47,11 @@ interface DocumentWithUser {
   } | null
 }
 
-export function ViewDocumentsDialog({ 
-  open, 
-  onOpenChange, 
-  onboardingTypeId, 
-  onboardingTypeName 
+export function ViewDocumentsDialog({
+  open,
+  onOpenChange,
+  onboardingTypeId,
+  onboardingTypeName
 }: ViewDocumentsDialogProps) {
   const { user } = useAuth()
   const supabase = createClient()
@@ -59,134 +59,107 @@ export function ViewDocumentsDialog({
   const { data: documentsWithUsers, isLoading, error } = useQuery({
     queryKey: ['documents-with-users', onboardingTypeId],
     queryFn: async () => {
-      if (!user || !onboardingTypeId) {
-        console.log('❌ Missing user or onboardingTypeId')
-        return []
-      }
+      try {
+        console.log("📥 Query running...");
 
-      console.log('🔍 Fetching documents for onboarding type:', onboardingTypeId)
-
-      // First, verify that the user owns this onboarding type
-      const { data: onboardingType, error: typeError } = await supabase
-        .from('onboarding_types')
-        .select('id, name, user_id')
-        .eq('id', onboardingTypeId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (typeError || !onboardingType) {
-        console.error('❌ Error fetching onboarding type or not owned by user:', typeError)
-        throw new Error('You do not have permission to view documents for this onboarding type')
-      }
-
-      console.log('✅ Onboarding type ownership confirmed:', onboardingType)
-
-      // Get all requests for this onboarding type
-      const { data: requests, error: requestsError } = await supabase
-        .from('onboarding_requests')
-        .select(`
-          id,
-          recipient_email,
-          status,
-          completed_at
-        `)
-        .eq('onboarding_type_id', onboardingTypeId)
-
-      if (requestsError) {
-        console.error('❌ Error fetching requests:', requestsError)
-        throw requestsError
-      }
-
-      console.log('📝 Found requests for onboarding type:', requests?.length || 0)
-
-      if (!requests || requests.length === 0) {
-        console.log('ℹ️ No requests found for this onboarding type')
-        return []
-      }
-
-      const requestIds = requests.map(req => req.id)
-      console.log('📝 Request IDs:', requestIds)
-
-      // Get all documents for these requests
-      const { data: documents, error: documentsError } = await supabase
-        .from('documents')
-        .select(`
-          id,
-          user_id,
-          request_id,
-          document_type,
-          file_path,
-          file_name,
-          file_size,
-          uploaded_at
-        `)
-        .in('request_id', requestIds)
-        .order('uploaded_at', { ascending: false })
-
-      if (documentsError) {
-        console.error('❌ Error fetching documents:', documentsError)
-        throw documentsError
-      }
-
-      console.log('📄 Found documents:', documents?.length || 0)
-
-      if (!documents || documents.length === 0) {
-        console.log('ℹ️ No documents found for these requests')
-        return []
-      }
-
-      // Get unique user IDs from documents
-      const userIds = [...new Set(documents.map(doc => doc.user_id))]
-      console.log('👥 Unique user IDs from documents:', userIds)      // Get user information for these user IDs
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let users: any[] = []
-      console.log('👥 Fetching users for IDs:', user)
-      if (userIds.length > 0) {
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id, email, contact_name')
-          .in('id', userIds)
-        console.log('👥 Fetching users:', usersData);
-        
-        if (usersError) {
-          console.error('❌ Error fetching users:', usersError)
-          // Don't throw here, just log the error and continue without user data
-        } else {
-          users = usersData || []
+        if (!user || !onboardingTypeId) {
+          console.warn('❌ Missing user or onboardingTypeId');
+          return [];
         }
+
+        // Check if user owns this onboarding type
+        const { data: onboardingType, error: typeError } = await supabase
+          .from('onboarding_types')
+          .select('id, name, user_id')
+          .eq('id', onboardingTypeId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (typeError || !onboardingType) {
+          console.error('❌ Error fetching onboarding type or not owned by user:', typeError);
+          throw new Error('You do not have permission to view documents for this onboarding type');
+        }
+
+        // Fetch requests
+        const { data: requests, error: requestsError } = await supabase
+          .from('onboarding_requests')
+          .select('id, recipient_email, status, completed_at')
+          .eq('onboarding_type_id', onboardingTypeId);
+
+        if (requestsError) {
+          console.error('❌ Error fetching requests:', requestsError);
+          throw requestsError;
+        }
+
+        if (!requests?.length) return [];
+
+        const requestIds = requests.map(req => req.id);
+
+        // Fetch documents for requests
+        const { data: documents, error: documentsError } = await supabase
+          .from('documents')
+          .select('id, user_id, request_id, document_type, file_path, file_name, file_size, uploaded_at')
+          .in('request_id', requestIds)
+          .order('uploaded_at', { ascending: false });
+
+        if (documentsError) {
+          console.error('❌ Error fetching documents:', documentsError);
+          throw documentsError;
+        }
+
+        if (!documents?.length) return [];
+
+        // Fetch users
+        const userIds = [...new Set(documents.map(doc => doc.user_id))];
+        let users: any[] = [];
+
+        if (userIds.length > 0) {
+          const { data: usersData, error: usersError } = await supabase
+            .from('users')
+            .select('id, email, contact_name')
+            .in('id', userIds);
+
+            console.log("users ", userIds, "userdata ", usersData);
+            console.log("usersError:", usersError);
+
+          if (usersError) {
+            console.error('❌ Error fetching users:', usersError);
+          } else {
+            users = usersData || [];
+          }
+        }
+        
+        const userMap = new Map();
+        users.forEach(u => {
+          userMap.set(u.id, {
+            id: u.id,
+            email: u.email,
+            full_name: u.contact_name || null
+          });
+        });
+
+        const requestMap = new Map();
+        requests.forEach(req => {
+          requestMap.set(req.id, req);
+        });
+
+        const documentsWithUsers: DocumentWithUser[] = documents.map(doc => ({
+          ...doc,
+          user: userMap.get(doc.user_id) || null,
+          request: requestMap.get(doc.request_id) || null
+        }));
+
+        console.log('✅ Final document count:', documentsWithUsers.length);
+
+        return documentsWithUsers;
+      } catch (error) {
+        console.error("🚨 useQuery error:", error);
+        throw error; // <== make sure to re-throw so React Query knows it's an error
       }
-
-      console.log('👥 Found users:', users)
-
-      // Create a map of users for easy lookup
-      const userMap = new Map()
-      users.forEach(user => {
-        userMap.set(user.id, {
-          id: user.id,
-          email: user.email,
-          full_name: user.contact_name || null
-        })
-      })
-
-      // Create a map of requests for easy lookup
-      const requestMap = new Map()
-      requests.forEach(request => {
-        requestMap.set(request.id, request)
-      })
-
-      // Combine documents with user and request info
-      const documentsWithUsers: DocumentWithUser[] = documents.map(doc => ({
-        ...doc,
-        user: userMap.get(doc.user_id) || null,
-        request: requestMap.get(doc.request_id) || null
-      }))
-
-      console.log('✅ Documents with user info prepared:', documentsWithUsers.length)
-      
-      return documentsWithUsers
     },
     enabled: !!user && !!onboardingTypeId && open,
-  })
+  });
+
 
   const handleDownloadDocument = async (doc: DocumentWithUser) => {
     await downloadDocument({
@@ -196,7 +169,7 @@ export function ViewDocumentsDialog({
     })
   }
 
-  console.log("view-documents-dialog.tsx - documentsWithUsers:", documentsWithUsers)
+  // console.log("view-documents-dialog.tsx - documentsWithUsers:", documentsWithUsers)
 
   if (isLoading) {
     return (
@@ -255,7 +228,7 @@ export function ViewDocumentsDialog({
       </Dialog>
     )
   }
-  console.log('📄 Documents with users:', documentsWithUsers)
+  // console.log('📄 Documents with users:', documentsWithUsers)
   // Group documents by user
   const documentsByUser = documentsWithUsers.reduce((acc, doc) => {
     const userKey = doc.user?.email || 'Unknown User'
@@ -275,7 +248,7 @@ export function ViewDocumentsDialog({
             All documents uploaded for this onboarding type ({documentsWithUsers.length} total)
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="overflow-y-auto flex-1">
           <div className="space-y-6">
             {Object.entries(documentsByUser).map(([userEmail, userDocs]) => (

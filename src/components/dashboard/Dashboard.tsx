@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, LogOut, Users, FileText, Link } from 'lucide-react'
+import { Building2, LogOut, Users, FileText, Link, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { ExternalOnboardingTypesList } from '@/components/dashboard/ExternalOnboardingTypesList'
 import { ExternalRequestsList } from '@/components/dashboard/ExternalRequestsList'
 import { useState, useEffect } from 'react'
@@ -23,23 +23,25 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     const dashboardService = new DashboardService()
-    
+
     const loadDashboardStats = async () => {
       if (!user) return
-      
+
       try {
         setLoading(true)
         const stats = await dashboardService.getExternalUserStats(user)
         console.log('Dashboard stats loaded:', stats)
         setDashboardStats(stats)
       } catch (error) {
-        console.error('Error loading dashboard stats:', error)      } finally {
+        console.error('Error loading dashboard stats:', error)
+      } finally {
         setLoading(false)
       }
     }
-    
+
     loadDashboardStats()
   }, [user])
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -56,7 +58,7 @@ export function Dashboard() {
                 <p className="text-sm text-gray-600">{userProfile?.company_name}</p>
               </div>
             </div>
-              <div className="flex items-center space-x-4">          
+            <div className="flex items-center space-x-4">
               <Button variant="ghost" size="sm" onClick={() => router.push('/signout')}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
@@ -91,13 +93,13 @@ export function Dashboard() {
                 ) : (
                   dashboardStats.totalOnboardingTypes
                 )}
-              </div>              
+              </div>
               <p className="text-xs text-muted-foreground">
                 Total requests received
               </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
@@ -110,13 +112,13 @@ export function Dashboard() {
                 ) : (
                   dashboardStats.pendingRequests
                 )}
-              </div>              
+              </div>
               <p className="text-xs text-muted-foreground">
                 Awaiting your response
               </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed This Month</CardTitle>
@@ -129,13 +131,13 @@ export function Dashboard() {
                 ) : (
                   dashboardStats.completedThisMonth
                 )}
-              </div>              
+              </div>
               <p className="text-xs text-muted-foreground">
                 Successfully completed
               </p>
             </CardContent>
-          </Card>        
-          </div>
+          </Card>
+        </div>
 
         {/* Onboarding Types */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -143,12 +145,12 @@ export function Dashboard() {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Available Onboarding Types</h3>
             <ExternalOnboardingTypesList />
           </div>
-          
+
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Your Requests</h3>
             <ExternalRequestsList />
-          </div>        
           </div>
+        </div>
       </main>
     </div>
   )

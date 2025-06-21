@@ -12,6 +12,8 @@ import { ArrowRight, Building2, CircleCheckBig } from 'lucide-react'
 import { OnboardingForm } from '@/components/onboarding/OnboardingForm'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { Layout } from '@/components/layout/Layout'
+import { v4 as uuidv4 } from 'uuid'; // if using uuid package
+
 
 interface OnboardingRequest {
   id: string
@@ -34,11 +36,11 @@ function PublicOnboardingContent() {
   const [onboardingRequest, setOnboardingRequest] = useState<OnboardingRequest | null>(null)
   const supabase = createClient()
   const typeId = searchParams.get('type')
-    const { data: onboardingType, isLoading, error } = useQuery({
+  const { data: onboardingType, isLoading, error } = useQuery({
     queryKey: ['onboarding-type', typeId],
     queryFn: async () => {
       if (!typeId) throw new Error('No onboarding type specified')
-      
+
       // Try to get the onboarding type data
       const { data, error } = await supabase
         .from('onboarding_types')
@@ -49,7 +51,7 @@ function PublicOnboardingContent() {
       // If RLS blocks the query, return a mock onboarding type for testing
       if (error && (error.code === 'PGRST116' || error.code === 'PGRST301')) {
         console.warn('RLS blocked query, using mock data for typeId:', typeId)
-        
+
         // Return mock data that matches the expected structure
         return {
           id: typeId,
@@ -57,7 +59,7 @@ function PublicOnboardingContent() {
           description: 'Complete your vendor onboarding process',
           required_fields: [
             'company_name',
-            'contact_name', 
+            'contact_name',
             'contact_email',
             'tax_id',
             'business_type',
@@ -69,18 +71,18 @@ function PublicOnboardingContent() {
           ],
           required_documents: [
             'W9 Form',
-            'Certificate of Insurance', 
+            'Certificate of Insurance',
             'Bank Details'
           ],
-          users: { 
-            company_name: 'Test Company', 
-            contact_name: 'Admin' 
+          users: {
+            company_name: 'Test Company',
+            contact_name: 'Admin'
           }
         }
       }
 
       if (error) throw error
-      
+
       // Add default user data for display
       return {
         ...data,
@@ -93,42 +95,52 @@ function PublicOnboardingContent() {
 
   // Create a real onboarding request when user starts onboarding
   const createRequestMutation = useMutation({
-    mutationFn: async () => {
-      if (!user || !onboardingType) throw new Error('Missing user or onboarding type')
-      
-      // Generate a unique token for this request
-      const token = crypto.randomUUID()
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 30) // 30 days expiry
-      
-      const { data, error } = await supabase
-        .from('onboarding_requests')
-        .insert({
-          onboarding_type_id: onboardingType.id,
-          requester_user_id: user.id, // In this case, the user is self-requesting
-          recipient_email: user.email,
-          token,
-          expires_at: expiresAt.toISOString(),
-          status: 'pending'
-        })
-        .select(`
-          *,
-          onboarding_types(*)
-        `)
-        .single()
 
-      if (error) throw error
-      return data
-    },    onSuccess: (data: OnboardingRequest) => {
+    mutationFn: async () => {
+      try {
+        if (!user || !onboardingType) throw new Error('Missing user or onboarding type');
+
+        const token = uuidv4();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+
+        const { data, error } = await supabase
+          .from('onboarding_requests')
+          .insert({
+            onboarding_type_id: onboardingType.id,
+            requester_user_id: user.id,
+            recipient_email: user.email,
+            token,
+            expires_at: expiresAt.toISOString(),
+            status: 'pending',
+          })
+          .select(`*, onboarding_types (*)`)
+          .single();
+
+        console.log("📢 Insert complete"); // <- Should log if insert works
+
+        if (error) throw error;
+
+        return data;
+      } catch (err) {
+        console.error("🚨 Mutation failed:", err);
+        throw err;
+      }
+    }
+
+    , onSuccess: (data: OnboardingRequest) => {
       setOnboardingRequest(data)
     }
   })
   // Create request when user is authenticated and onboarding type is loaded
+
   useEffect(() => {
     if (user && onboardingType && !onboardingRequest && !createRequestMutation.isPending) {
       createRequestMutation.mutate()
+      console.log("run");
+
     }
-  }, [user, onboardingType, onboardingRequest, createRequestMutation])
+  }, [user, onboardingType, onboardingRequest])
 
   const handleComplete = () => {
     setIsCompleted(true)
@@ -151,14 +163,14 @@ function PublicOnboardingContent() {
       required_fields: ['company_name', 'contact_name', 'contact_email', 'tax_id', 'business_type', 'address_line1', 'city', 'state', 'zip_code', 'phone'],
       users: { company_name: 'Test Company', contact_name: 'Test Admin' }
     }
-    
+
     // If we have a user, proceed with the mock onboarding type
     if (user) {
       const mockRequest = {
         id: 'mock-request-' + Date.now(),
         onboarding_types: mockOnboardingType
       }
-      
+
       return (
         <Layout>
           <div className="min-h-screen bg-gray-50 py-8">
@@ -180,7 +192,7 @@ function PublicOnboardingContent() {
                 </Card>
               </div>
             ) : (
-              <OnboardingForm 
+              <OnboardingForm
                 request={mockRequest}
                 onComplete={handleComplete}
                 isCompleting={false}
@@ -190,7 +202,7 @@ function PublicOnboardingContent() {
         </Layout>
       )
     }
-    
+
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="max-w-md">
@@ -215,7 +227,7 @@ function PublicOnboardingContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button onClick={() => router.push('/')}>Return to Home</Button>
+            <Button onClick={() => router.push('/dashboard')}>Return to Home</Button>
           </CardContent>
         </Card>
       </div>
@@ -252,15 +264,15 @@ function PublicOnboardingContent() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">                {onboardingType.required_fields && onboardingType.required_fields.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Required Information:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {onboardingType.required_fields.map((field: string, index: number) => (
-                        <Badge key={index} variant="secondary">{field}</Badge>
-                      ))}
-                    </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Required Information:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {onboardingType.required_fields.map((field: string, index: number) => (
+                      <Badge key={index} variant="secondary">{field}</Badge>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
                 {onboardingType.required_documents && onboardingType.required_documents.length > 0 && (
                   <div>
@@ -306,8 +318,9 @@ function PublicOnboardingContent() {
           <AuthForm />
         </div>
       </div>
-    )  }
-  
+    )
+  }
+
   // User is authenticated, show the onboarding form
   if (user && onboardingRequest) {
     return (
@@ -353,7 +366,7 @@ function PublicOnboardingContent() {
           <p className="text-gray-600 mb-4">
             There was an error setting up your onboarding. Please try again.
           </p>
-          <button 
+          <button
             onClick={() => createRequestMutation.mutate()}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >

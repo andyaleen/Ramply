@@ -55,83 +55,96 @@ export interface RecentActivity {
 export class DashboardService {
   private supabase = createClient()
   async getDashboardStats(user: User): Promise<DashboardStats> {
-    console.log('DashboardService: Fetching stats for user:', user)
+    console.log('DashboardService: Fetching stats for user:', user);
+
     try {
-      console.log('DashboardService: Fetching stats for user:', user.id)
-      
-      // Get total onboarding types
-      const { count: totalTypes, error: typesError } = await this.supabase
+      // Get onboarding type IDs for the current user
+      const { data: typeData, count: totalTypes, error: typesError } = await this.supabase
         .from('onboarding_types')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id);
 
       if (typesError) {
-        console.error('Error fetching onboarding types count:', typesError)
+        console.error('Error fetching onboarding types:', typesError);
+        return {
+          totalOnboardingTypes: 0,
+          pendingRequests: 0,
+          completedThisMonth: 0,
+          totalVendors: 0
+        };
       }
-      console.log('Total onboarding types:', totalTypes)
 
-      // Get pending requests
+      const typeIds = typeData?.map(t => t.id) || [];
+      console.log('Onboarding type IDs:', typeIds);
+
+      if (typeIds.length === 0) {
+        return {
+          totalOnboardingTypes: 0,
+          pendingRequests: 0,
+          completedThisMonth: 0,
+          totalVendors: 0
+        };
+      }
+      console.log("typeids ", typeIds);
+
+      // Get pending requests for those onboarding type IDs
       const { count: pendingRequests, error: pendingError } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
-        // .eq('requester_user_id', user.id)
-        .eq('status', 'pending')
-
-        console.log('DashboardService: Fetching pending requests for user:', user.id)
+        .in('onboarding_type_id', typeIds)
+        .eq('status', 'pending');
 
       if (pendingError) {
-        console.error('Error fetching pending requests count:', pendingError)
+        console.error('Error fetching pending requests:', pendingError);
       }
-      console.log('Pending requests:', pendingRequests)
 
-      // Get completed requests this month
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      startOfMonth.setHours(0, 0, 0, 0)
+      // Completed this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
 
       const { count: completedThisMonth, error: completedError } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
-        // .eq('requester_user_id', user.id)
+        .in('onboarding_type_id', typeIds)
         .eq('status', 'completed')
-        .gte('completed_at', startOfMonth.toISOString())
+        .gte('completed_at', startOfMonth.toISOString());
 
       if (completedError) {
-        console.error('Error fetching completed requests count:', completedError)
+        console.error('Error fetching completed this month:', completedError);
       }
-      console.log('Completed this month:', completedThisMonth)
 
-      // Get total unique vendors (users who have completed at least one request)
+      // Unique vendors who completed requests for those onboarding types
       const { data: vendorData, error: vendorError } = await this.supabase
         .from('onboarding_requests')
         .select('completed_by')
-        .eq('requester_user_id', user.id)
+        .in('onboarding_type_id', typeIds)
         .eq('status', 'completed')
-        .not('completed_by', 'is', null)
+        .not('completed_by', 'is', null);
 
       if (vendorError) {
-        console.error('Error fetching vendor data:', vendorError)
+        console.error('Error fetching vendor data:', vendorError);
       }
 
-      // Count unique vendors
-      const uniqueVendors = new Set(vendorData?.map(v => v.completed_by) || [])
-      const totalVendors = uniqueVendors.size
-      console.log('Total unique vendors:', totalVendors)
+      const uniqueVendors = new Set(vendorData?.map(v => v.completed_by) || []);
+      const totalVendors = uniqueVendors.size;
 
       const stats = {
         totalOnboardingTypes: totalTypes || 0,
         pendingRequests: pendingRequests || 0,
         completedThisMonth: completedThisMonth || 0,
         totalVendors: totalVendors || 0
-      }
+      };
 
-      console.log('Final dashboard stats:', stats)
-      return stats
+      console.log('Final dashboard stats:', stats);
+      return stats;
+
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error)
-      throw error
+      console.error('Error fetching dashboard stats:', error);
+      throw error;
     }
   }
+
   async getOnboardingTypesWithStats(user: User): Promise<OnboardingTypeWithStats[]> {
     try {
       const { data: onboardingTypes, error } = await this.supabase
@@ -213,7 +226,7 @@ export class DashboardService {
       const activities: RecentActivity[] = []      // Add request activities
       requests?.forEach(request => {
         const typeName = this.getOnboardingTypeName(request.onboarding_types)
-        
+
         if (request.status === 'completed' && request.completed_at) {
           activities.push({
             id: `completed-${request.id}`,
@@ -286,16 +299,16 @@ export class DashboardService {
   private parseTimeAgo(timeString: string): Date {
     // Simple parsing for sorting - in a real app you'd store the actual dates
     const now = new Date()
-    
+
     if (timeString === 'Just now') {
       return now
     }
-    
+
     const match = timeString.match(/(\d+)\s+(minute|hour|day)s?\s+ago/)
     if (match) {
       const value = parseInt(match[1])
       const unit = match[2]
-      
+
       switch (unit) {
         case 'minute':
           return new Date(now.getTime() - value * 60 * 1000)
@@ -305,7 +318,7 @@ export class DashboardService {
           return new Date(now.getTime() - value * 24 * 60 * 60 * 1000)
       }
     }
-    
+
     // Fallback for date strings
     return new Date(timeString)
   }
@@ -322,13 +335,16 @@ export class DashboardService {
       const { count: totalRequests } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('recipient_email', user.email)
+        // .eq('recipient_email', user.email)
+        .eq('requester_user_id', user.id)
+
 
       // Get pending requests for this user
       const { count: pendingRequests } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('recipient_email', user.email)
+        .eq('requester_user_id', user.id)
+        // .eq('recipient_email', user.email)
         .eq('status', 'pending')
 
       // Get completed requests this month for this user
@@ -339,7 +355,8 @@ export class DashboardService {
       const { count: completedThisMonth } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('recipient_email', user.email)
+        .eq('requester_user_id', user.id)
+        // .eq('recipient_email', user.email)
         .eq('status', 'completed')
         .gte('completed_at', startOfMonth.toISOString())
 
@@ -350,8 +367,8 @@ export class DashboardService {
         .eq('recipient_email', user.email)
         .eq('status', 'completed')
 
-      const uniqueCompanyCount = uniqueCompanies 
-        ? new Set(uniqueCompanies.map(req => req.requester_user_id)).size 
+      const uniqueCompanyCount = uniqueCompanies
+        ? new Set(uniqueCompanies.map(req => req.requester_user_id)).size
         : 0
 
       return {
