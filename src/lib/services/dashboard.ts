@@ -55,6 +55,7 @@ export interface RecentActivity {
 export class DashboardService {
   private supabase = createClient()
   async getDashboardStats(user: User): Promise<DashboardStats> {
+    console.log('DashboardService: Fetching stats for user:', user)
     try {
       console.log('DashboardService: Fetching stats for user:', user.id)
       
@@ -73,8 +74,10 @@ export class DashboardService {
       const { count: pendingRequests, error: pendingError } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('requester_user_id', user.id)
+        // .eq('requester_user_id', user.id)
         .eq('status', 'pending')
+
+        console.log('DashboardService: Fetching pending requests for user:', user.id)
 
       if (pendingError) {
         console.error('Error fetching pending requests count:', pendingError)
@@ -89,7 +92,7 @@ export class DashboardService {
       const { count: completedThisMonth, error: completedError } = await this.supabase
         .from('onboarding_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('requester_user_id', user.id)
+        // .eq('requester_user_id', user.id)
         .eq('status', 'completed')
         .gte('completed_at', startOfMonth.toISOString())
 

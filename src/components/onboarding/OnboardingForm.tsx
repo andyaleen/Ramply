@@ -337,9 +337,7 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
       setError(`Missing required documents: ${missingDocs.join(', ')}. Please upload all required documents before submitting.`)
       return false
     }    // Validate required fields more intelligently
-    const requiredFields = onboardingType?.required_fields || []
-    
-    // Map required field names to actual form field names
+    const requiredFields = onboardingType?.required_fields || []    // Map required field names to actual form field names
     const mapRequiredFieldToFormField = (requiredField: string): string[] => {
       const fieldMapping: Record<string, string[]> = {
         'Tax Information': ['tax_id'],
@@ -349,17 +347,24 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
         'Business Type': ['business_type'],
         'Phone': ['phone'],
         'Website': ['website'],
-        'Description': ['description']
+        'Description': ['description'],
+        // Banking Information is handled via document upload, not form fields
+        'Banking Information': [] // Empty array means this is satisfied by document upload only
       }
       
       // If there's a mapping, use it; otherwise assume it's a direct field name
       return fieldMapping[requiredField] || [requiredField]
     }
-    
-    // Check each required field against its mapped form fields
+      // Check each required field against its mapped form fields
     const missingFields: string[] = []
     requiredFields.forEach(requiredField => {
       const formFields = mapRequiredFieldToFormField(requiredField)
+      
+      // If formFields is empty, this field is satisfied by document upload only
+      if (formFields.length === 0) {
+        return // Skip validation for document-only fields
+      }
+      
       const hasAllRequiredData = formFields.some(field => formData[field] && formData[field].trim() !== '')
       
       if (!hasAllRequiredData) {
@@ -534,6 +539,8 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
     console.log('Uploaded Documents:', uploadedDocuments)
     console.log('Missing Documents:', missingDocuments)
   }
+
+  console.log("consents ",consents)
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -842,38 +849,11 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
                 </div>
               </div>            </div>
 
-            {/* Debug Section - Remove in production */}
-            <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-medium">Debug Information</h3>
-              <div className="text-sm">
-                <p><strong>Required Documents:</strong> {JSON.stringify(onboardingType?.required_documents || [])}</p>
-                <p><strong>Uploaded Documents:</strong> {JSON.stringify(uploadedDocuments)}</p>
-                <p><strong>Missing Documents:</strong> {JSON.stringify(missingDocuments)}</p>
-                <p><strong>Submit Button Disabled:</strong> {isSubmitting || missingDocuments.length > 0 ? 'Yes' : 'No'}</p>
-                <p><strong>Consents:</strong> {JSON.stringify(consents)}</p>
-              </div>
-              <Button 
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  console.log('=== MANUAL DEBUG ===')
-                  console.log('Required Documents:', onboardingType?.required_documents)
-                  console.log('Uploaded Documents:', uploadedDocuments)
-                  console.log('Missing Documents:', missingDocuments)
-                  console.log('Request ID:', request?.id)
-                  loadUploadedDocuments()
-                }}
-              >
-                Debug & Refresh
-              </Button>
-            </div>
-
             {/* Submit Button */}
             <div className="flex justify-end">
               <Button 
                 type="submit" 
-                disabled={isSubmitting || missingDocuments.length > 0}
+                disabled={isSubmitting || missingDocuments.length > 0 || consents.data_processing === false || consents.terms_of_service === false}
                 className="min-w-32"
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Onboarding'}

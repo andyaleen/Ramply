@@ -30,6 +30,7 @@ export function Dashboard() {
       try {
         setLoading(true)
         const stats = await dashboardService.getExternalUserStats(user)
+        console.log('Dashboard stats loaded:', stats)
         setDashboardStats(stats)
       } catch (error) {
         console.error('Error loading dashboard stats:', error)      } finally {

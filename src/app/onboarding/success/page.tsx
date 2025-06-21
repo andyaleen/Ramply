@@ -68,7 +68,7 @@ export default function OnboardingSuccessPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/dashboard')}
                 className="min-w-32"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />

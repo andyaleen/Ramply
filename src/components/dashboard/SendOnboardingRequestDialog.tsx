@@ -35,11 +35,11 @@ export function SendOnboardingRequestDialog({
   onboardingTypeId,
   onSuccess,
 }: SendOnboardingRequestDialogProps) {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
   const [generatedLink, setGeneratedLink] = useState<string | null>(null)
-
+  console.log("is admin:", isAdmin, "user:", user)
   const {
     register,
     handleSubmit,

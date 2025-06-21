@@ -72,7 +72,7 @@ export function AdminDashboard() {
       }
       
       try {
-        console.log('AdminDashboard: Loading dashboard stats for user:', user.id)
+        console.log('AdminDashboard: Loading dashboard stats for user:', user)
         setLoading(true)
         const stats = await dashboardService.getDashboardStats(user)
         console.log('AdminDashboard: Loaded stats:', stats)

@@ -24,7 +24,8 @@ import {
   Building2,
   Mail,
   MapPin,
-  FileText
+  FileText,
+  Pencil
 } from 'lucide-react'
 import {
   Table,
@@ -38,6 +39,7 @@ import { createClient } from '@/lib/supabase/client'
 import { downloadDocument } from '@/lib/file-utils'
 import { toast } from 'sonner'
 import { Database } from '@/lib/database.types'
+import { useRouter } from 'next/navigation'
 
 type ExtendedRequest = OnboardingRequestDetailed & {
   documents?: Database['public']['Tables']['documents']['Row'][]
@@ -51,6 +53,7 @@ export default function RequestsPage() {  const { userProfile, user } = useAuth(
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedRequest, setSelectedRequest] = useState<ExtendedRequest | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const router = useRouter()
 
   // Check for schema error
   const hasSchemaError = userProfile?.contact_name === 'Schema Error - Please Fix Database'
@@ -186,6 +189,12 @@ export default function RequestsPage() {  const { userProfile, user } = useAuth(
     const i = Math.floor(Math.log(bytes) / Math.log(1024))
     return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i]
   }
+
+  const handleUpdateRequest = (request: OnboardingRequestDetailed) => {
+    if(request.status === 'pending') {
+      router.push(`/onboard/${request.token}`) 
+    }
+  } 
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -441,6 +450,15 @@ export default function RequestsPage() {  const { userProfile, user } = useAuth(
                         >
                           <MessageSquare className="h-4 w-4" />
                         </Button>
+                        
+                       {request.status === "pending" && <Button
+                       onClick={()=> handleUpdateRequest(request)}
+                         variant="ghost" 
+                          size="sm"
+                          title='refill-form'
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>}
                       </div>
                     </TableCell>                  
                     </TableRow>

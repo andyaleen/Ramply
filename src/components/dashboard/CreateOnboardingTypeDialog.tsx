@@ -35,12 +35,13 @@ export function CreateOnboardingTypeDialog({
   onOpenChange,
   onSuccess,
 }: CreateOnboardingTypeDialogProps) {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
   
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([])
   const [selectedFields, setSelectedFields] = useState<string[]>([])
+  console.log("Current user:", user, "Is admin:", isAdmin)
 
   const {
     register,

@@ -140,12 +140,14 @@ export function ViewDocumentsDialog({
       console.log('👥 Unique user IDs from documents:', userIds)      // Get user information for these user IDs
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let users: any[] = []
+      console.log('👥 Fetching users for IDs:', user)
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
           .from('users')
           .select('id, email, contact_name')
           .in('id', userIds)
-
+        console.log('👥 Fetching users:', usersData);
+        
         if (usersError) {
           console.error('❌ Error fetching users:', usersError)
           // Don't throw here, just log the error and continue without user data
@@ -154,7 +156,7 @@ export function ViewDocumentsDialog({
         }
       }
 
-      console.log('👥 Found users:', users.length)
+      console.log('👥 Found users:', users)
 
       // Create a map of users for easy lookup
       const userMap = new Map()
@@ -193,6 +195,8 @@ export function ViewDocumentsDialog({
       document_type: doc.document_type
     })
   }
+
+  console.log("view-documents-dialog.tsx - documentsWithUsers:", documentsWithUsers)
 
   if (isLoading) {
     return (
@@ -251,7 +255,7 @@ export function ViewDocumentsDialog({
       </Dialog>
     )
   }
-
+  console.log('📄 Documents with users:', documentsWithUsers)
   // Group documents by user
   const documentsByUser = documentsWithUsers.reduce((acc, doc) => {
     const userKey = doc.user?.email || 'Unknown User'

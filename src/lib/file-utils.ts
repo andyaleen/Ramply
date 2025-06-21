@@ -81,6 +81,8 @@ async function findActualFilePath(doc: DocumentInfo): Promise<string> {
   const supabase = createClient()
   
   console.log('🔍 Searching for actual file path for:', doc.file_name)
+  console.log('🔍 Document type:', doc.document_type)
+  console.log('🔍 Stored file path:', doc.file_path)
   
   // Extract the base filename without extension for better matching
   const baseFileName = doc.file_name.replace(/\.[^/.]+$/, '') // Remove extension
@@ -102,6 +104,7 @@ async function findActualFilePath(doc: DocumentInfo): Promise<string> {
   }
 
   console.log('📁 Found storage items:', listData.length)
+  console.log('📁 Storage structure:', listData.map(item => ({ name: item.name, isFolder: !item.name.includes('.') })))
 
   // Search through folders recursively
   for (const item of listData) {
@@ -111,8 +114,9 @@ async function findActualFilePath(doc: DocumentInfo): Promise<string> {
       const { data: folderData } = await supabase.storage
         .from('documents')
         .list(item.name, { limit: 1000 })
-      
-      if (folderData) {
+        if (folderData) {
+        console.log(`📂 Found ${folderData.length} items in folder ${item.name}:`, folderData.map(f => f.name))
+        
         for (const subItem of folderData) {
           if (subItem.name && !subItem.name.includes('.')) { // Subfolder
             console.log('📂 Exploring subfolder:', `${item.name}/${subItem.name}`)
@@ -120,18 +124,21 @@ async function findActualFilePath(doc: DocumentInfo): Promise<string> {
             const { data: subFolderData } = await supabase.storage
               .from('documents')
               .list(`${item.name}/${subItem.name}`, { limit: 1000 })
-            
-            if (subFolderData) {
-              for (const file of subFolderData) {
+              if (subFolderData) {
+              console.log(`📂 Found ${subFolderData.length} files in subfolder ${item.name}/${subItem.name}:`, subFolderData.map(f => f.name))
+                for (const file of subFolderData) {
+                console.log('🔍 Checking file:', file.name, 'against patterns')
+                
                 if (isFileMatch(file.name, baseFileName, documentType)) {
                   const foundPath = `${item.name}/${subItem.name}/${file.name}`
                   console.log('✅ Found matching file:', foundPath)
                   return foundPath
                 }
               }
-            }
-          } else {
+            }          } else {
             // File directly in folder
+            console.log('🔍 Checking folder file:', subItem.name, 'against patterns')
+            
             if (isFileMatch(subItem.name, baseFileName, documentType)) {
               const foundPath = `${item.name}/${subItem.name}`
               console.log('✅ Found matching file in folder:', foundPath)
@@ -139,9 +146,10 @@ async function findActualFilePath(doc: DocumentInfo): Promise<string> {
             }
           }
         }
-      }
-    } else {
+      }    } else {
       // File in root
+      console.log('🔍 Checking root file:', item.name, 'against patterns')
+      
       if (isFileMatch(item.name, baseFileName, documentType)) {
         console.log('✅ Found matching file in root:', item.name)
         return item.name
@@ -149,6 +157,11 @@ async function findActualFilePath(doc: DocumentInfo): Promise<string> {
     }
   }
 
+  console.log('❌ No matching file found. Search summary:')
+  console.log('  - Searched for base filename:', baseFileName)
+  console.log('  - Searched for document type:', documentType)
+  console.log('  - Total storage items checked:', listData.length)
+  
   throw new Error(`File not found in storage: ${doc.file_name}`)
 }
 
@@ -160,6 +173,8 @@ function isFileMatch(fileName: string, baseFileName: string, documentType: strin
   const lowerBaseName = baseFileName.toLowerCase()
   const lowerDocType = documentType.toLowerCase()
   
+  console.log('🔍 Checking match for:', { fileName: lowerFileName, baseName: lowerBaseName, docType: lowerDocType })
+  
   // Check for document type match
   const matchesDocType = Boolean(documentType && lowerFileName.includes(lowerDocType))
   
@@ -170,5 +185,23 @@ function isFileMatch(fileName: string, baseFileName: string, documentType: strin
   const matchesPartial = Boolean(baseFileName && baseFileName.length > 3 && 
     lowerFileName.includes(lowerBaseName.substring(0, Math.min(lowerBaseName.length, 8))))
   
-  return matchesDocType || matchesBaseName || matchesPartial
+  // Special handling for common words that might appear in different contexts
+  const specialMatches = Boolean(
+    (lowerBaseName.includes('overview') && lowerFileName.includes('overview')) ||
+    (lowerBaseName.includes('bank') && lowerFileName.includes('bank')) ||
+    (lowerBaseName.includes('tax') && lowerFileName.includes('tax')) ||
+    (lowerBaseName.includes('insurance') && lowerFileName.includes('insurance'))
+  )
+  
+  const result = matchesDocType || matchesBaseName || matchesPartial || specialMatches
+  
+  console.log('🔍 Match result:', {
+    matchesDocType,
+    matchesBaseName,
+    matchesPartial,
+    specialMatches,
+    overall: result
+  })
+  
+  return result
 }
