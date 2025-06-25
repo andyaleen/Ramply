@@ -3,7 +3,7 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
-import { useState, Suspense, useEffect } from 'react'
+import { useState, Suspense, useEffect, useCallback } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -133,12 +133,16 @@ function PublicOnboardingContent() {
     }
   })
   // Create request when user is authenticated and onboarding type is loaded
-  useEffect(() => {
+  const createRequestIfNeeded = useCallback(() => {
     if (user && onboardingType && !onboardingRequest && !createRequestMutation.isPending) {
       createRequestMutation.mutate()
       console.log("run");
     }
-  }, [user, onboardingType, onboardingRequest, createRequestMutation])
+  }, [user, onboardingType, onboardingRequest, createRequestMutation.isPending, createRequestMutation])
+
+  useEffect(() => {
+    createRequestIfNeeded()
+  }, [createRequestIfNeeded])
 
   const handleComplete = () => {
     setIsCompleted(true)

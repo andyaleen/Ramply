@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function AuthCodeErrorPage() {
+function AuthCodeErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error') || 'Authentication failed'
 
@@ -58,5 +59,22 @@ export default function AuthCodeErrorPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function AuthCodeErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-100 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
+            <p className="text-center mt-4 text-gray-600">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <AuthCodeErrorContent />
+    </Suspense>
   )
 }
