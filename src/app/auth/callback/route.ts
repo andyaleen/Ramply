@@ -8,7 +8,15 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/dashboard'
 
+    console.log('🔗 Auth callback received:', {
+      code: code ? `${code.substring(0, 10)}...` : null,
+      next,
+      origin,
+      url: request.url
+    })
+
     if (!code) {
+      console.error('❌ No authorization code provided in callback')
       return NextResponse.redirect(`${origin}/auth/auth-code-error?error=No authorization code provided`)
     }
 
@@ -41,21 +49,38 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
+    console.log('🔄 Code exchange result:', {
+      hasSession: !!data.session,
+      hasUser: !!data.user,
+      userEmail: data.user?.email,
+      error: error?.message
+    })
+
     if (error || !data.session) {
+      console.error('❌ Code exchange failed:', error?.message)
       return NextResponse.redirect(`${origin}/auth/auth-code-error?error=${encodeURIComponent(error?.message || 'Authentication failed')}`)
     }    const userId = data.session.user.id
     const userEmail = data.session.user.email
+
+    console.log('👤 Processing user:', { userId, userEmail })
 
     // Check for user profile in the users table
     const { data: userProfile, error: fetchError } = await supabase
       .from('users')
       .select('role')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
+
+    console.log('🔍 Profile fetch result:', {
+      hasProfile: !!userProfile,
+      role: userProfile?.role,
+      fetchError: fetchError?.message
+    })
 
     // If profile not found, create one with default external role
     let finalUserProfile = userProfile
     if (fetchError || !userProfile) {
+      console.log('🆕 Creating new user profile...')
       const { data: newProfile, error: createError } = await supabase
         .from('users')
         .insert([
@@ -69,23 +94,28 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (createError) {
-        console.error('Error creating user profile:', createError)
+        console.error('❌ Error creating user profile:', createError)
         finalUserProfile = { role: 'external' }
       } else {
+        console.log('✅ Profile created successfully:', newProfile)
         finalUserProfile = newProfile
       }
     }
 
     // Role-based redirect
-    if (next === '/dashboard' && finalUserProfile?.role === 'admin') {
-      response.headers.set('Location', `${origin}/admin`)
+    const finalRedirectUrl = (next === '/dashboard' && finalUserProfile?.role === 'admin') ? '/admin' : next
+    
+    console.log('🎯 Redirecting to:', finalRedirectUrl)
+    
+    if (finalRedirectUrl !== next) {
+      response.headers.set('Location', `${origin}${finalRedirectUrl}`)
     } else {
       response.headers.set('Location', `${origin}${next}`)
     }
 
     return response
   } catch (err) {
-    console.error('Callback route error:', err)
+    console.error('💥 Callback route error:', err)
     const { origin } = new URL(request.url)
     return NextResponse.redirect(`${origin}/auth/auth-code-error?error=Internal server error`)
   }

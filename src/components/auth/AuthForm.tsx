@@ -158,12 +158,32 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     try {
       const redirectUrl = '/dashboard'
       
+      console.log('🚀 Starting signup process...')
+      console.log('📧 Email:', email.trim())
+      console.log('🔗 Redirect URL:', `${window.location.origin}/auth/callback?next=${redirectUrl}`)
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${redirectUrl}`
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${redirectUrl}`,
+          data: {
+            // Additional metadata that might help with email delivery
+            signup_source: 'web_form',
+            timestamp: new Date().toISOString()
+          }
         }
+      })
+      
+      console.log('📊 Signup response:', {
+        user: authData.user ? {
+          id: authData.user.id,
+          email: authData.user.email,
+          email_confirmed_at: authData.user.email_confirmed_at,
+          created_at: authData.user.created_at
+        } : null,
+        session: authData.session ? 'Session created' : 'No session',
+        error: authError
       })      
       if (authError) {
         console.error('❌ Auth signup error:', authError)
@@ -182,26 +202,19 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
 
       if (authData.user) {
         console.log('✅ User created successfully:', authData.user.id)
+        console.log('📧 Email confirmation should be sent to:', authData.user.email)
         
-        // Create user profile with external role by default
-        const userRole = 'external'
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([
-            {
-              id: authData.user.id,
-              email: authData.user.email,
-              role: userRole,
-            },
-          ])
-
-        if (profileError) {
-          console.error('❌ Error creating user profile:', profileError)
-          setError('Account created but profile setup failed. Please contact support.')
-        } else {
-          console.log(`✅ ${userRole} profile created successfully`)
+        // Check if email confirmation is required
+        if (!authData.session && authData.user.email_confirmed_at === null) {
+          console.log('📧 Email confirmation required - user should check their email')
+        } else if (authData.session) {
+          console.log('✅ User is immediately signed in (email confirmation not required)')
         }
-
+        
+        // Don't create profile here - let AuthContext handle it
+        // This prevents the duplicate key constraint error
+        console.log('🔄 Profile creation will be handled by AuthContext')
+        
         setSuccess(true)
       }
     } catch (err) {
