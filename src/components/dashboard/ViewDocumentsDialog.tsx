@@ -111,7 +111,7 @@ export function ViewDocumentsDialog({
 
         // Fetch users
         const userIds = [...new Set(documents.map(doc => doc.user_id))];
-        let users: any[] = [];
+        let users: Array<{ id: string; email: string; contact_name?: string }> = [];
 
         if (userIds.length > 0) {
           const { data: usersData, error: usersError } = await supabase
