@@ -83,6 +83,17 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
   const [documentUploadProgress, setDocumentUploadProgress] = useState<Record<string, 'uploading' | 'completed' | 'error'>>({})
   const [formCompletionProgress, setFormCompletionProgress] = useState(0)
 
+  // Format Tax ID as user types
+  const formatTaxId = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '')
+    // Add dash after second digit if there are more than 2 digits
+    if (digits.length > 2) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 9)}`
+    }
+    return digits
+  }
+
   const loadOnboardingData = useCallback(async () => {
     try {
       console.log('Loading onboarding data for request:', request?.id)
@@ -660,7 +671,12 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
                 <Input
                   id="tax_id"
                   value={formData.tax_id}
-                  onChange={(e) => handleInputChange('tax_id', e.target.value)}
+                  onChange={(e) => {
+                    const formatted = formatTaxId(e.target.value)
+                    handleInputChange('tax_id', formatted)
+                  }}
+                  placeholder="XX-XXXXXXX"
+                  maxLength={10}
                 />
               </div>
               <div>
@@ -673,11 +689,11 @@ export function OnboardingForm({ request, onComplete }: OnboardingFormProps) {
                     <SelectValue placeholder="Select business type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="corporation">Corporation</SelectItem>
-                    <SelectItem value="llc">LLC</SelectItem>
-                    <SelectItem value="partnership">Partnership</SelectItem>
-                    <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="LLC">LLC</SelectItem>
+                    <SelectItem value="Corporation">Corporation</SelectItem>
+                    <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
+                    <SelectItem value="Partnership">Partnership</SelectItem>
+                    <SelectItem value="Non Profit">Non Profit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

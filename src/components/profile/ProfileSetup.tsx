@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { UserProfileSchema, type UserProfile } from '@/lib/validations'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Building2, User, MapPin, CreditCard } from 'lucide-react'
 
 interface ProfileSetupProps {
@@ -19,11 +21,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
   const [loading, setLoading] = useState(false)
   const { updateProfile, userProfile } = useAuth()
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<UserProfile>({
+  const form = useForm<UserProfile>({
     resolver: zodResolver(UserProfileSchema),
     defaultValues: userProfile ? {
       company_name: userProfile.company_name || '',
@@ -42,13 +40,29 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
     },
   })
 
+  // Format Tax ID as user types
+  const formatTaxId = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '')
+    // Add dash after second digit if there are more than 2 digits
+    if (digits.length > 2) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 9)}`
+    }
+    return digits
+  }
+
   const onSubmit = async (data: UserProfile) => {
     setLoading(true)
     try {
+      console.log('🚀 Submitting profile data:', data)
       await updateProfile(data)
+      console.log('✅ Profile updated successfully')
       onComplete()
     } catch (error) {
-      console.error('Error updating profile:', error)
+      console.error('❌ Error updating profile:', error)
+      // Don't prevent the user from proceeding if profile update fails
+      // They can always update it later in settings
+      onComplete()
     } finally {
       setLoading(false)
     }
@@ -80,152 +94,203 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="company_name">Company Name *</Label>
-                  <Input
-                    id="company_name"
-                    {...register('company_name')}
-                    placeholder="Acme Corporation"
-                  />
-                  {errors.company_name && (
-                    <p className="text-sm text-red-600">{errors.company_name.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="business_type">Business Type</Label>
-                  <Input
-                    id="business_type"
-                    {...register('business_type')}
-                    placeholder="LLC, Corporation, Partnership, etc."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contact_name">Contact Name *</Label>
-                  <Input
-                    id="contact_name"
-                    {...register('contact_name')}
-                    placeholder="John Doe"
-                  />
-                  {errors.contact_name && (
-                    <p className="text-sm text-red-600">{errors.contact_name.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contact_email">Contact Email *</Label>
-                  <Input
-                    id="contact_email"
-                    type="email"
-                    {...register('contact_email')}
-                    placeholder="john@acme.com"
-                  />
-                  {errors.contact_email && (
-                    <p className="text-sm text-red-600">{errors.contact_email.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="tax_id">Tax ID / EIN</Label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="tax_id"
-                      {...register('tax_id')}
-                      placeholder="12-3456789"
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="text-lg font-medium">Business Address</h3>
-                </div>
-
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="address_line1">Address Line 1 *</Label>
-                    <Input
-                      id="address_line1"
-                      {...register('address_line1')}
-                      placeholder="123 Main Street"
-                    />
-                    {errors.address_line1 && (
-                      <p className="text-sm text-red-600">{errors.address_line1.message}</p>
+                  <FormField
+                    control={form.control}
+                    name="company_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Acme Corporation" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="business_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select business type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="LLC">LLC</SelectItem>
+                            <SelectItem value="Corporation">Corporation</SelectItem>
+                            <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
+                            <SelectItem value="Partnership">Partnership</SelectItem>
+                            <SelectItem value="Non Profit">Non Profit</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contact_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="contact_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Email *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="john@acme.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="tax_id"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Tax ID / EIN</FormLabel>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="XX-XXXXXXX"
+                              className="pl-10"
+                              onChange={(e) => {
+                                const formatted = formatTaxId(e.target.value)
+                                field.onChange(formatted)
+                              }}
+                              maxLength={10}
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-lg font-medium">Business Address</h3>
                   </div>
 
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="address_line2">Address Line 2</Label>
-                    <Input
-                      id="address_line2"
-                      {...register('address_line2')}
-                      placeholder="Suite 100"
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="address_line1"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Address Line 1 *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123 Main Street" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      {...register('city')}
-                      placeholder="New York"
+                    <FormField
+                      control={form.control}
+                      name="address_line2"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Address Line 2</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Suite 100" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                    {errors.city && (
-                      <p className="text-sm text-red-600">{errors.city.message}</p>
-                    )}
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State *</Label>
-                    <Input
-                      id="state"
-                      {...register('state')}
-                      placeholder="NY"
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="New York" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                    {errors.state && (
-                      <p className="text-sm text-red-600">{errors.state.message}</p>
-                    )}
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="postal_code">Postal Code *</Label>
-                    <Input
-                      id="postal_code"
-                      {...register('postal_code')}
-                      placeholder="10001"
+                    <FormField
+                      control={form.control}
+                      name="state"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>State *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="NY" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                    {errors.postal_code && (
-                      <p className="text-sm text-red-600">{errors.postal_code.message}</p>
-                    )}
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Country *</Label>
-                    <Input
-                      id="country"
-                      {...register('country')}
-                      placeholder="United States"
+                    <FormField
+                      control={form.control}
+                      name="postal_code"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Postal Code *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="10001" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                    {errors.country && (
-                      <p className="text-sm text-red-600">{errors.country.message}</p>
-                    )}
+
+                    <FormField
+                      control={form.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="United States" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end pt-6">
-                <Button type="submit" disabled={loading} size="lg">
-                  {loading ? 'Saving...' : 'Complete Setup'}
-                </Button>
-              </div>
-            </form>
+                <div className="flex justify-end pt-6">
+                  <Button type="submit" disabled={loading} size="lg">
+                    {loading ? 'Saving...' : 'Complete Setup'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>

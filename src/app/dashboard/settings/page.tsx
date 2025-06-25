@@ -156,9 +156,11 @@ export default function SettingsPage() {
           <TabsContent value="profile">            
             <Card>            
               <CardHeader>
-              <CardTitle><Skeleton className="h-8 w-40" /></CardTitle>
-              <CardDescription><Skeleton className="h-4 w-72" /></CardDescription>
-            </CardHeader>            
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-40" />
+                  <Skeleton className="h-4 w-72" />
+                </div>
+              </CardHeader>            
             <CardContent>
               <div className="space-y-4">
                 <div className="space-y-2">

@@ -23,8 +23,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [adminKey, setAdminKey] = useState('')
-  const [isAdminMode, setIsAdminMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -36,8 +34,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     setEmail('')
     setPassword('')
     setConfirmPassword('')
-    setAdminKey('')
-    setIsAdminMode(false)
     setError('')
     setSuccess(false)
   }
@@ -154,26 +150,13 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       return
     }
 
-    // Admin-specific validation
-    if (isAdminMode) {
-      if (!adminKey) {
-        setError('Admin registration key is required')
-        setLoading(false)
-        return
-      }
+    // Admin-specific validation - removed
+    // All users will be created as 'external' by default
 
-      const validAdminKey = process.env.NEXT_PUBLIC_ADMIN_SIGNUP_KEY || 'admin123'
-      if (adminKey !== validAdminKey) {
-        setError('Invalid admin key. Please contact your system administrator.')
-        setLoading(false)
-        return
-      }
-    }
-
-    console.log(`🔧 ${isAdminMode ? 'Admin' : 'Regular'} signup initiated for:`, email)
+    console.log(`🔧 Regular user signup initiated for:`, email)
 
     try {
-      const redirectUrl = isAdminMode ? '/admin' : '/dashboard'
+      const redirectUrl = '/dashboard'
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
@@ -200,8 +183,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       if (authData.user) {
         console.log('✅ User created successfully:', authData.user.id)
         
-        // Create user profile with appropriate role
-        const userRole = isAdminMode ? 'admin' : 'external'
+        // Create user profile with external role by default
+        const userRole = 'external'
         const { error: profileError } = await supabase
           .from('users')
           .insert([
@@ -261,19 +244,15 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               </div>
             </div>            
             <CardTitle className="text-2xl font-bold">
-              {isAdminMode ? 'Admin Account Created!' : 'Check Your Email'}
+              Check Your Email
             </CardTitle>
             <CardDescription>
               We&apos;ve sent you a confirmation link at {email}
-              {isAdminMode && '. After confirming, you\'ll be redirected to the admin dashboard.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">            
             <p className="text-sm text-gray-600 text-center">
-              {isAdminMode 
-                ? 'Your admin account has been created successfully. Please check your email and click the confirmation link to activate your account. You will be redirected to the admin dashboard after confirmation.'
-                : 'Please check your email and click the confirmation link to activate your account.'
-              }
+              Please check your email and click the confirmation link to activate your account.
             </p>
             <div className="flex flex-col space-y-2">
               <Button
@@ -292,8 +271,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                   setEmail('')
                   setPassword('')
                   setConfirmPassword('')
-                  setAdminKey('')
-                  setIsAdminMode(false)
                 }}
                 className="w-full"
               >
@@ -453,43 +430,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                   </div>
                 </div>
 
-                {/* Admin Registration Toggle */}
-                <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      id="admin-toggle"
-                      type="checkbox"
-                      checked={isAdminMode}
-                      onChange={(e) => setIsAdminMode(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
-                    />
-                    <Label htmlFor="admin-toggle" className="text-sm font-medium text-blue-900">
-                      Register as Administrator
-                    </Label>
-                  </div>
-                  
-                  {isAdminMode && (
-                    <div className="space-y-2">
-                      <Label htmlFor="admin-key" className="text-sm text-blue-900">Admin Registration Key</Label>
-                      <div className="relative">
-                        <Building2 className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
-                        <Input
-                          id="admin-key"
-                          type="password"
-                          placeholder="Enter admin registration key"
-                          value={adminKey}
-                          onChange={(e) => setAdminKey(e.target.value)}
-                          className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500"
-                          required={isAdminMode}
-                        />
-                      </div>
-                      <p className="text-xs text-blue-700">
-                        Contact your system administrator for the admin registration key
-                      </p>
-                    </div>
-                  )}
-                </div>
-
                 {error && (
                   <div className="space-y-2">
                     <p className={`text-sm ${error.includes('Check your email') ? 'text-green-600' : 'text-red-600'}`}>
@@ -508,11 +448,10 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                       </p>
                     )}
                   </div>
-                )}                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading 
-                    ? (isAdminMode ? 'Creating Admin Account...' : 'Creating Account...') 
-                    : (isAdminMode ? 'Create Admin Account' : 'Create Account')
-                  }
+                )}
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
               </form>
             </TabsContent>
