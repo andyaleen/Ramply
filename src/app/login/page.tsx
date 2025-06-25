@@ -34,6 +34,7 @@ function LoginContent() {
 
   // ✅ Redirect only if user + profile exist and checks are done
   useEffect(() => {
+    
     if (!checkingSession && !loading && user && userProfile) {
       if (userProfile.role === 'admin') {
         console.log('Redirecting admin to /admin')

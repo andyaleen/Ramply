@@ -97,7 +97,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
             }
           } else {
             // Fallback to dashboard if we can't determine role
-            router.push('/dashboard')
+            // router.push('/dashboard')
           }
         }, 500) // Small delay to ensure auth context is updated
       }

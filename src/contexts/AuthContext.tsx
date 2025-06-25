@@ -70,6 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Check cache first (valid for 2 minutes)
       const cached = profileFetchCache.current.get(cacheKey)
+      console.log("cached user profile ============== ",cached);
+      
       if (cached && Date.now() - cached.timestamp < 120000) {
         console.log('📋 Using cached profile for:', userId)
         if (cached.profile) {
@@ -212,13 +214,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const start = performance.now()
       try {
         console.log('🚀 Getting initial session...')
-        const { data: { session } } = await supabase.auth.getSession()
-        console.log(session ? '👤 Session found' : '👤 No session found');
-        
+        const { data: { session } } = await supabase.auth.getSession()        
         
         if (session?.user) {
           console.log('👤 Session found for user:', session.user.email)
           setUser(session.user)
+          
           
           // Add timeout for profile fetch to prevent infinite loading
           const timeoutId = setTimeout(() => {
@@ -265,19 +266,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (session?.user) {
           console.log('👤 Auth state change: User signed in -', session.user.email)
           setUser(session.user)
-          
           // Only refetch if we don't have a valid profile for this user
           if (!userProfileRef.current || userProfileRef.current.id !== session.user.id) {
             setLoading(true)
             
             const timeoutId = setTimeout(() => {
               console.warn('⏰ Auth state profile fetch timed out')
-              setUserProfile(createFallbackProfile(
-                session.user.id, 
-                session.user.email || '', 
-                'Profile Load Timeout',
-                userProfileRef.current?.role
-              ))
+              // setUserProfile(createFallbackProfile(
+              //   session.user.id, 
+              //   session.user.email || '', 
+              //   'Profile Load Timeout',
+              //   userProfileRef.current?.role
+              // ))
               setLoading(false)
             }, 6000)
 
@@ -301,6 +301,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
+    console.log("user profile in getsession ====== ", userProfile)
+
     return () => subscription.unsubscribe()
   }, [supabase, fetchUserProfile])
 
@@ -311,6 +313,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
       })
+      console.log("error signing ", error);
+      
       if (error) {
         console.error('❌ Sign in error:', error)
       } else {
