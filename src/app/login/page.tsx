@@ -24,17 +24,25 @@ function LoginContent() {
   useEffect(() => {
     const refreshSession = async () => {
       try {
-        await supabase.auth.getSession()
+        const { data, error } = await supabase.auth.getSession()
+        console.log("Supabase session:", data?.session)
+        console.log("Supabase error", error);
+        // If session is missing, we can still proceed to show AuthForm
+        // Don't block on missing session
+      } catch (err) {
+        console.error("Error getting session:", err)
       } finally {
         setCheckingSession(false)
       }
     }
+
     refreshSession()
   }, [])
 
+
   // ✅ Redirect only if user + profile exist and checks are done
   useEffect(() => {
-    
+
     if (!checkingSession && !loading && user && userProfile) {
       if (userProfile.role === 'admin') {
         console.log('Redirecting admin to /admin')
@@ -45,6 +53,8 @@ function LoginContent() {
       }
     }
   }, [user, userProfile, loading, checkingSession, redirectPath, router])
+
+
 
   // ✅ While checking session or loading user info
   if (loading || checkingSession) {

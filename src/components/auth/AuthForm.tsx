@@ -74,6 +74,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
         setTimeout(async () => {
           // Get the latest auth state after sign in
           const { data: { session } } = await supabase.auth.getSession()
+          console.log("if user exists" , session?.user);
           
           if (session?.user) {
             // Fetch user profile to determine role
@@ -174,6 +175,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
           }
         }
       })
+      console.log("autherror======= ", authError);
+      
       
       console.log('📊 Signup response:', {
         user: authData.user ? {

@@ -57,11 +57,13 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
       await updateProfile(data)
       console.log('✅ Profile updated successfully')
       onComplete()
+      setLoading(false)
     } catch (error) {
       console.error('❌ Error updating profile:', error)
       // Don't prevent the user from proceeding if profile update fails
       // They can always update it later in settings
       onComplete()
+      setLoading(false)
     } finally {
       setLoading(false)
     }
