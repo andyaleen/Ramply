@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Settings, Users, FileText, Link, Crown, Send } from 'lucide-react'
+import { Plus, Settings, Users, FileText, Link, Crown, Send, RefreshCw } from 'lucide-react'
 import { OnboardingTypesList } from '@/components/dashboard/OnboardingTypesList'
 import { OnboardingRequestsList } from '@/components/dashboard/OnboardingRequestsList'
 import { CreateOnboardingTypeDialog } from '@/components/dashboard/CreateOnboardingTypeDialog'
@@ -182,7 +182,7 @@ export function AdminDashboard() {
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
               ) : (
-                <Settings className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2" />
               )}
               Refresh
             </Button>

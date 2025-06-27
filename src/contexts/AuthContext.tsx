@@ -330,7 +330,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('👤 Session found for user:', session.user.email)
           setUser(session.user)
           
-          
           // Add timeout for profile fetch to prevent infinite loading
           const timeoutId = setTimeout(() => {
             console.warn('⏰ Profile fetch timed out, creating fallback profile')

@@ -60,7 +60,7 @@ export function SendOnboardingRequestDialog({
         .insert([data])
         .select()
         .single()
-
+        
       if (error) throw error
       return result
     },    onSuccess: (data) => {

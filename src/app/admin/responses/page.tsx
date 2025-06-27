@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { OnboardingResponsesList } from '@/components/dashboard/OnboardingResponsesList'
@@ -8,10 +8,15 @@ import { LoadingFallback } from '@/components/LoadingFallback'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Users, FileText } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function ResponsesPage() {
   const { user, userProfile, loading, isAdmin } = useAuth()
   const router = useRouter()
+  const [totalResponseThisMonth, setTotalResponseThisMonth] = useState<Number>(0)
+  const [totalResponses, setTotalResponses] = useState<Number>(0)
+  const [totalUniqueVendors, setTotalUniqueVendors] = useState<Number>(0)
+  const [loadingResponses, setLoadingResponses] = useState<boolean>(false)
 
   useEffect(() => {
     // Only log when there are actual state changes
@@ -28,11 +33,39 @@ export default function ResponsesPage() {
     }
   }, [user, loading, router, isAdmin, userProfile])
 
+  console.log("user", user)
+
+  //supabase query for fetching Total Onboardings
+  useEffect(() => {
+    setLoadingResponses(true)
+    async function totalOnboardingUser() {
+      try {
+        const supabase = createClient()
+        const { count, error } = await supabase.from("onboarding_requests").select('*', { count: 'exact' }).eq('requester_user_id', '28d8a73f-3776-4f03-a4f4-1bb1e77188d2')
+        setTotalResponses(count || 0)
+        setTotalUniqueVendors(count || 0)
+        setTotalResponseThisMonth(count || 0)
+        setLoadingResponses(false)
+      if(error){
+          throw new Error("something went wrong while fetching total request")
+      }
+      }
+      catch (error: any) {
+        console.error("Error while finding onboarding users", error)
+        setLoadingResponses(false)
+      } finally {
+        setLoadingResponses(false)
+      }
+    }
+
+    totalOnboardingUser()
+
+  }, [])
   // Show loading spinner while loading auth state or if we have a timeout fallback
   if (loading || (userProfile?.contact_name === 'Profile Load Timeout')) {
     return (
       <div className="p-6">
-        <LoadingFallback 
+        <LoadingFallback
           title="Loading Responses"
           description="Verifying your admin permissions..."
           onRefresh={() => window.location.reload()}
@@ -82,9 +115,9 @@ export default function ResponsesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => router.push('/admin')}
             className="flex items-center gap-2"
           >
@@ -106,7 +139,11 @@ export default function ResponsesPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-2xl font-bold">
+                {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
+              {totalResponses}
+            </div>}
+            </div>
             <p className="text-xs text-muted-foreground">All completed submissions</p>
           </CardContent>
         </Card>
@@ -117,7 +154,9 @@ export default function ResponsesPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
+              {totalResponseThisMonth}
+            </div>}
             <p className="text-xs text-muted-foreground">Responses this month</p>
           </CardContent>
         </Card>
@@ -128,7 +167,9 @@ export default function ResponsesPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+                {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
+              {totalUniqueVendors}
+            </div>}
             <p className="text-xs text-muted-foreground">Total unique respondents</p>
           </CardContent>
         </Card>
