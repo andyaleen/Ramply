@@ -23,7 +23,6 @@
   - Allows users to prefill forms with previously entered information
   - Reduces redundant data entry for returning users
   - Smart data merging based on required form fields
-
 ### Admin Dashboard
 - **Dashboard Component** (`src/components/dashboard/Dashboard.tsx`)
   - Tabbed interface for managing onboarding types and requests
