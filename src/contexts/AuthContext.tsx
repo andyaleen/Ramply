@@ -413,7 +413,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("user profile in getsession ====== ", userProfile)
 
     return () => subscription.unsubscribe()
-  }, [supabase, fetchUserProfile])
+  }, [supabase, fetchUserProfile, userProfile]) // Added userProfile as a dependency
 
   const signIn = useCallback(async (email: string, password: string) => {
     console.log('🔐 Attempting sign in for:', email)

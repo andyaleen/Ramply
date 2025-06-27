@@ -138,7 +138,7 @@ function PublicOnboardingContent() {
       createRequestMutation.mutate()
       console.log("run");
     }
-  }, [user, onboardingType, onboardingRequest, createRequestMutation.isPending, createRequestMutation])
+  }, [user, onboardingType, onboardingRequest, createRequestMutation])
 
   useEffect(() => {
     createRequestIfNeeded()

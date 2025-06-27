@@ -13,9 +13,9 @@ import { createClient } from '@/lib/supabase/client'
 export default function ResponsesPage() {
   const { user, userProfile, loading, isAdmin } = useAuth()
   const router = useRouter()
-  const [totalResponseThisMonth, setTotalResponseThisMonth] = useState<Number>(0)
-  const [totalResponses, setTotalResponses] = useState<Number>(0)
-  const [totalUniqueVendors, setTotalUniqueVendors] = useState<Number>(0)
+  const [totalResponseThisMonth, setTotalResponseThisMonth] = useState<number>(0)
+  const [totalResponses, setTotalResponses] = useState<number>(0)
+  const [totalUniqueVendors, setTotalUniqueVendors] = useState<number>(0)
   const [loadingResponses, setLoadingResponses] = useState<boolean>(false)
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function ResponsesPage() {
           throw new Error("something went wrong while fetching total request")
       }
       }
-      catch (error: any) {
+      catch (error: Error | unknown) {
         console.error("Error while finding onboarding users", error)
         setLoadingResponses(false)
       } finally {
