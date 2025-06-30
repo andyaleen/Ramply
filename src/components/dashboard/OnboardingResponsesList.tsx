@@ -242,7 +242,7 @@ export function OnboardingResponsesList() {
       </Card>
     )
   }
-
+  console.log("responses",responses)
   return (
     <>
       <div className="space-y-4">
@@ -250,7 +250,7 @@ export function OnboardingResponsesList() {
           <TableHeader>
             <TableRow>
               <TableHead>Onboarding Type</TableHead>
-              <TableHead>Company</TableHead>
+              <TableHead>Vendor</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Completed</TableHead>
               <TableHead>Documents</TableHead>

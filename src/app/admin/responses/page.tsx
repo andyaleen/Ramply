@@ -33,33 +33,75 @@ export default function ResponsesPage() {
     }
   }, [user, loading, router, isAdmin, userProfile])
 
-  console.log("user", user)
-
   //supabase query for fetching Total Onboardings
   useEffect(() => {
     setLoadingResponses(true)
     async function totalOnboardingUser() {
       try {
         const supabase = createClient()
-        const { count, error } = await supabase.from("onboarding_requests").select('*', { count: 'exact' }).eq('requester_user_id', '28d8a73f-3776-4f03-a4f4-1bb1e77188d2')
-        setTotalResponses(count || 0)
-        setTotalUniqueVendors(count || 0)
-        setTotalResponseThisMonth(count || 0)
-        setLoadingResponses(false)
-      if(error){
-          throw new Error("something went wrong while fetching total request")
+        let totalResponseCount = 0;
+        let thisMonthCount = 0;
+        const date = new Date()
+        const getMonth = date.getMonth() + 1;
+        const getYear = date.getFullYear()
+        const thisMonth = `${getYear}-${getMonth}-1`
+        let nextMonth = ``
+        if ((getMonth + 1) > 12) {
+          nextMonth = `${getYear + 1}-${1}-1`
+        }
+        else {
+          nextMonth = `${getYear}-${getMonth + 1}-1`
+        }
+        const { data, error } = await supabase.from("onboarding_types").select('id').eq('user_id', user?.id) // get all the onboarding type id's from data base  
+        if (error) {
+          throw new Error("Error while fetching onboaring  data")
+        }
+        const totalResponsePromiseArray = data.map((onboarding_types) => (
+          supabase.from('onboarding_requests').select('recipient_email', { count: 'exact' }).eq('onboarding_type_id', onboarding_types?.id).eq('status', 'completed')
+        ))
+        const thisMonthsRsponsePromiseArray = data.map((onboarding_types) => (
+          supabase.from("onboarding_requests").select('recipient_email', { count: 'exact' }).eq('onboarding_type_id', onboarding_types?.id).gte('completed_at', thisMonth).lt(`completed_at`, nextMonth)
+        ))
+        const totalResponseResult: any = await Promise.all(totalResponsePromiseArray)//get all the response for every onboarding type
+        const thisMonthResponseResult: any = await Promise.all(thisMonthsRsponsePromiseArray)// get all the response for this month .
+
+
+        totalResponseResult.forEach(({ count, error }: { count: any, error: any }) => { // loop to count total responses 
+          if (error) {
+            console.log(error)
+            throw new Error("Error while fetching Onboaring response")
+          }
+          else { totalResponseCount += count; }
+        })
+
+        thisMonthResponseResult.forEach(({ count, error }: { count: any, error: any }) => { // loop to count total responses this month
+          if (error) {
+            console.log(error)
+            throw new Error("Error while fetching This Month response")
+          }
+          else { thisMonthCount += count; }
+        })
+        
+        function uniqueVendors(totalResponseResult: any): number {// this function finds the unique vendors 
+          const uniqueVendorsSet = new Set();
+          totalResponseResult.forEach(({ data }: { data: any }) => {
+            if (data?.length > 0) {
+              uniqueVendorsSet.add(data[0]?.recipient_email)
+            }
+          })
+          return uniqueVendorsSet.size || 0
+        }
+        setTotalResponseThisMonth(thisMonthCount)
+        setTotalResponses(totalResponseCount)
+        setTotalUniqueVendors(uniqueVendors(totalResponseResult))
       }
-      }
-      catch (error: Error | unknown) {
+      catch (error: any) {
         console.error("Error while finding onboarding users", error)
-        setLoadingResponses(false)
       } finally {
         setLoadingResponses(false)
       }
     }
-
     totalOnboardingUser()
-
   }, [])
   // Show loading spinner while loading auth state or if we have a timeout fallback
   if (loading || (userProfile?.contact_name === 'Profile Load Timeout')) {
@@ -140,9 +182,9 @@ export default function ResponsesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-                {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
-              {totalResponses}
-            </div>}
+              {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
+                {totalResponses}
+              </div>}
             </div>
             <p className="text-xs text-muted-foreground">All completed submissions</p>
           </CardContent>
@@ -167,7 +209,7 @@ export default function ResponsesPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-                {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
+            {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
               {totalUniqueVendors}
             </div>}
             <p className="text-xs text-muted-foreground">Total unique respondents</p>
