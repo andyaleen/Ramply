@@ -1,6 +1,129 @@
-# Onbo SaaS Platform - Implementation Summary
+# Onbo SaaS Platform
+## Onbo — Onboarding SaaS (onboardingapp)
 
-## ✅ COMPLETED FEATURES
+This repository contains a TypeScript + Next.js application that provides a configurable onboarding workflow for external partners and vendors. It includes a user-facing onboarding flow (forms + document uploads) and an admin dashboard to manage onboarding types, requests, and responses. The app uses Supabase for auth, data, and file storage.
+
+## Key goals of this README
+- Provide a quick but complete developer setup guide
+- Document runtime and build scripts included in `package.json`
+- Call out environment variables and DB setup steps
+- Summarize architecture, features, and next steps for production
+
+---
+
+## Quick project summary
+- Framework: Next.js (App Router)
+- Language: TypeScript
+- UI: Tailwind CSS + shadcn-like components
+- Auth / DB / Storage: Supabase
+- Forms & Validation: React Hook Form + Zod
+- Data fetching: TanStack Query (React Query)
+
+Primary entry: `src/app/page.tsx` (user-facing) and `src/app/admin/layout.tsx` (admin area).
+
+## Features
+- Dynamic onboarding form generation with field-level Zod validation
+- Document upload with drag-and-drop, file-type and size checks, and Supabase Storage integration
+- Profile data reuse to pre-fill repeated information
+- Admin dashboard for creating onboarding types, sending tokenized requests, and tracking progress
+- Role-aware UI and protected routes via Supabase authentication
+
+## Prerequisites
+- Node.js 18+ and npm or pnpm
+- A Supabase project (database + auth + storage)
+- Git (optional, recommended)
+
+Assumptions
+- A setup script `setup-database.js` exists (package.json includes `setup-db`) to run initial DB tasks — if it is not present, run the SQL manually in your Supabase dashboard.
+- `supabase-schema.sql` is present in the repository and contains the schema; if additional storage setup SQL is required check for `storage-setup.sql` or run those steps in the Supabase console.
+
+## Environment variables
+Create a `.env.local` file at the project root and set the following variables:
+
+- NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+- NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+- SUPABASE_SERVICE_ROLE_KEY=<service-role-key> (only for server-side scripts that require elevated privileges)
+- NEXTAUTH_URL=http://localhost:3000 (or your production host)
+
+Notes
+- Keep service role keys secret. Never commit `.env.local`.
+
+## Install and run (local development)
+Install dependencies and run the dev server. Example using npm:
+
+```powershell
+npm install
+npm run dev
+```
+
+The app uses the `dev` script defined in `package.json` (Next's Turbopack dev server). The default port is 3000 unless overridden.
+
+Useful scripts (from `package.json`)
+- `npm run dev` — Run Next.js in development
+- `npm run build` — Build for production
+- `npm run start` — Start built app
+- `npm run lint` — Run ESLint
+- `npm run setup-db` — (If present) run the repository's DB setup helper
+
+## Database / Supabase setup
+1. Create a Supabase project.
+2. In the Supabase SQL editor, run `supabase-schema.sql` from the repository root.
+3. Create a storage bucket for onboarding documents and configure RLS and bucket policies according to your security requirements.
+4. If present, run `storage-setup.sql` or follow the SQL file provided for storage-specific policies.
+5. If the repo provides `setup-database.js`, run:
+
+```powershell
+npm run setup-db
+```
+
+If `setup-database.js` needs the service role key, ensure `SUPABASE_SERVICE_ROLE_KEY` is exported in `.env.local`.
+
+### RLS & Security
+- Review Row Level Security (RLS) policies after importing the schema. The app expects RLS rules so that users can only access their own records. Adjust policies for admin roles as needed.
+
+## Directory layout (high level)
+- `src/app/` — Next.js app routes (user + admin)
+- `src/components/` — Reusable UI and domain components
+- `src/contexts/` — Auth and app contexts
+- `src/lib/` — Utilities, Supabase client, validations
+- `public/` — Static assets
+- `supabase-schema.sql` — Database schema and policies
+
+## Architecture notes
+- Client-side: React components with React Hook Form & Zod for robust validation
+- Data layer: TanStack Query caches server responses; server calls go to Supabase (RESTful/JS SDK)
+- Storage: Files are uploaded to Supabase Storage with per-file metadata stored in the DB
+- Auth: Supabase Auth (email + magic links or OAuth depending on your Supabase settings)
+
+## Testing recommendations
+- Add unit tests for core form logic (validation + data mapping)
+- Add integration tests for the onboarding flow (mock Supabase or use a test project)
+- E2E: Playwright or Cypress to cover the end-to-end onboarding request → response flow
+
+## Production & Deployment
+- Build with `npm run build` and run `npm run start` on a node host or platform like Vercel/Netlify with server-side support for Next.js App Router.
+- Set environment variables in your host (do not use client-exposed ANON keys for privileged operations).
+- Configure CORS and domain settings in Supabase and in the app if you use custom domains.
+
+Security checklist for production
+- Rotate and protect service keys
+- Harden RLS policies and validate with test users
+- Use HTTPS and set secure cookie flags
+- Consider rate limiting and captcha on public endpoints
+
+## Observability & Maintenance
+- Add error monitoring (Sentry) and set up alerts
+- Add performance monitoring and important dashboards (request throughput, upload errors, auth failures)
+
+## Contributing
+- Fork and open a PR with a clear description of changes
+- Run linters and type checks before opening PRs
+- Add tests for new behaviors or bug fixes
+
+## Troubleshooting
+- If uploads fail: check Supabase Storage bucket permissions, CORS, and env keys
+- If auth fails: verify NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+- If DB queries return empty: verify RLS policies and the logged-in user's identifiers
 
 ### Core Onboarding System
 - **OnboardingForm Component** (`src/components/onboarding/OnboardingForm.tsx`)
@@ -107,71 +230,10 @@
 - `/admin-test` - Admin dashboard overview
 - Main application at `/`
 
-## 📋 NEXT STEPS & RECOMMENDATIONS
 
-### Immediate Setup Tasks
-1. **Database Setup**
-   ```bash
-   # Run the SQL scripts in your Supabase dashboard:
-   # 1. supabase-schema.sql (main database schema)
-   # 2. storage-setup.sql (storage bucket and policies)
-   ```
 
-2. **Environment Configuration**
-   - Update Supabase URLs in `.env.local` with your project details
-   - Configure proper domain settings for production
 
-### Feature Enhancements
-1. **Email Notifications**
-   - Implement email sending for onboarding invitations
-   - Status update notifications
-   - Reminder emails for pending requests
 
-2. **Advanced Error Handling**
-   - Global error boundaries
-   - Retry mechanisms for failed uploads
-   - Better offline handling
 
-3. **User Management**
-   - User profile settings page
-   - Account management features
-   - Role-based access control
 
-4. **Analytics & Reporting**
-   - Onboarding completion metrics
-   - Time-to-completion tracking
-   - Export capabilities for admin data
 
-5. **Testing Suite**
-   - Unit tests for components
-   - Integration tests for workflows
-   - E2E testing with Playwright
-
-### Production Considerations
-1. **Security Hardening**
-   - Review and tighten RLS policies
-   - Implement rate limiting
-   - Add CSRF protection
-
-2. **Performance Optimization**
-   - Image optimization
-   - Lazy loading for large forms
-   - Database query optimization
-
-3. **Monitoring & Logging**
-   - Error tracking (Sentry)
-   - Performance monitoring
-   - User analytics
-
-## 🎯 CONCLUSION
-
-The Onbo SaaS platform has been successfully built with all core onboarding management features implemented. The system provides:
-
-- **Complete onboarding workflow management**
-- **Dynamic form generation based on business requirements**
-- **Secure document upload and storage**
-- **Profile data reuse for improved user experience**
-- **Admin dashboard for comprehensive request management**
-- **Type-safe, scalable codebase ready for production**
-
-The platform is ready for immediate use and can be extended with additional features as needed. All code follows modern React/Next.js best practices and maintains high type safety with TypeScript.
