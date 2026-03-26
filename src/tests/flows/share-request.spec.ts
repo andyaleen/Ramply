@@ -135,7 +135,6 @@ test.describe('share request — full flow', () => {
     await expect(totalCard).toBeVisible()
 
     // The response list should contain at least one entry
-    const responseList = page.locator('[data-testid="response-list"], table, [role="list"]')
     // Accept any content visible in the card area — vendor email should appear
     await expect(page.getByText(vendorEmail)).toBeVisible({ timeout: 10_000 })
   })
