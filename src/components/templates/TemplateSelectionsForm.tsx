@@ -13,8 +13,8 @@ export type TemplateSelectionValues = {
   optional_documents: DocumentTypeKey[]
 }
 
-interface TemplateSelectionsFormProps<T extends TemplateSelectionValues> {
-  form: UseFormReturn<T>
+interface TemplateSelectionsFormProps {
+  form: UseFormReturn<TemplateSelectionValues>
 }
 
 /** Toggle a field value on/off in a list. */
@@ -28,8 +28,8 @@ function toggleDocValue(current: DocumentTypeKey[], value: DocumentTypeKey, add:
 }
 
 /** Ensure a field is only in one of the two lists. */
-function toggleFieldExclusive<T extends TemplateSelectionValues>(
-  form: UseFormReturn<T>,
+function toggleFieldExclusive(
+  form: UseFormReturn<TemplateSelectionValues>,
   listKey: 'mandatory_fields' | 'optional_fields',
   otherKey: 'mandatory_fields' | 'optional_fields',
   value: FieldKey,
@@ -46,8 +46,8 @@ function toggleFieldExclusive<T extends TemplateSelectionValues>(
 }
 
 /** Ensure a document is only in one of the two lists. */
-function toggleDocExclusive<T extends TemplateSelectionValues>(
-  form: UseFormReturn<T>,
+function toggleDocExclusive(
+  form: UseFormReturn<TemplateSelectionValues>,
   listKey: 'mandatory_documents' | 'optional_documents',
   otherKey: 'mandatory_documents' | 'optional_documents',
   value: DocumentTypeKey,
@@ -64,9 +64,9 @@ function toggleDocExclusive<T extends TemplateSelectionValues>(
 }
 
 /** Shared field/document selector for template-based forms. */
-export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
+export function TemplateSelectionsForm({
   form,
-}: TemplateSelectionsFormProps<T>) {
+}: TemplateSelectionsFormProps) {
   const mandatoryFields = form.watch('mandatory_fields')
   const optionalFields = form.watch('optional_fields')
   const mandatoryDocuments = form.watch('mandatory_documents')
