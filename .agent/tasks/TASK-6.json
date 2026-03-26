@@ -1,0 +1,76 @@
+{
+  "id": "TASK-6",
+  "title": "Rewrite OnboardingResponsesList to read from shared_data and shared_documents",
+  "category": "functional",
+  "description": "OnboardingResponsesList.tsx currently queries the old tables: onboarding_requests, onboarding_consent, documents, and joins onboarding_types. It must be rewritten to query share_requests (by requester_company_id), then for each completed request join shared_data (for field values) and shared_documents → company_documents (for file paths). The view should show a structured field table using catalog labels and document download links.",
+  "acceptanceCriteria": [
+    "Component queries share_requests where requester_company_id = the current user's company id",
+    "For each completed request, field values are read from shared_data.field_data JSONB",
+    "Field values are displayed using fieldLabel(key) from catalog.ts as column headers, not raw DB keys",
+    "Documents are read by joining shared_documents → company_documents for file_path and file_name",
+    "Download button generates a Supabase Storage signed URL and triggers download",
+    "Pending and expired requests are also shown (with appropriate status badges) not just completed ones",
+    "No references to onboarding_requests, onboarding_consent, onboarding_types, or documents tables remain",
+    "All debug console.log statements removed",
+    "tsc reports no new type errors",
+    "Playwright screenshot shows the responses table with field data"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Replace the query to use share_requests",
+      "details": "Replace the useQuery queryFn. First fetch: const { data: requests } = await supabase.from('share_requests').select('*').eq('requester_company_id', company.id).order('created_at', { ascending: false }). This returns all sent requests regardless of status.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "For each completed request, fetch shared_data",
+      "details": "Filter completed requests. For each, query: supabase.from('shared_data').select('field_data').eq('share_request_id', request.id).single(). Store field_data as Partial<Record<FieldKey, string>>. Use Promise.all for parallel fetching.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "For each completed request, fetch shared_documents with company_documents",
+      "details": "For each completed request, query: supabase.from('shared_documents').select('company_documents(id, document_type, file_name, file_path, file_size)').eq('share_request_id', request.id). This returns the document metadata for generating download links.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Update the table rendering to use catalog labels",
+      "details": "In the 'View Details' dialog, replace the hardcoded company/contact/address sections with a dynamic field table: Object.entries(sharedData.field_data).map(([key, value]) => <tr><td>{fieldLabel(key as FieldKey)}</td><td>{value}</td></tr>). Import fieldLabel from '@/lib/catalog'.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Update document download to use Supabase Storage signed URLs",
+      "details": "Replace the handleDownloadDocument function. Use: const { data } = await supabase.storage.from('documents').createSignedUrl(doc.file_path, 60). Then window.open(data.signedUrl). This generates a 60-second signed URL for private storage.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Add status badges for pending and expired requests",
+      "details": "Show all requests in the table, not just completed ones. Add a Status column with Badge components: pending = yellow, completed = green, expired = gray. For pending rows, disable the 'View Details' button and show 'Awaiting response' instead.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Remove all debug logging and fix types",
+      "details": "Remove all console.log statements. Run npx tsc --noEmit and fix all type errors. Run npx eslint --fix.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Playwright smoke test",
+      "details": "Start dev server. Log in as admin user who has sent at least one share request. Navigate to the responses tab. Take screenshot .agent/screenshots/TASK-6-responses.png. Verify the table renders with correct field labels and no console errors.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-5"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "PostgREST nested select syntax for shared_documents: .select('company_documents(id, document_type, file_name, file_path, file_size)')",
+    "Supabase Storage createSignedUrl requires the full file_path stored in company_documents.file_path",
+    "The old component had a lot of N+1 queries (map + async). Use Promise.all to parallelize",
+    "shared_data.field_data is typed as Partial<Record<FieldKey, string>> in database.types.ts"
+  ]
+}

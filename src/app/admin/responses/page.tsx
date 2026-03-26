@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { OnboardingResponsesList } from '@/components/dashboard/OnboardingResponsesList'
 import { LoadingFallback } from '@/components/LoadingFallback'
@@ -10,101 +11,57 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft, Users, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+interface ResponseStats {
+  total: number
+  thisMonth: number
+  uniqueVendors: number
+}
+
 export default function ResponsesPage() {
-  const { user, userProfile, loading, isAdmin } = useAuth()
+  const { user, userProfile, company, loading, isAdmin } = useAuth()
   const router = useRouter()
-  const [totalResponseThisMonth, setTotalResponseThisMonth] = useState<number>(0)
-  const [totalResponses, setTotalResponses] = useState<number>(0)
-  const [totalUniqueVendors, setTotalUniqueVendors] = useState<number>(0)
-  const [loadingResponses, setLoadingResponses] = useState<boolean>(false)
 
   useEffect(() => {
-    // Only log when there are actual state changes
     if (!loading) {
-      if (!user) {
-        console.log('❌ ResponsesPage: No user found, redirecting to /login')
-        router.push('/login')
-      } else if (user && userProfile && userProfile.contact_name !== 'Profile Load Timeout' && !isAdmin) {
-        console.log('❌ ResponsesPage: User is not admin, redirecting to /dashboard. Role:', userProfile?.role)
-        router.push('/dashboard')
-      } else if (user && userProfile && userProfile.contact_name !== 'Profile Load Timeout' && isAdmin) {
-        console.log('✅ ResponsesPage: Admin access confirmed. Role:', userProfile?.role)
-      }
+      if (!user) router.push('/login')
+      else if (userProfile && !isAdmin) router.push('/dashboard')
     }
   }, [user, loading, router, isAdmin, userProfile])
 
-  //supabase query for fetching Total Onboardings
-  useEffect(() => {
-    setLoadingResponses(true)
-    async function totalOnboardingUser() {
-      try {
-        const supabase = createClient()
-        let totalResponseCount = 0;
-        let thisMonthCount = 0;
-        const date = new Date()
-        const getMonth = date.getMonth() + 1;
-        const getYear = date.getFullYear()
-        const thisMonth = `${getYear}-${getMonth}-1`
-        let nextMonth = ``
-        if ((getMonth + 1) > 12) {
-          nextMonth = `${getYear + 1}-${1}-1`
-        }
-        else {
-          nextMonth = `${getYear}-${getMonth + 1}-1`
-        }
-        const { data, error } = await supabase.from("onboarding_types").select('id').eq('user_id', user?.id) // get all the onboarding type id's from data base  
-        if (error) {
-          throw new Error("Error while fetching onboaring  data")
-        }
-        const totalResponsePromiseArray = data.map((onboarding_types) => (
-          supabase.from('onboarding_requests').select('recipient_email', { count: 'exact' }).eq('onboarding_type_id', onboarding_types?.id).eq('status', 'completed')
-        ))
-        const thisMonthsRsponsePromiseArray = data.map((onboarding_types) => (
-          supabase.from("onboarding_requests").select('recipient_email', { count: 'exact' }).eq('onboarding_type_id', onboarding_types?.id).gte('completed_at', thisMonth).lt(`completed_at`, nextMonth)
-        ))
-        const totalResponseResult: any = await Promise.all(totalResponsePromiseArray)//get all the response for every onboarding type
-        const thisMonthResponseResult: any = await Promise.all(thisMonthsRsponsePromiseArray)// get all the response for this month .
+  const { data: stats, isLoading: statsLoading } = useQuery<ResponseStats>({
+    queryKey: ['response-stats', company?.id],
+    queryFn: async () => {
+      if (!company) return { total: 0, thisMonth: 0, uniqueVendors: 0 }
+      const supabase = createClient()
 
+      const now = new Date()
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-        totalResponseResult.forEach(({ count, error }: { count: any, error: any }) => { // loop to count total responses 
-          if (error) {
-            console.log(error)
-            throw new Error("Error while fetching Onboaring response")
-          }
-          else { totalResponseCount += count; }
-        })
+      const [{ data: all }, { data: monthly }] = await Promise.all([
+        supabase
+          .from('share_requests')
+          .select('recipient_email')
+          .eq('requester_company_id', company.id)
+          .eq('status', 'completed'),
+        supabase
+          .from('share_requests')
+          .select('id')
+          .eq('requester_company_id', company.id)
+          .eq('status', 'completed')
+          .gte('completed_at', firstOfMonth),
+      ])
 
-        thisMonthResponseResult.forEach(({ count, error }: { count: any, error: any }) => { // loop to count total responses this month
-          if (error) {
-            console.log(error)
-            throw new Error("Error while fetching This Month response")
-          }
-          else { thisMonthCount += count; }
-        })
-        
-        function uniqueVendors(totalResponseResult: any): number {// this function finds the unique vendors 
-          const uniqueVendorsSet = new Set();
-          totalResponseResult.forEach(({ data }: { data: any }) => {
-            if (data?.length > 0) {
-              uniqueVendorsSet.add(data[0]?.recipient_email)
-            }
-          })
-          return uniqueVendorsSet.size || 0
-        }
-        setTotalResponseThisMonth(thisMonthCount)
-        setTotalResponses(totalResponseCount)
-        setTotalUniqueVendors(uniqueVendors(totalResponseResult))
+      const uniqueVendors = new Set((all ?? []).map((r) => r.recipient_email)).size
+      return {
+        total: all?.length ?? 0,
+        thisMonth: monthly?.length ?? 0,
+        uniqueVendors,
       }
-      catch (error: any) {
-        console.error("Error while finding onboarding users", error)
-      } finally {
-        setLoadingResponses(false)
-      }
-    }
-    totalOnboardingUser()
-  }, [])
-  // Show loading spinner while loading auth state or if we have a timeout fallback
-  if (loading || (userProfile?.contact_name === 'Profile Load Timeout')) {
+    },
+    enabled: !!company,
+  })
+
+  if (loading) {
     return (
       <div className="p-6">
         <LoadingFallback
@@ -116,17 +73,13 @@ export default function ResponsesPage() {
     )
   }
 
-  // If not loading but no user - show a friendly message before redirect happens
-  if (!loading && !user) {
+  if (!user) {
     return (
       <div className="p-6">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Authentication Required</h3>
-            <p className="text-gray-600 text-center mb-4">
-              Please sign in to view onboarding responses
-            </p>
+            <h3 className="text-lg font-medium mb-2">Authentication Required</h3>
             <Button onClick={() => router.push('/login')}>Sign In</Button>
           </CardContent>
         </Card>
@@ -134,17 +87,13 @@ export default function ResponsesPage() {
     )
   }
 
-  // Show message for non-admin users while redirect happens
-  if (!loading && user && userProfile && userProfile.contact_name !== 'Profile Load Timeout' && !isAdmin) {
+  if (userProfile && !isAdmin) {
     return (
       <div className="p-6">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Admin Access Required</h3>
-            <p className="text-gray-600 text-center mb-4">
-              You need admin privileges to view onboarding responses
-            </p>
+            <h3 className="text-lg font-medium mb-2">Admin Access Required</h3>
             <Button onClick={() => router.push('/dashboard')}>Go to Dashboard</Button>
           </CardContent>
         </Card>
@@ -154,26 +103,18 @@ export default function ResponsesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/admin')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Admin
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Onboarding Responses</h1>
-            <p className="text-gray-600">View and manage completed onboarding submissions</p>
-          </div>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push('/admin')} className="flex items-center gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Admin
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Share Responses</h1>
+          <p className="text-gray-600">View completed share requests and submitted vendor data</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -181,11 +122,10 @@ export default function ResponsesPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
-                {totalResponses}
-              </div>}
-            </div>
+            {statsLoading
+              ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded" />
+              : <div className="text-2xl font-bold">{stats?.total ?? 0}</div>
+            }
             <p className="text-xs text-muted-foreground">All completed submissions</p>
           </CardContent>
         </Card>
@@ -196,9 +136,10 @@ export default function ResponsesPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
-              {totalResponseThisMonth}
-            </div>}
+            {statsLoading
+              ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded" />
+              : <div className="text-2xl font-bold">{stats?.thisMonth ?? 0}</div>
+            }
             <p className="text-xs text-muted-foreground">Responses this month</p>
           </CardContent>
         </Card>
@@ -209,20 +150,20 @@ export default function ResponsesPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingResponses ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div> : <div className="text-2xl font-bold">
-              {totalUniqueVendors}
-            </div>}
+            {statsLoading
+              ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded" />
+              : <div className="text-2xl font-bold">{stats?.uniqueVendors ?? 0}</div>
+            }
             <p className="text-xs text-muted-foreground">Total unique respondents</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
       <Card>
         <CardHeader>
-          <CardTitle>Completed Onboarding Responses</CardTitle>
+          <CardTitle>All Share Requests</CardTitle>
           <CardDescription>
-            View detailed information about completed onboarding submissions including documents and form data
+            View submitted field data and download shared documents from vendors
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -232,3 +173,4 @@ export default function ResponsesPage() {
     </div>
   )
 }
+

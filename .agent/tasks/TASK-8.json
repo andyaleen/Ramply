@@ -1,0 +1,47 @@
+{
+  "id": "TASK-8",
+  "title": "Free tier limit: block 4th connection and show upgrade prompt",
+  "category": "functional",
+  "description": "When a user on the free tier (subscription_tier = 'free' or no Stripe subscription) attempts to send a share request that would create a 4th connected company, they should be blocked and shown an upgrade prompt modal. The check should happen when the Send Request dialog is opened or submitted. For now, derive tier from connection count (≤3 = free) since Stripe is added in TASK-10.",
+  "acceptanceCriteria": [
+    "If connected company count >= 3 AND user has no paid subscription, the Send Request button in the dashboard is disabled or shows 'Upgrade to send more'",
+    "Clicking the blocked button opens an UpgradePromptModal (not the send request dialog)",
+    "UpgradePromptModal shows current plan (Free), current connection count, and the two paid tier options (Growth $19/mo, Scale $39/mo) with a 'Upgrade' button",
+    "Upgrade button is a placeholder (links to /dashboard/settings) since Stripe is not yet wired up",
+    "Users with < 3 connections see the normal Send Request button",
+    "tsc reports no new type errors",
+    "Playwright screenshot shows the upgrade prompt"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create UpgradePromptModal component",
+      "details": "Create src/components/dashboard/UpgradePromptModal.tsx. Props: { open: boolean; onOpenChange: (v: boolean) => void; connectionCount: number }. Show a Dialog with: current plan badge (Free), connection count, a table of tiers (Free ≤3/$0, Growth 4-15/$19/mo, Scale 16+/$39/mo), and a 'Upgrade Plan' button that closes the modal and navigates to /dashboard/settings.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Add connection count check in the dashboard send button",
+      "details": "In the component that renders the 'Send Request' button (AdminDashboard.tsx or similar), use the connection count from TASK-7. Add state: const [showUpgradeModal, setShowUpgradeModal] = useState(false). If connectionCount >= 3 and no paid subscription: render a 'Upgrade to send more' button that opens UpgradePromptModal instead of SendOnboardingRequestDialog.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Render the UpgradePromptModal conditionally",
+      "details": "Add <UpgradePromptModal open={showUpgradeModal} onOpenChange={setShowUpgradeModal} connectionCount={connectionCount} /> to the dashboard JSX. Ensure it only renders when connectionCount >= 3 and subscription is free.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Run tsc, lint, Playwright test",
+      "details": "Run npx tsc --noEmit and npx eslint --fix. Start dev server. If you can set up a test user with 3 completed connections, test the flow. Take screenshot .agent/screenshots/TASK-8-upgrade-prompt.png.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-7"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "subscription_tier column does not exist on users until TASK-10. For now use: const isPaidTier = connectionCount <= 3 is false → show upgrade prompt. When TASK-10 adds subscription_tier, update this to check user.subscription_tier === 'free'",
+    "The upgrade button destination (/dashboard/settings) is where the Stripe billing page will live (TASK-11)"
+  ]
+}

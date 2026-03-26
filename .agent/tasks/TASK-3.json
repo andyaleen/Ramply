@@ -1,0 +1,61 @@
+{
+  "id": "TASK-3",
+  "title": "Rewrite /onboard/[token] page to query share_requests table",
+  "category": "functional",
+  "description": "The page at src/app/onboard/[token]/page.tsx currently queries the old `onboarding_requests` table and joins `onboarding_types`. It must be rewritten to query `share_requests` by token. The page should load the share_request row, then pass it to the OnboardingForm. The auth flow (show AuthForm if not logged in) and status guards (completed, expired) should be preserved.",
+  "acceptanceCriteria": [
+    "Page queries supabase.from('share_requests').select('*').eq('token', token) instead of onboarding_requests",
+    "Page shows 'Invalid link' card if no share_request matches the token",
+    "Page shows 'Already completed' card if share_request.status === 'completed'",
+    "Page shows 'Expired' card if share_request.status === 'expired'",
+    "If user is not logged in, AuthForm is shown; after login the page proceeds",
+    "The ShareRequest row (with requested_fields and requested_documents) is passed to OnboardingForm",
+    "tsc reports no new type errors",
+    "Playwright navigating to /onboard/fake-token shows the invalid link card"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Update the query to use share_requests",
+      "details": "In src/app/onboard/[token]/page.tsx, change the useQuery queryFn to: supabase.from('share_requests').select('*, requester: requester_company_id(legal_name, contact_name)').eq('token', token).single(). The requester join gets the requester company's name for display. Import ShareRequestRow from '@/lib/database.types'.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Update the completeMutation to use share_requests",
+      "details": "The completeMutation currently updates onboarding_requests. Change it to update share_requests: supabase.from('share_requests').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', request.id). Note: completed_by_company_id is set during the shared_data insert in TASK-5, not here.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Update the display to use share_request fields",
+      "details": "Remove all references to request.onboarding_types (old schema). Replace the heading with the requester company's legal_name: 'Share request from {request.requester?.legal_name}'. Replace the description with a summary: 'They are requesting {request.requested_fields.length} field(s) and {request.requested_documents.length} document(s).'",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Update the OnboardingForm call signature",
+      "details": "Pass the share_request row to OnboardingForm as the request prop. The OnboardingForm interface will be updated in TASK-4. For now, ensure the prop name and type match whatever TASK-4 expects. Use ShareRequestRow as the type.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Run tsc and fix type errors",
+      "details": "Run npx tsc --noEmit. Fix all errors in this file.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Playwright test — invalid token",
+      "details": "Start dev server. Navigate to /onboard/invalid-token-test. Take screenshot .agent/screenshots/TASK-3-invalid-token.png. Verify the 'Invalid Onboarding Link' card is shown.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-2"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "The requester company join uses PostgREST foreign key syntax: requester:requester_company_id(legal_name, contact_name)",
+    "Do not remove the auth gate — unauthenticated users must be prompted to log in before they can see request details",
+    "The completeMutation in this file only sets status. Writing shared_data and shared_documents happens inside OnboardingForm (TASK-5)"
+  ]
+}

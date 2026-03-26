@@ -125,8 +125,8 @@ export const dashboardRoutes: Record<string, DashboardRoute> = {
     isNew: true
   },
   documents: {
-    title: 'Document Library',
-    description: 'Manage templates, requirements, and document workflows',
+    title: 'Documents',
+    description: 'Documents',
     icon: Archive,
     component: 'DocumentsPage',
     category: 'management'
@@ -230,6 +230,11 @@ export const navigationConfig: NavigationGroup[] = [
         url: "/dashboard/requests",
         icon: Users,
       },
+      {
+        title: "Documents",
+        url: "/dashboard/documents",
+        icon: Archive,
+      },
     ],
   },
   {
@@ -276,3 +281,4 @@ export const getComingSoonRoutes = (): Record<string, DashboardRoute> => {
     Object.entries(dashboardRoutes).filter(([, config]) => config.isComingSoon)
   )
 }
+

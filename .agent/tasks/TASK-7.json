@@ -1,0 +1,45 @@
+{
+  "id": "TASK-7",
+  "title": "Connected companies count: compute and display on dashboard",
+  "category": "functional",
+  "description": "A 'connected company' is any company that has fulfilled one of your share requests OR whose request you have fulfilled. Count the distinct connected company IDs and display the count on the dashboard. This count is used for billing tier enforcement in TASK-8.",
+  "acceptanceCriteria": [
+    "getConnectedCompanyCount(companyId) function exists in src/lib/services/dashboard.ts and returns a number",
+    "Count includes: (1) companies that completed a share_request you sent (completed_by_company_id where requester_company_id = you), and (2) companies that sent you a share request you completed (requester_company_id where completed_by_company_id = you)",
+    "A company counted in both directions is counted once (deduplicated)",
+    "Dashboard page or sidebar shows 'X connected companies' with a link to the connections view",
+    "tsc reports no new type errors"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Add getConnectedCompanyCount to dashboard service",
+      "details": "In src/lib/services/dashboard.ts, add: export async function getConnectedCompanyCount(supabase, companyId: string): Promise<number>. Query 1: share_requests where requester_company_id = companyId AND status = 'completed' — collect completed_by_company_id values. Query 2: share_requests where completed_by_company_id = companyId AND status = 'completed' — collect requester_company_id values. Merge both arrays, deduplicate with Set, return size.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Display connection count on the dashboard",
+      "details": "In the admin dashboard component (src/components/dashboard/AdminDashboard.tsx or src/app/dashboard/page.tsx), add a useQuery that calls getConnectedCompanyCount. Display it as a stat card or in the sidebar: '3 connected companies' with the billing tier label (Free / Growth / Scale based on count).",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Run tsc and lint",
+      "details": "Run npx tsc --noEmit and npx eslint --fix on changed files. Fix all errors.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Playwright screenshot",
+      "details": "Start dev server. Navigate to dashboard. Take screenshot .agent/screenshots/TASK-7-connections.png. Verify connection count is visible.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-5"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "Two separate Supabase queries are simpler than a complex SQL union — fetch both, merge in JS with Set",
+    "subscription_tier on the users table does not exist yet (added in TASK-10). For now, derive the tier label from the count: ≤3 = Free, 4-15 = Growth, 16+ = Scale"
+  ]
+}

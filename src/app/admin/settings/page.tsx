@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Settings, Save, User, Building } from 'lucide-react'
 
-export default function AdminSettingsPage() {  const { userProfile } = useAuth()
+export default function AdminSettingsPage() {
+  const { userProfile, company } = useAuth()
   const [loading, setLoading] = useState(false)
   const [settings, setSettings] = useState({
-    companyName: userProfile?.company_name || '',
-    contactName: userProfile?.contact_name || '',
+    companyName: company?.legal_name || '',
+    contactName: company?.contact_name || '',
     email: userProfile?.email || '',
   })
 

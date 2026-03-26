@@ -1,3 +1,5 @@
+import type { FieldKey, DocumentTypeKey } from './catalog'
+
 export type Database = {
   public: {
     Tables: {
@@ -5,35 +7,13 @@ export type Database = {
         Row: {
           id: string
           email: string
-          company_name: string | null
-          contact_name: string | null
-          contact_email: string | null
-          tax_id: string | null
-          business_type: string | null
-          address_line1: string | null
-          address_line2: string | null
-          city: string | null
-          state: string | null
-          postal_code: string | null
-          country: string | null
           role: 'admin' | 'external'
           created_at: string
           updated_at: string
         }
         Insert: {
-          id?: string
+          id: string
           email: string
-          company_name?: string | null
-          contact_name?: string | null
-          contact_email?: string | null
-          tax_id?: string | null
-          business_type?: string | null
-          address_line1?: string | null
-          address_line2?: string | null
-          city?: string | null
-          state?: string | null
-          postal_code?: string | null
-          country?: string | null
           role?: 'admin' | 'external'
           created_at?: string
           updated_at?: string
@@ -41,10 +21,54 @@ export type Database = {
         Update: {
           id?: string
           email?: string
-          company_name?: string | null
-          contact_name?: string | null
-          contact_email?: string | null
-          tax_id?: string | null
+          role?: 'admin' | 'external'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      companies: {
+        Row: {
+          id: string
+          owner_user_id: string
+          legal_name: string | null
+          dba_name: string | null
+          ein: string | null
+          business_type: string | null
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          state: string | null
+          postal_code: string | null
+          country: string | null
+          contact_name: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          bank_name: string | null
+          bank_account_number: string | null
+          bank_routing_number: string | null
+          website: string | null
+          year_founded: string | null
+          accounting_name: string | null
+          accounting_email: string | null
+          accounting_phone: string | null
+          bank_reference_email: string | null
+          vendor_references: string | null
+          payment_terms: string | null
+          payment_method: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+          subscription_price_id: string | null
+          subscription_current_period_end: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_user_id: string
+          legal_name?: string | null
+          dba_name?: string | null
+          ein?: string | null
           business_type?: string | null
           address_line1?: string | null
           address_line2?: string | null
@@ -52,151 +76,244 @@ export type Database = {
           state?: string | null
           postal_code?: string | null
           country?: string | null
-          role?: 'admin' | 'external'
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      onboarding_types: {        
-        Row: {
-          id: string
-          user_id: string
-          name: string
-          description: string | null
-          required_fields: Record<string, unknown>
-          required_documents: Record<string, unknown>
-          created_at: string
-          updated_at: string
-        }        
-        Insert: {
-          id?: string
-          user_id: string
-          name: string
-          description?: string | null          
-          required_fields?: Record<string, unknown>
-          required_documents?: Record<string, unknown>
+          contact_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          bank_name?: string | null
+          bank_account_number?: string | null
+          bank_routing_number?: string | null
+          website?: string | null
+          year_founded?: string | null
+          accounting_name?: string | null
+          accounting_email?: string | null
+          accounting_phone?: string | null
+          bank_reference_email?: string | null
+          vendor_references?: string | null
+          payment_terms?: string | null
+          payment_method?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          subscription_price_id?: string | null
+          subscription_current_period_end?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          user_id?: string
-          name?: string
-          description?: string | null
-          required_fields?: Record<string, unknown>
-          required_documents?: Record<string, unknown>
+          owner_user_id?: string
+          legal_name?: string | null
+          dba_name?: string | null
+          ein?: string | null
+          business_type?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          state?: string | null
+          postal_code?: string | null
+          country?: string | null
+          contact_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          bank_name?: string | null
+          bank_account_number?: string | null
+          bank_routing_number?: string | null
+          website?: string | null
+          year_founded?: string | null
+          accounting_name?: string | null
+          accounting_email?: string | null
+          accounting_phone?: string | null
+          bank_reference_email?: string | null
+          vendor_references?: string | null
+          payment_terms?: string | null
+          payment_method?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          subscription_price_id?: string | null
+          subscription_current_period_end?: string | null
           created_at?: string
           updated_at?: string
         }
       }
-      onboarding_requests: {
+      company_documents: {
         Row: {
           id: string
-          onboarding_type_id: string
-          requester_user_id: string
-          token: string
+          company_id: string
+          document_type: DocumentTypeKey
+          file_path: string
+          file_name: string
+          file_size: number | null
+          mime_type: string | null
+          file_hash: string | null
+          version: number
+          superseded_by: string | null
+          uploaded_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          document_type: DocumentTypeKey
+          file_path: string
+          file_name: string
+          file_size?: number | null
+          mime_type?: string | null
+          file_hash?: string | null
+          version?: number
+          superseded_by?: string | null
+          uploaded_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          document_type?: DocumentTypeKey
+          file_path?: string
+          file_name?: string
+          file_size?: number | null
+          mime_type?: string | null
+          file_hash?: string | null
+          version?: number
+          superseded_by?: string | null
+          uploaded_at?: string
+        }
+      }
+      request_templates: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          mandatory_fields: FieldKey[]
+          mandatory_documents: DocumentTypeKey[]
+          optional_fields: FieldKey[]
+          optional_documents: DocumentTypeKey[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          mandatory_fields?: FieldKey[]
+          mandatory_documents?: DocumentTypeKey[]
+          optional_fields?: FieldKey[]
+          optional_documents?: DocumentTypeKey[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          mandatory_fields?: FieldKey[]
+          mandatory_documents?: DocumentTypeKey[]
+          optional_fields?: FieldKey[]
+          optional_documents?: DocumentTypeKey[]
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      share_requests: {
+        Row: {
+          id: string
+          requester_company_id: string
           recipient_email: string
+          mandatory_fields: FieldKey[]
+          mandatory_documents: DocumentTypeKey[]
+          optional_fields: FieldKey[]
+          optional_documents: DocumentTypeKey[]
+          token: string
           expires_at: string | null
           status: 'pending' | 'completed' | 'expired'
-          completed_by: string | null
+          completed_by_company_id: string | null
           completed_at: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          onboarding_type_id: string
-          requester_user_id: string
-          token: string
+          requester_company_id: string
           recipient_email: string
+          mandatory_fields?: FieldKey[]
+          mandatory_documents?: DocumentTypeKey[]
+          optional_fields?: FieldKey[]
+          optional_documents?: DocumentTypeKey[]
+          token: string
           expires_at?: string | null
           status?: 'pending' | 'completed' | 'expired'
-          completed_by?: string | null
+          completed_by_company_id?: string | null
           completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          onboarding_type_id?: string
-          requester_user_id?: string
-          token?: string
+          requester_company_id?: string
           recipient_email?: string
+          mandatory_fields?: FieldKey[]
+          mandatory_documents?: DocumentTypeKey[]
+          optional_fields?: FieldKey[]
+          optional_documents?: DocumentTypeKey[]
+          token?: string
           expires_at?: string | null
           status?: 'pending' | 'completed' | 'expired'
-          completed_by?: string | null
+          completed_by_company_id?: string | null
           completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
       }
-      documents: {
+      shared_data: {
         Row: {
           id: string
-          user_id: string
-          request_id: string
-          document_type: string
-          file_path: string
-          file_name: string
-          file_size: number | null
-          mime_type: string | null
-          uploaded_at: string
+          share_request_id: string
+          sharing_company_id: string
+          field_data: Partial<Record<FieldKey, string>>
+          shared_at: string
         }
         Insert: {
           id?: string
-          user_id: string
-          request_id: string
-          document_type: string
-          file_path: string
-          file_name: string
-          file_size?: number | null
-          mime_type?: string | null
-          uploaded_at?: string
+          share_request_id: string
+          sharing_company_id: string
+          field_data?: Partial<Record<FieldKey, string>>
+          shared_at?: string
         }
         Update: {
           id?: string
-          user_id?: string
-          request_id?: string
-          document_type?: string
-          file_path?: string
-          file_name?: string
-          file_size?: number | null
-          mime_type?: string | null
-          uploaded_at?: string        
+          share_request_id?: string
+          sharing_company_id?: string
+          field_data?: Partial<Record<FieldKey, string>>
+          shared_at?: string
         }
       }
-      onboarding_consent: {
+      shared_documents: {
         Row: {
           id: string
-          user_id: string          
-          request_id: string
-          document_type: string | null
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          form_data: Record<string, any> | null
-          shared_at: string          
-          submitted_at: string | null
+          share_request_id: string
+          company_document_id: string
+          shared_at: string
         }
         Insert: {
           id?: string
-          user_id: string
-          request_id: string
-          document_type?: string | null
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          form_data?: Record<string, any> | null
+          share_request_id: string
+          company_document_id: string
           shared_at?: string
-          submitted_at?: string | null
         }
         Update: {
           id?: string
-          user_id?: string
-          request_id?: string
-          document_type?: string | null
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          form_data?: Record<string, any> | null
+          share_request_id?: string
+          company_document_id?: string
           shared_at?: string
-          submitted_at?: string | null
         }
       }
     }
   }
 }
+
+// Convenience row types
+export type UserRow = Database['public']['Tables']['users']['Row']
+export type CompanyRow = Database['public']['Tables']['companies']['Row']
+export type CompanyDocumentRow = Database['public']['Tables']['company_documents']['Row']
+export type ShareRequestRow = Database['public']['Tables']['share_requests']['Row']
+export type SharedDataRow = Database['public']['Tables']['shared_data']['Row']
+export type SharedDocumentRow = Database['public']['Tables']['shared_documents']['Row']
+export type RequestTemplateRow = Database['public']['Tables']['request_templates']['Row']

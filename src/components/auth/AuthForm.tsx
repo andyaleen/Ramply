@@ -308,7 +308,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               <Building2 className="h-6 w-6 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Onbo</CardTitle>
+          <CardTitle className="text-2xl font-bold">Welcome to Ramply</CardTitle>
           <CardDescription>
             Streamline your vendor and customer onboarding process
           </CardDescription>
@@ -484,3 +484,4 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     </div>
   )
 }
+

@@ -1,0 +1,69 @@
+{
+  "id": "TASK-10",
+  "title": "Stripe billing: products, checkout session, and webhook handler",
+  "category": "integration",
+  "description": "Integrate Stripe for monthly subscription billing. Add stripe_customer_id and subscription_tier columns to the users table. Create two API routes: POST /api/stripe/checkout (creates a Stripe Checkout Session) and POST /api/stripe/webhook (handles subscription lifecycle events). Two Stripe products must be pre-created in Stripe Dashboard: Growth ($19/mo) and Scale ($39/mo).",
+  "acceptanceCriteria": [
+    "stripe package is installed",
+    "users table has stripe_customer_id (TEXT) and subscription_tier ('free' | 'growth' | 'scale', default 'free') columns — add via a new SQL migration snippet added to supabase-schema.sql",
+    "POST /api/stripe/checkout accepts { priceId, userId } and returns a Stripe Checkout Session URL",
+    "POST /api/stripe/webhook handles checkout.session.completed: sets stripe_customer_id and subscription_tier on the users row",
+    "POST /api/stripe/webhook handles customer.subscription.updated: updates subscription_tier",
+    "POST /api/stripe/webhook handles customer.subscription.deleted: resets subscription_tier to 'free'",
+    "Webhook signature is verified using stripe.webhooks.constructEvent()",
+    "STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET env vars are used",
+    "tsc reports no new type errors"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Install stripe package",
+      "details": "Run: npm install stripe. Verify it appears in package.json dependencies.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Add stripe columns to users table",
+      "details": "Add to supabase-schema.sql (at the bottom, clearly labeled '-- Billing additions'): ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT; ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier TEXT NOT NULL DEFAULT 'free' CHECK (subscription_tier IN ('free', 'growth', 'scale')). Also update database.types.ts UserRow, Insert, and Update types to include these two fields.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Create src/lib/stripe.ts",
+      "details": "Create src/lib/stripe.ts: import Stripe from 'stripe'; export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Create POST /api/stripe/checkout route",
+      "details": "Create src/app/api/stripe/checkout/route.ts. Accept { priceId, userId } from JSON body. Create or retrieve a Stripe Customer for the user (store in stripe_customer_id). Create a Checkout Session: stripe.checkout.sessions.create({ customer, line_items: [{ price: priceId, quantity: 1 }], mode: 'subscription', success_url: `${origin}/dashboard/settings?success=true`, cancel_url: `${origin}/dashboard/settings?canceled=true` }). Return { url: session.url }.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Create POST /api/stripe/webhook route",
+      "details": "Create src/app/api/stripe/webhook/route.ts. Read raw body with request.text(). Verify signature: stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!). Handle events: checkout.session.completed → update user's stripe_customer_id and set subscription_tier based on which price was purchased. customer.subscription.updated → update subscription_tier. customer.subscription.deleted → set subscription_tier = 'free'. Map price IDs to tiers using environment variables STRIPE_PRICE_GROWTH and STRIPE_PRICE_SCALE.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Document required environment variables",
+      "details": "Add to .env.local.example: STRIPE_SECRET_KEY=sk_test_..., STRIPE_WEBHOOK_SECRET=whsec_..., STRIPE_PRICE_GROWTH=price_..., STRIPE_PRICE_SCALE=price_...",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Run tsc and lint",
+      "details": "Run npx tsc --noEmit and npx eslint --fix on all new files. Fix all errors.",
+      "pass": false
+    }
+  ],
+  "dependencies": [],
+  "estimatedComplexity": "high",
+  "technicalNotes": [
+    "The webhook route must use request.text() (not request.json()) to get the raw body for signature verification. Next.js App Router routes need to export config = { api: { bodyParser: false } } — in App Router this is handled by reading request.text() directly",
+    "Test with Stripe CLI: stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "Price IDs must be created in Stripe Dashboard first (or via Stripe CLI) before they can be referenced",
+    "The metadata field on the Checkout Session should include { userId } so the webhook can find the user to update"
+  ]
+}

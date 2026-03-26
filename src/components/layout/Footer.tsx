@@ -17,7 +17,7 @@ export function Footer({ className = "" }: FooterProps) {
           <div className="flex items-center mb-4 md:mb-0">
             <div className="flex items-center space-x-2 cursor-pointer" onClick={() => router.push('/')}>
               <Building className="h-6 w-6 text-blue-600" />
-              <span className="text-lg font-bold text-gray-900">VendorFlow</span>
+              <span className="text-lg font-bold text-gray-900">Ramply</span>
             </div>
           </div>
           
@@ -32,3 +32,4 @@ export function Footer({ className = "" }: FooterProps) {
     </footer>
   )
 }
+

@@ -1,0 +1,93 @@
+[
+  {
+    "id": "TASK-1",
+    "title": "Add US states dropdown to ProfileSetup state field",
+    "category": "ui-ux",
+    "specFilePath": ".agent/tasks/TASK-1.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-2",
+    "title": "Rewrite SendOnboardingRequestDialog for new schema with field/doc checklist",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-2.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-3",
+    "title": "Rewrite /onboard/[token] page to query share_requests table",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-3.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-4",
+    "title": "Rewrite OnboardingForm for catalog-based fields with company profile pre-fill",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-4.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-5",
+    "title": "Fulfillment submission writes to shared_data and shared_documents",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-5.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-6",
+    "title": "Rewrite OnboardingResponsesList to read from shared_data and shared_documents",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-6.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-7",
+    "title": "Connected companies count: compute and display on dashboard",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-7.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-8",
+    "title": "Free tier limit: block 4th connection and show upgrade prompt",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-8.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-9",
+    "title": "Email invite integration via Resend",
+    "category": "integration",
+    "specFilePath": ".agent/tasks/TASK-9.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-10",
+    "title": "Stripe billing: products, checkout session, and webhook handler",
+    "category": "integration",
+    "specFilePath": ".agent/tasks/TASK-10.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-11",
+    "title": "Billing management page: current plan, connection count, upgrade CTA",
+    "category": "ui-ux",
+    "specFilePath": ".agent/tasks/TASK-11.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-12",
+    "title": "Incoming requests dashboard view for recipients",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-12.json",
+    "passes": false
+  },
+  {
+    "id": "TASK-13",
+    "title": "Remove obsolete old-schema components and clean up dead code",
+    "category": "functional",
+    "specFilePath": ".agent/tasks/TASK-13.json",
+    "passes": false
+  }
+]

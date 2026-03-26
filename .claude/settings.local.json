@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -c \"onboarding_requests\\\\|onboarding_types\" \"c:\\\\Users\\\\andy\\\\Code projects\\\\onboardingapp\\\\src\\\\components\\\\dashboard\"*.tsx)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)"
+    ]
+  }
+}

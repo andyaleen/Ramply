@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { useRouter } from 'next/navigation'
-import { Building, ArrowRight } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 interface HeaderProps {
   showAuth?: boolean
@@ -17,9 +17,8 @@ export function Header({ showAuth = true, className = "" }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <div className="flex items-center space-x-2 cursor-pointer" onClick={() => router.push('/')}>
-              <Building className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">VendorFlow</span>
+            <div className="flex items-center cursor-pointer" onClick={() => router.push('/')}>
+              <span className="text-xl font-bold text-gray-900">Ramply</span>
             </div>
           </div>
           
@@ -62,3 +61,4 @@ export function Header({ showAuth = true, className = "" }: HeaderProps) {
     </header>
   )
 }
+

@@ -19,7 +19,6 @@ export const createClient = () => {
     const runtimeOverride = (window as any).__SUPABASE_URL__
     if (runtimeOverride) {
       effectiveUrl = runtimeOverride
-      // eslint-disable-next-line no-console
       console.warn('[supabase] Using runtime override for NEXT_PUBLIC_SUPABASE_URL =', effectiveUrl)
     }
 
@@ -28,18 +27,14 @@ export const createClient = () => {
     // This covers cases where a stale compiled asset contains an old host.
     if (effectiveUrl && typeof effectiveUrl === 'string' && effectiveUrl.includes('idpqgqbpmblchbakwyul')) {
       if (url && !url.includes('idpqgqbpmblchbakwyul')) {
-        // eslint-disable-next-line no-console
         console.warn('[supabase] Detected bad baked-in Supabase host, replacing with NEXT_PUBLIC_SUPABASE_URL from env =', url)
         effectiveUrl = url
       } else {
-        // eslint-disable-next-line no-console
         console.warn('[supabase] Detected bad Supabase host in runtime override or env:', effectiveUrl)
       }
     }
 
-    // eslint-disable-next-line no-console
     console.debug('[supabase] Effective NEXT_PUBLIC_SUPABASE_URL =', effectiveUrl)
-    // eslint-disable-next-line no-console
     console.debug('[supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY (first 8 chars) =', key?.slice(0, 8))
   }
 

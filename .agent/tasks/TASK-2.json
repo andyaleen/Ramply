@@ -1,0 +1,74 @@
+{
+  "id": "TASK-2",
+  "title": "Rewrite SendOnboardingRequestDialog for new schema with field/doc checklist",
+  "category": "functional",
+  "description": "The current SendOnboardingRequestDialog inserts into the old `onboarding_requests` table and requires an `onboarding_type_id`. This must be rewritten to: (1) accept only a recipient email, (2) show a checklist of CATALOG_FIELDS to select, (3) show a checklist of CATALOG_DOCUMENT_TYPES to select, (4) insert a row into `share_requests` linked to the requester's company, (5) generate a unique token. The dialog should also call the email API after creation (TASK-9 adds Resend, but the dialog should call POST /api/send-invite — if the route doesn't exist yet, log a warning and continue). Callers that passed onboardingTypeId must be updated.",
+  "acceptanceCriteria": [
+    "Dialog no longer accepts or requires onboardingTypeId prop",
+    "Dialog shows a field checklist rendered from CATALOG_FIELDS (18 items) using Checkbox components",
+    "Dialog shows a document checklist rendered from CATALOG_DOCUMENT_TYPES (8 items) using Checkbox components",
+    "At least one field OR one document must be selected to enable the Send button",
+    "On submit, a row is inserted into share_requests with: requester_company_id (from user's company), recipient_email, requested_fields[], requested_documents[], token (UUID), expires_at (30 days), status='pending'",
+    "After successful insert, the generated link {origin}/onboard/{token} is shown with a copy button",
+    "tsc reports no new type errors",
+    "Playwright screenshot confirms the checklist dialog renders correctly"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Read the current SendOnboardingRequestDialog and its callers",
+      "details": "Read src/components/dashboard/SendOnboardingRequestDialog.tsx in full. Grep for 'SendOnboardingRequestDialog' to find all callers. Note which props are passed so they can be removed.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Rewrite the component props and state",
+      "details": "Remove the onboardingTypeId prop. Add internal state: selectedFields: FieldKey[] = [] and selectedDocuments: DocumentTypeKey[] = []. Import CATALOG_FIELDS, CATALOG_DOCUMENT_TYPES, FieldKey, DocumentTypeKey from '@/lib/catalog'. Import useAuth to get company.id for requester_company_id.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Build the field and document checklist UI",
+      "details": "In the form body, render two sections: 'Information to request' and 'Documents to request'. Each section maps over CATALOG_FIELDS / CATALOG_DOCUMENT_TYPES and renders a Checkbox + label for each item. Checked state is managed by selectedFields/selectedDocuments arrays. Use grid-cols-2 layout for readability.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Update the mutation to insert into share_requests",
+      "details": "Replace the supabase.from('onboarding_requests').insert() call with supabase.from('share_requests').insert({ requester_company_id: company.id, recipient_email: data.recipient_email, requested_fields: selectedFields, requested_documents: selectedDocuments, token: generateToken(), expires_at: expiresAt.toISOString(), status: 'pending' }). Import generateToken from '@/lib/utils'. Generate expires_at = now + 30 days.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "After creation, attempt to call POST /api/send-invite",
+      "details": "After the mutation succeeds, call fetch('/api/send-invite', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ recipientEmail, shareLink, requesterName: company.legal_name }) }). If the route returns a non-2xx response or throws, log a warning with console.warn but do not fail the flow — just show the link and a note that email sending failed.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Update all callers to remove onboardingTypeId prop",
+      "details": "For each file that uses SendOnboardingRequestDialog, remove the onboardingTypeId prop and any related state (e.g. selectedOnboardingTypeId). Update the open/close handler if needed.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Run tsc and lint, fix errors",
+      "details": "Run npx tsc --noEmit and npx eslint --fix on changed files. Fix all errors.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Playwright smoke test",
+      "details": "Start dev server. Navigate to the admin dashboard. Open the 'Send Request' dialog. Take screenshot .agent/screenshots/TASK-2-send-dialog.png. Verify checklist renders with catalog fields and document types.",
+      "pass": false
+    }
+  ],
+  "dependencies": [],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "company object comes from useAuth() — ensure it's loaded before the dialog can submit",
+    "generateToken() is already in src/lib/utils.ts",
+    "The UNIQUE constraint on share_requests.token means generateToken() must produce a UUID — confirm it does (it uses uuid)",
+    "Do not attempt to send email if /api/send-invite doesn't exist yet; the try/catch handles this gracefully"
+  ]
+}

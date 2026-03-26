@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Onbo - Streamline Your Onboarding Process",
+  title: "Ramply - Streamline Your Onboarding Process",
   description: "Simplify vendor and customer onboarding with one-click links and reusable information",
 };
 
@@ -29,4 +29,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 

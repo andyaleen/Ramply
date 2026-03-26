@@ -1,0 +1,65 @@
+{
+  "id": "TASK-13",
+  "title": "Remove obsolete old-schema components and clean up dead code",
+  "category": "functional",
+  "description": "After TASK-2 through TASK-6 are complete, the following components reference old tables (onboarding_requests, onboarding_types, onboarding_consent, documents) that no longer exist. They should be deleted and all references removed. Also remove debug console.log statements project-wide.",
+  "acceptanceCriteria": [
+    "CreateOnboardingTypeDialog.tsx is deleted",
+    "EditOnboardingTypeDialog.tsx is deleted",
+    "DeleteOnboardingTypeDialog.tsx is deleted",
+    "OnboardingTypesList.tsx is deleted",
+    "ExternalOnboardingTypesList.tsx is deleted (if it still queries old schema)",
+    "No file in src/ imports from the deleted components",
+    "No file in src/ queries 'onboarding_requests', 'onboarding_types', 'onboarding_consent', or 'documents' tables",
+    "No debug console.log statements remain in any src/ file (console.error and console.warn for actual errors are acceptable)",
+    "tsc reports no new type errors",
+    "npm run build completes without errors",
+    "Playwright: dashboard loads without errors after cleanup"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Grep for old table names to find all usages",
+      "details": "Run: grep -r 'onboarding_requests\\|onboarding_types\\|onboarding_consent\\|.from.*documents' src/ --include='*.tsx' --include='*.ts' -l. List all files found.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Delete obsolete component files",
+      "details": "Delete the following files if they still exist: src/components/dashboard/CreateOnboardingTypeDialog.tsx, src/components/dashboard/EditOnboardingTypeDialog.tsx, src/components/dashboard/DeleteOnboardingTypeDialog.tsx, src/components/dashboard/OnboardingTypesList.tsx. Check ExternalOnboardingTypesList.tsx — if it queries old tables, delete it too.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Remove all imports of deleted components",
+      "details": "For each file that imported the deleted components (found via grep), remove the import statement and any JSX usage. If removing a component leaves a tab or section empty, either remove the tab or replace with a placeholder.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Remove all console.log statements",
+      "details": "Run: grep -r 'console\\.log' src/ --include='*.tsx' --include='*.ts' -l. For each file, remove all console.log calls. Keep console.error and console.warn where they handle real errors.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Run tsc and npm run build",
+      "details": "Run npx tsc --noEmit. Then run npm run build. Fix any errors that arise from the deletions. Common issues: missing imports, unused variables left behind.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Playwright smoke test",
+      "details": "Start dev server (npm run dev). Navigate to /dashboard. Check browser console for errors. Take screenshot .agent/screenshots/TASK-13-dashboard-clean.png. Verify no console errors and dashboard renders.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-2", "TASK-3", "TASK-4", "TASK-5", "TASK-6"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "Do not delete OnboardingResponsesList.tsx — it was rewritten in TASK-6",
+    "Do not delete SendOnboardingRequestDialog.tsx — it was rewritten in TASK-2",
+    "Do not delete OnboardingForm.tsx — it was rewritten in TASK-4",
+    "After deletion, run 'npm run build' (not just tsc) to catch any dynamic imports or Next.js page references that tsc alone won't catch"
+  ]
+}

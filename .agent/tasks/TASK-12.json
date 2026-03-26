@@ -1,0 +1,54 @@
+{
+  "id": "TASK-12",
+  "title": "Incoming requests dashboard view for recipients",
+  "category": "functional",
+  "description": "Recipients (users who have been sent share requests) need a view in their dashboard showing all pending and completed requests sent to their email address. This view should show pending requests with a 'Fulfill' button that links to /onboard/{token}, and completed requests showing what was shared. This is the mirror of the requester's responses view.",
+  "acceptanceCriteria": [
+    "Dashboard has a tab or section 'Requests received' (or similar) visible to all users",
+    "Queries share_requests where recipient_email = user.email",
+    "Pending requests show: requester company name (from requester_company_id join), request date, field count, document count, and a 'Fulfill' button linking to /onboard/{token}",
+    "Completed requests show: requester company name, completion date, a 'Completed' badge",
+    "Expired requests show with an 'Expired' badge",
+    "Empty state shown when no requests received",
+    "tsc reports no new type errors",
+    "Playwright screenshot shows the incoming requests view"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Add incoming requests query",
+      "details": "Create a new component src/components/dashboard/IncomingRequestsList.tsx. Add a useQuery that fetches: supabase.from('share_requests').select('*, requester:requester_company_id(legal_name, contact_name, contact_email)').eq('recipient_email', user.email).order('created_at', { ascending: false }). Type the result properly using ShareRequestRow.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Build the requests table",
+      "details": "Render a Table with columns: From (requester legal_name), Requested ('{N} fields, {M} documents'), Date, Status (badge), Action. For pending rows: show a Button 'Fulfill' that uses router.push('/onboard/' + request.token). For completed: show 'Completed' badge. For expired: 'Expired' badge with muted styling.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Add empty state",
+      "details": "If no requests returned, show a Card with an icon and message: 'No incoming requests yet. When someone requests your business information, it will appear here.'",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Add the component to the dashboard layout",
+      "details": "Find where the dashboard renders the request/response tabs (likely AdminDashboard.tsx or dashboard/page.tsx). Add a new tab or section for 'Received' that renders IncomingRequestsList. Ensure it's visible to both admin and external role users.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Run tsc, lint, Playwright test",
+      "details": "Run npx tsc --noEmit and npx eslint --fix. Start dev server. Navigate to dashboard. Take screenshot .agent/screenshots/TASK-12-incoming.png. Verify incoming requests section renders.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-3"],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "RLS policy 'share_requests_select_by_token' allows recipients to read by matching recipient_email — but querying by email directly also needs a policy. Check supabase-schema.sql: the policy 'share_requests_select_by_token' uses FOR SELECT USING (recipient_email = (SELECT email FROM users WHERE id = auth.uid())) — this allows the query without a token",
+    "The requester join uses PostgREST syntax: requester:requester_company_id(legal_name)"
+  ]
+}

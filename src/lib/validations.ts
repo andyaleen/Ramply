@@ -1,60 +1,131 @@
 import { z } from 'zod'
+import type { FieldKey, DocumentTypeKey } from './catalog'
+import { CATALOG_FIELDS, CATALOG_DOCUMENT_TYPES } from './catalog'
 
-export const UserProfileSchema = z.object({
-  company_name: z.string().min(1, 'Company name is required'),
-  contact_name: z.string().min(1, 'Contact name is required'),
-  contact_email: z.string().email('Valid email is required'),
-  tax_id: z.string().optional(),
+const fieldKeys = CATALOG_FIELDS.map(f => f.key) as [FieldKey, ...FieldKey[]]
+const docTypeKeys = CATALOG_DOCUMENT_TYPES.map(d => d.key) as [DocumentTypeKey, ...DocumentTypeKey[]]
+
+// Company profile — all standardized fields, all optional except legal_name
+export const CompanyProfileSchema = z.object({
+  legal_name: z.string().min(1, 'Legal business name is required'),
+  dba_name: z.string().optional(),
+  ein: z.string().optional(),
   business_type: z.string().optional(),
-  address_line1: z.string().min(1, 'Address is required'),
+  address_line1: z.string().optional(),
   address_line2: z.string().optional(),
-  city: z.string().min(1, 'City is required'),
-  state: z.string().min(1, 'State is required'),
-  postal_code: z.string().min(1, 'Postal code is required'),
-  country: z.string().min(1, 'Country is required'),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  postal_code: z.string().optional(),
+  country: z.string().optional(),
+  contact_name: z.string().optional(),
+  contact_email: z.string().email('Valid email required').optional().or(z.literal('')),
+  contact_phone: z.string().optional(),
+  bank_name: z.string().optional(),
+  bank_account_number: z.string().optional(),
+  bank_routing_number: z.string().optional(),
+  website: z.string().optional(),
+  year_founded: z.string().optional(),
 })
 
-export const OnboardingTypeSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  required_fields: z.array(z.string()),
-  required_documents: z.array(z.string()),
-})
-
-export const OnboardingRequestSchema = z.object({
-  onboarding_type_id: z.string().uuid(),
+// Share request — what fields/docs are being requested
+export const ShareRequestSchema = z.object({
   recipient_email: z.string().email('Valid email is required'),
+  mandatory_fields: z.array(z.enum(fieldKeys)).min(0),
+  optional_fields: z.array(z.enum(fieldKeys)).min(0),
+  mandatory_documents: z.array(z.enum(docTypeKeys)).min(0),
+  optional_documents: z.array(z.enum(docTypeKeys)).min(0),
   expires_at: z.string().optional(),
+}).superRefine((value, ctx) => {
+  const total =
+    value.mandatory_fields.length +
+    value.optional_fields.length +
+    value.mandatory_documents.length +
+    value.optional_documents.length
+
+  if (total === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Select at least one field or document',
+      path: ['mandatory_fields'],
+    })
+  }
+
+  const overlap = (a: string[], b: string[]) => a.filter((v) => b.includes(v))
+  if (overlap(value.mandatory_fields, value.optional_fields).length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Fields cannot be both mandatory and optional',
+      path: ['optional_fields'],
+    })
+  }
+  if (overlap(value.mandatory_documents, value.optional_documents).length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Documents cannot be both mandatory and optional',
+      path: ['optional_documents'],
+    })
+  }
 })
 
-export const DocumentUploadSchema = z.object({
-  document_type: z.string().min(1, 'Document type is required'),
-  file: z.any(),
-})
+export type CompanyProfile = z.infer<typeof CompanyProfileSchema>
+export type ShareRequest = z.infer<typeof ShareRequestSchema>
 
-export type UserProfile = z.infer<typeof UserProfileSchema>
+// Request templates - reusable field/document bundles
+export const TemplateSchema = z.object({
+  name: z.string().min(1, 'Template name is required').max(100),
+  mandatory_fields: z.array(z.enum(fieldKeys)).min(0),
+  optional_fields: z.array(z.enum(fieldKeys)).min(0),
+  mandatory_documents: z.array(z.enum(docTypeKeys)).min(0),
+  optional_documents: z.array(z.enum(docTypeKeys)).min(0),
+}).superRefine((value, ctx) => {
+  const total =
+    value.mandatory_fields.length +
+    value.optional_fields.length +
+    value.mandatory_documents.length +
+    value.optional_documents.length
+
+  if (total === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Select at least one field or document',
+      path: ['mandatory_fields'],
+    })
+  }
+
+  const overlap = (a: string[], b: string[]) => a.filter((v) => b.includes(v))
+  if (overlap(value.mandatory_fields, value.optional_fields).length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Fields cannot be both mandatory and optional',
+      path: ['optional_fields'],
+    })
+  }
+  if (overlap(value.mandatory_documents, value.optional_documents).length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Documents cannot be both mandatory and optional',
+      path: ['optional_documents'],
+    })
+  }
+})
+export type TemplateFormValues = z.infer<typeof TemplateSchema>
+
+// Flat arrays of keys for checkbox UIs
+export const DOCUMENT_TYPES: string[] = CATALOG_DOCUMENT_TYPES.map(d => d.key)
+export const FIELD_TYPES: string[] = CATALOG_FIELDS.map(f => f.key)
+
+// Onboarding type (admin creates these)
+export const OnboardingTypeSchema = z.object({
+  name: z.string().min(1, 'Flow name is required'),
+  description: z.string().optional(),
+  required_fields: z.array(z.string()).default([]),
+  required_documents: z.array(z.string()).default([]),
+})
 export type OnboardingType = z.infer<typeof OnboardingTypeSchema>
+
+// Onboarding request (admin sends to a recipient)
+export const OnboardingRequestSchema = z.object({
+  recipient_email: z.string().email('Valid email is required'),
+})
 export type OnboardingRequest = z.infer<typeof OnboardingRequestSchema>
-export type DocumentUpload = z.infer<typeof DocumentUploadSchema>
 
-// Predefined document types
-export const DOCUMENT_TYPES = [
-  'W9',
-  'Insurance Certificate',
-  'Business License',
-  'Tax Certificate',
-  'Resale Certificate',
-  'Credit References',
-  'Bank Information',
-  'Other',
-] as const
-
-// Predefined field types
-export const FIELD_TYPES = [
-  'Company Information',
-  'Contact Details',
-  'Tax Information',
-  'Banking Information',
-  'Insurance Information',
-  'Certifications',
-] as const

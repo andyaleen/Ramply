@@ -17,5 +17,11 @@ export function formatDate(date: string | Date): string {
 }
 
 export function generateToken(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  const cryptoObj = globalThis.crypto
+  if (!cryptoObj?.getRandomValues) {
+    throw new Error('Secure crypto unavailable for token generation')
+  }
+  const bytes = new Uint8Array(32)
+  cryptoObj.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }

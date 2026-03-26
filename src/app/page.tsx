@@ -232,7 +232,7 @@ export default function Landing() {
             Ready to streamline your vendor onboarding?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Join thousands of companies that trust VendorFlow for their vendor management needs.
+            Join thousands of companies that trust Ramply for their vendor management needs.
           </p>
           <Button 
             size="lg"

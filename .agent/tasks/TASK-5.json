@@ -1,0 +1,74 @@
+{
+  "id": "TASK-5",
+  "title": "Fulfillment submission writes to shared_data and shared_documents",
+  "category": "functional",
+  "description": "Add the submit handler to OnboardingForm. On submit, the form must: (1) insert a row into shared_data with a snapshot of the filled field values, (2) insert rows into shared_documents for each confirmed/uploaded document, (3) update share_requests.status to 'completed' and set completed_by_company_id and completed_at, (4) call the onComplete() callback. All three DB writes should happen in sequence; if any fail, show an error and do not proceed.",
+  "acceptanceCriteria": [
+    "Clicking 'Share' inserts one row into shared_data with share_request_id, sharing_company_id, and field_data (JSONB snapshot of filled fields)",
+    "One row is inserted into shared_documents for each confirmed-reused document (linking to the existing company_document.id)",
+    "One row is inserted into shared_documents for each newly uploaded document this session",
+    "share_requests row is updated: status='completed', completed_by_company_id=company.id, completed_at=now",
+    "On success, onComplete() is called (which navigates to /onboarding/success)",
+    "On any DB error, an error message is shown and the form remains submittable",
+    "Share button is disabled while submission is in progress",
+    "tsc reports no new type errors",
+    "End-to-end: navigating to a valid pending share_request token, filling the form, and clicking Share results in the share_requests row status = 'completed' and shared_data row existing in the DB"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Add the submit handler to OnboardingForm",
+      "details": "In the OnboardingForm component (src/components/onboarding/OnboardingForm.tsx), add const handleSubmit = async () => { setIsSubmitting(true); setError(null); try { ... } catch(e) { setError('Failed to share data. Please try again.') } finally { setIsSubmitting(false) } }",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Insert shared_data row",
+      "details": "First step inside handleSubmit: const { data: sharedDataRow, error: sdError } = await supabase.from('shared_data').insert({ share_request_id: request.id, sharing_company_id: company.id, field_data: fieldValues }).select().single(). If sdError, throw sdError.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Insert shared_documents rows for confirmed saved documents",
+      "details": "For each docKey in confirmedDocs: find the company_document row from the savedDocs query (need to also select 'id' in the savedDocs query from step TASK-4 step 3). Insert: supabase.from('shared_documents').insert({ share_request_id: request.id, company_document_id: savedDoc.id }). Run these inserts in parallel with Promise.all.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Insert shared_documents rows for newly uploaded documents",
+      "details": "For each docKey in newUploads: query company_documents to find the id for this company_id + document_type (it was just uploaded in TASK-4 step 5). Then insert into shared_documents the same way as step 3. Run in parallel.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Update share_requests status",
+      "details": "After shared_data and shared_documents are written: supabase.from('share_requests').update({ status: 'completed', completed_by_company_id: company.id, completed_at: new Date().toISOString() }).eq('id', request.id). If error, throw it.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Wire the Share button to the handler",
+      "details": "Replace the placeholder Share button with: <Button onClick={handleSubmit} disabled={isSubmitting || progress < 100}>{ isSubmitting ? 'Sharing...' : 'Share' }</Button>. The button is disabled until all fields and documents are complete (progress === 100).",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Run tsc and lint",
+      "details": "Run npx tsc --noEmit and npx eslint --fix on changed files. Fix all errors.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "End-to-end test with Playwright",
+      "details": "Create a test share_request in the DB (or use one created by TASK-2). Navigate to /onboard/{token} as the recipient user. Fill required fields, confirm documents. Click Share. Verify redirect to /onboarding/success. Take screenshot .agent/screenshots/TASK-5-success.png. Optionally query the DB to confirm shared_data and share_requests status.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-4"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "The savedDocs query in TASK-4 must select 'id' as well as 'document_type' so we can reference the company_document_id when inserting shared_documents",
+    "shared_documents has a UNIQUE(share_request_id, company_document_id) constraint — using insert with upsert is not needed, just ensure no double-inserts",
+    "All three writes (shared_data, shared_documents, update share_request) should be in a try block — if any fail the transaction is incomplete; ideally use a Supabase RPC for atomicity, but sequential inserts with error handling is acceptable for now"
+  ]
+}

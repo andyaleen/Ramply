@@ -1,0 +1,76 @@
+{
+  "id": "TASK-4",
+  "title": "Rewrite OnboardingForm for catalog-based fields with company profile pre-fill",
+  "category": "functional",
+  "description": "OnboardingForm.tsx currently renders a hardcoded set of form fields and queries the old `user_profiles` table for pre-fill. It must be completely rewritten to: (1) accept a ShareRequestRow as its request prop, (2) render only the fields listed in request.requested_fields (from the catalog), (3) render only the document types listed in request.requested_documents, (4) pre-fill field values from the authenticated user's company profile (from the `companies` table via useAuth), (5) for each requested document — check if the company already has that document type in company_documents and show a 'Use saved X' option vs. upload. The form does NOT submit yet — that is TASK-5.",
+  "acceptanceCriteria": [
+    "OnboardingForm accepts request: ShareRequestRow as its prop type",
+    "Only fields listed in request.requested_fields are rendered (using fieldLabel() from catalog.ts for display names)",
+    "Only document types listed in request.requested_documents are rendered (using documentTypeLabel() from catalog.ts)",
+    "Each field is pre-filled from company[fieldKey] if the value exists in the user's company profile",
+    "For each requested document type, if a company_documents row exists for that type, a 'Use your saved [W-9 Form]' confirmation button is shown",
+    "For document types not yet uploaded, a file upload widget (DocumentUpload component) is shown",
+    "A progress indicator shows how many fields are filled and how many documents are confirmed/uploaded",
+    "tsc reports no new type errors",
+    "Playwright screenshot shows form pre-filled with profile data when test user has a company profile"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Define the new component interface and remove old state",
+      "details": "In src/components/onboarding/OnboardingForm.tsx, replace the OnboardingRequest interface with: import { ShareRequestRow } from '@/lib/database.types'. Change the props interface to: { request: ShareRequestRow; onComplete: () => void; isCompleting: boolean }. Remove all old state related to onboardingType, the FormData interface with hardcoded fields, and all queries to onboarding_requests/user_profiles/documents.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Add state for field values and load company profile",
+      "details": "Add state: fieldValues: Partial<Record<FieldKey, string>> initialized from company object via useAuth(). For each key in request.requested_fields, initialize fieldValues[key] = company?.[key] ?? ''. Import FieldKey, DocumentTypeKey, fieldLabel, documentTypeLabel, CATALOG_FIELDS, CATALOG_DOCUMENT_TYPES from '@/lib/catalog'.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Query company_documents for the current user's saved documents",
+      "details": "Add a useQuery to fetch all company_documents for the current user's company: supabase.from('company_documents').select('document_type').eq('company_id', company.id). Store the result as savedDocTypes: DocumentTypeKey[]. For documents: add state confirmedDocs: DocumentTypeKey[] = [] (user has confirmed reuse of saved doc), and newUploads: DocumentTypeKey[] = [] (freshly uploaded this session).",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Render the fields section",
+      "details": "Replace all hardcoded form fields with: request.requested_fields.map(key => { const fieldDef = CATALOG_FIELDS.find(f => f.key === key); return <div key={key}><Label>{fieldLabel(key)}</Label><Input value={fieldValues[key] ?? ''} onChange={e => setFieldValues(prev => ({...prev, [key]: e.target.value}))} /></div> }). Use a 2-column grid for layout.",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Render the documents section with saved-doc reuse UI",
+      "details": "For each key in request.requested_documents: if savedDocTypes.includes(key) and !confirmedDocs.includes(key) — show a Card with 'Use your saved [documentTypeLabel(key)]' button that adds the key to confirmedDocs. If confirmedDocs.includes(key) — show a green checkmark badge 'Saved [label] will be shared'. If NOT in savedDocTypes — show the DocumentUpload component with documentType=key. When upload succeeds, add to newUploads.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Add progress indicator",
+      "details": "Calculate: totalFields = request.requested_fields.length, filledFields = request.requested_fields.filter(k => fieldValues[k]?.trim()).length. totalDocs = request.requested_documents.length, readyDocs = confirmedDocs.length + newUploads.length. Show a progress bar: (filledFields + readyDocs) / (totalFields + totalDocs) * 100. Show a 'Ready to share' message when progress === 100.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Run tsc and fix errors",
+      "details": "Run npx tsc --noEmit. Fix all type errors in this file and any files that call OnboardingForm.",
+      "pass": false
+    },
+    {
+      "step": 8,
+      "description": "Playwright smoke test",
+      "details": "Start dev server. You'll need a test share_request token in the DB. If one exists, navigate to /onboard/{token}. If not, verify the form renders correctly by checking the component in isolation. Take screenshot .agent/screenshots/TASK-4-onboarding-form.png.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-3"],
+  "estimatedComplexity": "high",
+  "technicalNotes": [
+    "company object from useAuth() has all CompanyRow fields — use company?.[key as keyof CompanyRow] for field pre-fill",
+    "DocumentUpload component at src/components/onboarding/DocumentUpload.tsx — check its current prop interface before calling it",
+    "Do NOT add a submit handler in this task — that is TASK-5. Add a disabled 'Share' button placeholder for now",
+    "Remove all debug console.log statements from the original component",
+    "The file is currently very long (~880 lines) — after the rewrite it should be much shorter (~200 lines)"
+  ]
+}

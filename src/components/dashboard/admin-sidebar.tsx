@@ -29,10 +29,11 @@ import {
   LogOut,
   Settings,
   Users,
-  FileText,
   BarChart3,
   Briefcase,
   Mail,
+  CreditCard,
+  BookTemplate,
 } from "lucide-react"
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -54,16 +55,16 @@ const adminNavigationConfig = [
     title: "Onboarding Management",
     items: [
       {
-        title: "Request Types",
-        url: "/admin/request-types",
-        icon: FileText,
+        title: "Send Links",
+        url: "/admin/send-links",
+        icon: Mail,
         badge: null,
         isNew: false,
       },
       {
-        title: "Send Links",
-        url: "/admin/send-links",
-        icon: Mail,
+        title: "Templates",
+        url: "/admin/templates",
+        icon: BookTemplate,
         badge: null,
         isNew: false,
       },
@@ -74,12 +75,19 @@ const adminNavigationConfig = [
         badge: null,
         isNew: false,
       },
+      {
+        title: "Billing",
+        url: "/admin/billing",
+        icon: CreditCard,
+        badge: null,
+        isNew: false,
+      },
     ],
   },
 ]
 
 export function AdminSidebar() {
-  const { userProfile, signOut } = useAuth()
+  const { userProfile, company, signOut } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
 
@@ -110,7 +118,7 @@ export function AdminSidebar() {
           <div className="flex flex-col">
             <span className="font-semibold text-lg">Company Admin</span>
             <span className="text-xs text-muted-foreground">
-              {userProfile?.company_name || 'Onboarding Management'}
+              {company?.legal_name || 'Onboarding Management'}
             </span>
           </div>
         </div>
@@ -159,12 +167,12 @@ export function AdminSidebar() {
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarFallback className="rounded-lg">
-                      {userProfile?.contact_name ? getUserInitials(userProfile.contact_name) : 'AD'}
+                      {company?.contact_name ? getUserInitials(company.contact_name) : 'AD'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {userProfile?.contact_name || 'Admin User'}
+                      {company?.contact_name || 'Admin User'}
                     </span>                    <span className="truncate text-xs text-muted-foreground">
                       Company Administrator
                     </span>
@@ -182,12 +190,12 @@ export function AdminSidebar() {
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
                       <AvatarFallback className="rounded-lg">
-                        {userProfile?.contact_name ? getUserInitials(userProfile.contact_name) : 'AD'}
+                        {company?.contact_name ? getUserInitials(company.contact_name) : 'AD'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold">
-                        {userProfile?.contact_name || 'Admin User'}
+                        {company?.contact_name || 'Admin User'}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
                         {userProfile?.email || 'admin@company.com'}
@@ -217,3 +225,4 @@ export function AdminSidebar() {
     </Sidebar>
   )
 }
+

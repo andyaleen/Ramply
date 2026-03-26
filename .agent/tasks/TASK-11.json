@@ -1,0 +1,68 @@
+{
+  "id": "TASK-11",
+  "title": "Billing management page: current plan, connection count, upgrade CTA",
+  "category": "ui-ux",
+  "description": "Build the billing management UI at /dashboard/settings. Show the user's current subscription tier, their connection count, the pricing tier table, and an Upgrade button that triggers the Stripe Checkout flow from TASK-10. Also update the UpgradePromptModal from TASK-8 to use the actual Stripe checkout instead of a placeholder link.",
+  "acceptanceCriteria": [
+    "Page at /dashboard/settings shows: current plan badge (Free / Growth / Scale), current connection count, and a pricing table",
+    "Pricing table shows: Free (≤3 connections, $0), Growth (4–15, $19/mo), Scale (16+, $39/mo)",
+    "On a free plan, Upgrade buttons appear next to Growth and Scale tiers",
+    "Clicking Upgrade calls POST /api/stripe/checkout with the correct priceId and redirects to Stripe Checkout",
+    "On a paid plan, the current plan row is highlighted; a 'Manage subscription' link appears",
+    "After successful Stripe checkout redirect back (?success=true), a success toast is shown",
+    "UpgradePromptModal's Upgrade button now calls POST /api/stripe/checkout instead of navigating to settings",
+    "tsc reports no new type errors",
+    "Playwright screenshot shows the billing page with pricing table"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Read current /dashboard/settings page",
+      "details": "Read src/app/dashboard/settings/page.tsx to understand current content. Identify where to add billing UI.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Add billing section to settings page",
+      "details": "Add a 'Billing' Card section to the settings page. Query the current user's subscription_tier from the users table (via AuthContext or a direct Supabase query). Query the connection count using getConnectedCompanyCount from TASK-7. Display both.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Build the pricing table component",
+      "details": "Create or inline a pricing table with three rows: Free, Growth, Scale. Each row shows: tier name, connection limit, price, and an Upgrade button (disabled/hidden if already on that tier or higher). Use a highlighted border on the current plan row.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Wire Upgrade buttons to Stripe Checkout",
+      "details": "Upgrade button onClick: async () => { const res = await fetch('/api/stripe/checkout', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ priceId: STRIPE_PRICE_GROWTH, userId: user.id }) }); const { url } = await res.json(); window.location.href = url; }. Use NEXT_PUBLIC_STRIPE_PRICE_GROWTH and NEXT_PUBLIC_STRIPE_PRICE_SCALE env vars for price IDs (or hardcode them as constants for now).",
+      "pass": false
+    },
+    {
+      "step": 5,
+      "description": "Handle success redirect",
+      "details": "Read URL search params on the settings page. If ?success=true is present, show a toast: 'Subscription activated! Your plan has been upgraded.' Remove the param from the URL after showing.",
+      "pass": false
+    },
+    {
+      "step": 6,
+      "description": "Update UpgradePromptModal to call Stripe Checkout",
+      "details": "In src/components/dashboard/UpgradePromptModal.tsx, replace the navigate-to-settings logic on the Upgrade button with the same Stripe Checkout fetch call from step 4.",
+      "pass": false
+    },
+    {
+      "step": 7,
+      "description": "Run tsc, lint, Playwright test",
+      "details": "Run npx tsc --noEmit and npx eslint --fix. Start dev server. Navigate to /dashboard/settings. Take screenshot .agent/screenshots/TASK-11-billing.png. Verify pricing table renders.",
+      "pass": false
+    }
+  ],
+  "dependencies": ["TASK-10", "TASK-7", "TASK-8"],
+  "estimatedComplexity": "medium",
+  "technicalNotes": [
+    "Price IDs should be in environment variables — NEXT_PUBLIC_ prefix for client-side use",
+    "The 'Manage subscription' link for paid users can link to the Stripe Customer Portal (stripe.billingPortal.sessions.create) — skip this for now, a placeholder is fine",
+    "subscription_tier in the users table is updated by the Stripe webhook — after checkout redirect, it may take a few seconds to update; show a loading state"
+  ]
+}

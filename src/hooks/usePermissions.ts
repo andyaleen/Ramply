@@ -12,3 +12,4 @@ export function usePermissions() {
     hasRole: (role: 'admin' | 'external') => userProfile?.role === role,
   }
 }
+

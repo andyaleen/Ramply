@@ -34,7 +34,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { navigationConfig } from '@/lib/dashboard-config'
 
 export function AppSidebar() {
-  const { userProfile } = useAuth()
+  const { userProfile, company } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
 
@@ -55,9 +55,9 @@ export function AppSidebar() {
             <Building2 className="h-6 w-6 text-primary-foreground" />
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-lg">Onbo</span>
+            <span className="font-semibold text-lg">Ramply</span>
             <span className="text-xs text-muted-foreground">
-              {userProfile?.company_name || 'Your Company'}
+              {company?.legal_name || 'Your Company'}
             </span>
           </div>
         </div>
@@ -105,15 +105,15 @@ export function AppSidebar() {
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarFallback className="rounded-lg">
-                      {userProfile?.contact_name ? getUserInitials(userProfile.contact_name) : 'UN'}
+                      {company?.contact_name ? getUserInitials(company.contact_name) : 'UN'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {userProfile?.contact_name || 'User'}
+                      {company?.contact_name || 'User'}
                     </span>
                     <span className="truncate text-xs">
-                      {userProfile?.contact_email || 'user@example.com'}
+                      {company?.contact_email || userProfile?.email || 'user@example.com'}
                     </span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
@@ -129,15 +129,15 @@ export function AppSidebar() {
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
                       <AvatarFallback className="rounded-lg">
-                        {userProfile?.contact_name ? getUserInitials(userProfile.contact_name) : 'UN'}
+                        {company?.contact_name ? getUserInitials(company.contact_name) : 'UN'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold">
-                        {userProfile?.contact_name || 'User'}
+                        {company?.contact_name || 'User'}
                       </span>
                       <span className="truncate text-xs">
-                        {userProfile?.contact_email || 'user@example.com'}
+                        {company?.contact_email || userProfile?.email || 'user@example.com'}
                       </span>
                     </div>
                   </div>
@@ -164,3 +164,4 @@ export function AppSidebar() {
     </Sidebar>
   )
 }
+

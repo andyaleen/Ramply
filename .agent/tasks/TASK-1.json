@@ -1,0 +1,48 @@
+{
+  "id": "TASK-1",
+  "title": "Add US states dropdown to ProfileSetup state field",
+  "category": "ui-ux",
+  "description": "The state field in ProfileSetup.tsx is currently a plain text Input. It must be replaced with a Select dropdown populated with all 50 US states plus DC. The same US_STATES constant should also be used in the OnboardingForm if that component renders a state field.",
+  "acceptanceCriteria": [
+    "State field in ProfileSetup renders as a Select dropdown, not a free-text Input",
+    "Dropdown contains all 50 US states plus DC (51 options), using 2-letter abbreviation as value and full name as label",
+    "Selecting a state updates the form correctly and passes Zod validation",
+    "Existing saved state value pre-fills the dropdown correctly on form load",
+    "US_STATES list is defined in src/lib/us-states.ts and imported where needed (not inlined)",
+    "tsc reports no new type errors",
+    "Playwright screenshot confirms dropdown renders and is selectable"
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "description": "Create src/lib/us-states.ts with the full US states list",
+      "details": "Create a new file src/lib/us-states.ts that exports: export const US_STATES = [ { value: 'AL', label: 'Alabama' }, { value: 'AK', label: 'Alaska' }, ... all 50 states + { value: 'DC', label: 'District of Columbia' } ] as const. Use 2-letter USPS abbreviations as values.",
+      "pass": false
+    },
+    {
+      "step": 2,
+      "description": "Replace the state Input with a Select in ProfileSetup.tsx",
+      "details": "In src/components/profile/ProfileSetup.tsx, find the FormField for name='state'. Replace the <FormControl><Input ... /></FormControl> with a <Select onValueChange={field.onChange} value={field.value ?? ''}> containing a <SelectContent> with {US_STATES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}. Import US_STATES from '@/lib/us-states'.",
+      "pass": false
+    },
+    {
+      "step": 3,
+      "description": "Run tsc and fix any type errors",
+      "details": "Run npx tsc --noEmit from the project root. Fix any type errors introduced by this change.",
+      "pass": false
+    },
+    {
+      "step": 4,
+      "description": "Smoke test with Playwright",
+      "details": "Start dev server (npm run dev). Use Playwright to navigate to /dashboard/profile. Take a screenshot saved to .agent/screenshots/TASK-1-profile-state-dropdown.png. Verify the state field renders as a dropdown, not an input.",
+      "pass": false
+    }
+  ],
+  "dependencies": [],
+  "estimatedComplexity": "low",
+  "technicalNotes": [
+    "The Select component is from src/components/ui/select.tsx (shadcn/ui Radix wrapper)",
+    "The FormField pattern using render prop with field.onChange and field.value is already used for business_type in the same file — follow the same pattern",
+    "Do NOT inline the states array in the component — it must live in src/lib/us-states.ts for reuse"
+  ]
+}

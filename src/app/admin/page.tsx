@@ -8,13 +8,13 @@ import { ProfileSetup } from '@/components/profile/ProfileSetup'
 import { LoadingFallback } from '@/components/LoadingFallback'
 
 export default function AdminPage() {
-  const { user, userProfile, loading, isAdmin } = useAuth()
+  const { user, userProfile, company, loading, isAdmin } = useAuth()
   const router = useRouter()
-  
+
   // Memoize profile completeness check to prevent unnecessary recalculations
   const isProfileIncomplete = useMemo(
-    () => userProfile && (!userProfile.company_name || !userProfile.contact_name),
-    [userProfile]
+    () => userProfile && (!company?.legal_name || !company?.contact_name),
+    [userProfile, company]
   )
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function AdminPage() {
         <div className="max-w-2xl mx-auto px-4">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome to Onbo
+              Welcome to Ramply
             </h1>
             <p className="text-gray-600">
               Let&apos;s set up your company profile to start creating onboarding flows for your vendors and customers.
@@ -108,3 +108,4 @@ export default function AdminPage() {
   // If user and profile both ready, show main dashboard
   return <AdminDashboard />
 }
+
