@@ -1,6 +1,6 @@
 'use client'
 
-import type { UseFormReturn } from 'react-hook-form'
+import type { Path, UseFormReturn } from 'react-hook-form'
 import type { FieldKey, DocumentTypeKey } from '@/lib/catalog'
 import { CATALOG_FIELDS, CATALOG_DOCUMENT_TYPES } from '@/lib/catalog'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -13,8 +13,8 @@ export type TemplateSelectionValues = {
   optional_documents: DocumentTypeKey[]
 }
 
-interface TemplateSelectionsFormProps {
-  form: UseFormReturn<TemplateSelectionValues>
+interface TemplateSelectionsFormProps<T extends TemplateSelectionValues> {
+  form: UseFormReturn<T>
 }
 
 /** Toggle a field value on/off in a list. */
@@ -28,45 +28,45 @@ function toggleDocValue(current: DocumentTypeKey[], value: DocumentTypeKey, add:
 }
 
 /** Ensure a field is only in one of the two lists. */
-function toggleFieldExclusive(
-  form: UseFormReturn<TemplateSelectionValues>,
+function toggleFieldExclusive<T extends TemplateSelectionValues>(
+  form: UseFormReturn<T>,
   listKey: 'mandatory_fields' | 'optional_fields',
   otherKey: 'mandatory_fields' | 'optional_fields',
   value: FieldKey,
   add: boolean
 ) {
-  const current = form.getValues(listKey)
-  const other = form.getValues(otherKey)
+  const current = form.getValues(listKey as Path<T>) as FieldKey[]
+  const other = form.getValues(otherKey as Path<T>) as FieldKey[]
   const nextCurrent = toggleFieldValue(current, value, add)
   const nextOther = add ? other.filter((v) => v !== value) : other
-  form.setValue(listKey, nextCurrent, { shouldDirty: true })
+  form.setValue(listKey as Path<T>, nextCurrent as never, { shouldDirty: true })
   if (add) {
-    form.setValue(otherKey, nextOther, { shouldDirty: true })
+    form.setValue(otherKey as Path<T>, nextOther as never, { shouldDirty: true })
   }
 }
 
 /** Ensure a document is only in one of the two lists. */
-function toggleDocExclusive(
-  form: UseFormReturn<TemplateSelectionValues>,
+function toggleDocExclusive<T extends TemplateSelectionValues>(
+  form: UseFormReturn<T>,
   listKey: 'mandatory_documents' | 'optional_documents',
   otherKey: 'mandatory_documents' | 'optional_documents',
   value: DocumentTypeKey,
   add: boolean
 ) {
-  const current = form.getValues(listKey)
-  const other = form.getValues(otherKey)
+  const current = form.getValues(listKey as Path<T>) as DocumentTypeKey[]
+  const other = form.getValues(otherKey as Path<T>) as DocumentTypeKey[]
   const nextCurrent = toggleDocValue(current, value, add)
   const nextOther = add ? other.filter((v) => v !== value) : other
-  form.setValue(listKey, nextCurrent, { shouldDirty: true })
+  form.setValue(listKey as Path<T>, nextCurrent as never, { shouldDirty: true })
   if (add) {
-    form.setValue(otherKey, nextOther, { shouldDirty: true })
+    form.setValue(otherKey as Path<T>, nextOther as never, { shouldDirty: true })
   }
 }
 
 /** Shared field/document selector for template-based forms. */
-export function TemplateSelectionsForm({
+export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
   form,
-}: TemplateSelectionsFormProps) {
+}: TemplateSelectionsFormProps<T>) {
   const mandatoryFields = form.watch('mandatory_fields')
   const optionalFields = form.watch('optional_fields')
   const mandatoryDocuments = form.watch('mandatory_documents')
