@@ -67,10 +67,10 @@ function toggleDocExclusive<T extends TemplateSelectionValues>(
 export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
   form,
 }: TemplateSelectionsFormProps<T>) {
-  const mandatoryFields = form.watch('mandatory_fields')
-  const optionalFields = form.watch('optional_fields')
-  const mandatoryDocuments = form.watch('mandatory_documents')
-  const optionalDocuments = form.watch('optional_documents')
+  const mandatoryFields = form.watch('mandatory_fields' as Path<T>) as FieldKey[] | undefined
+  const optionalFields = form.watch('optional_fields' as Path<T>) as FieldKey[] | undefined
+  const mandatoryDocuments = form.watch('mandatory_documents' as Path<T>) as DocumentTypeKey[] | undefined
+  const optionalDocuments = form.watch('optional_documents' as Path<T>) as DocumentTypeKey[] | undefined
   const fieldsError = (form.formState.errors.mandatory_fields?.message
     ?? form.formState.errors.optional_fields?.message) as string | undefined
   const documentsError = (form.formState.errors.mandatory_documents?.message
