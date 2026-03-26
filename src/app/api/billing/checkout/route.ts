@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { stripe, STRIPE_PRICE_ID } from '@/lib/stripe'
+import { getStripe, getStripePriceId } from '@/lib/stripe'
 
 /**
  * POST /api/billing/checkout
@@ -26,10 +26,13 @@ export async function POST() {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
+  const stripe = getStripe()
+  const priceId = getStripePriceId()
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
-    line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }],
     // Pre-fill customer if they already have a Stripe record
     ...(company.stripe_customer_id
       ? { customer: company.stripe_customer_id }
