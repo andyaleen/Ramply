@@ -61,11 +61,11 @@ This roadmap is based on the strategic pivot to a standardized document sharing 
     - **Resend** — ❌ verify sending domain, add `RESEND_API_KEY` to env.
     - ❌ *Needs: Resend API key — `RESEND_API_KEY`*
     - **Supabase (production)** — ✅ schema applied, `documents` bucket created, RLS active, env vars set.
-    - **Vercel** — ❌ connect repo, set all env vars, confirm build passes on main branch.
+    - **Vercel** � ? connected, env vars set, build passes on main branch.
 12. ❌ **Testing & QA**
     - Playwright config exists; write full E2E tests covering the requester → respondent → reviewer loop.
     - Add Supabase integration smoke test (confirm schema + RLS on staging).
-    - Add Vercel preview-deployment check to CI (run Playwright against preview URL on each PR).
+    - **Vercel** � ? connected, env vars set, build passes on main branch.
 
 ## Phase 6: Document Intelligence & Request Ops ❌ NOT STARTED
 **Goal:** Extract and reuse document data without human review or confidence scoring.
