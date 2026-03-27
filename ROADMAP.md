@@ -58,8 +58,8 @@ This roadmap is based on the strategic pivot to a standardized document sharing 
     - ✅ `companies` table has all Stripe billing columns
     - ✅ *Stripe keys set — `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`*
 11. ⚠️ **Third-Party Service Setup**
-    - **Resend** — ❌ verify sending domain, add `RESEND_API_KEY` to env.
-    - ❌ *Needs: Resend API key — `RESEND_API_KEY`*
+    - **Resend** � ? domain verified, API key set in Vercel.
+    - ? *Resend API key set in Vercel*
     - **Supabase (production)** — ✅ schema applied, `documents` bucket created, RLS active, env vars set.
     - **Vercel** � ? connected, env vars set, build passes on main branch.
 12. ❌ **Testing & QA**
