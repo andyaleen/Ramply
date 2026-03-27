@@ -100,6 +100,24 @@ If `setup-database.js` needs the service role key, ensure `SUPABASE_SERVICE_ROLE
 - Add integration tests for the onboarding flow (mock Supabase or use a test project)
 - E2E: Playwright or Cypress to cover the end-to-end onboarding request → response flow
 
+## E2E Testing (Playwright)
+This repo includes Playwright tests under `src/tests/`. The full flow tests require two real Supabase users (admin + vendor).
+
+Add these to `.env.local`:
+- E2E_ADMIN_EMAIL=
+- E2E_ADMIN_PASSWORD=
+- E2E_VENDOR_EMAIL=
+- E2E_VENDOR_PASSWORD=
+
+Run tests:
+```powershell
+npx playwright test
+```
+
+Notes
+- The "full flow" tests are skipped if the E2E variables are missing.
+- The unauthenticated share-link test runs without credentials.
+
 ## Production & Deployment
 - Build with `npm run build` and run `npm run start` on a node host or platform like Vercel/Netlify with server-side support for Next.js App Router.
 - Set environment variables in your host (do not use client-exposed ANON keys for privileged operations).
