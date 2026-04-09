@@ -149,6 +149,9 @@ export type Database = {
           version: number
           superseded_by: string | null
           uploaded_at: string
+          extracted_fields: Record<string, unknown>
+          approved_fields: Record<string, unknown> | null
+          approved_at: string | null
         }
         Insert: {
           id?: string
@@ -162,6 +165,9 @@ export type Database = {
           version?: number
           superseded_by?: string | null
           uploaded_at?: string
+          extracted_fields?: Record<string, unknown>
+          approved_fields?: Record<string, unknown> | null
+          approved_at?: string | null
         }
         Update: {
           id?: string
@@ -175,6 +181,50 @@ export type Database = {
           version?: number
           superseded_by?: string | null
           uploaded_at?: string
+          extracted_fields?: Record<string, unknown>
+          approved_fields?: Record<string, unknown> | null
+          approved_at?: string | null
+        }
+      }
+      document_extractions: {
+        Row: {
+          id: string
+          company_id: string
+          company_document_id: string
+          provider: string
+          status: 'pending' | 'succeeded' | 'failed'
+          raw_text: string | null
+          structured_data: Record<string, unknown>
+          metadata: Record<string, unknown> | null
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          company_document_id: string
+          provider: string
+          status?: 'pending' | 'succeeded' | 'failed'
+          raw_text?: string | null
+          structured_data?: Record<string, unknown>
+          metadata?: Record<string, unknown> | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          company_document_id?: string
+          provider?: string
+          status?: 'pending' | 'succeeded' | 'failed'
+          raw_text?: string | null
+          structured_data?: Record<string, unknown>
+          metadata?: Record<string, unknown> | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
         }
       }
       request_templates: {
@@ -313,6 +363,7 @@ export type Database = {
 export type UserRow = Database['public']['Tables']['users']['Row']
 export type CompanyRow = Database['public']['Tables']['companies']['Row']
 export type CompanyDocumentRow = Database['public']['Tables']['company_documents']['Row']
+export type DocumentExtractionRow = Database['public']['Tables']['document_extractions']['Row']
 export type ShareRequestRow = Database['public']['Tables']['share_requests']['Row']
 export type SharedDataRow = Database['public']['Tables']['shared_data']['Row']
 export type SharedDocumentRow = Database['public']['Tables']['shared_documents']['Row']

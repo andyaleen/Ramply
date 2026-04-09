@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
@@ -13,17 +13,18 @@ import { CheckCircle, Clock, Download, Eye, FileText } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { downloadDocument } from '@/lib/file-utils'
 import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
-import type { ShareRequestRow, SharedDataRow, CompanyDocumentRow } from '@/lib/database.types'
+import type { ShareRequestRow, SharedDataRow, CompanyDocumentRow, CompanyRow } from '@/lib/database.types'
 
 type ShareResponse = Omit<ShareRequestRow, 'token'> & {
   sharedData: SharedDataRow | null
   sharedDocs: CompanyDocumentRow[]
+  recipientCompany: CompanyRow | null
 }
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  pending:   { label: 'Pending',   className: 'bg-yellow-100 text-yellow-800' },
+  pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800' },
   completed: { label: 'Completed', className: 'bg-green-100 text-green-800' },
-  expired:   { label: 'Expired',   className: 'bg-red-100 text-red-800' },
+  expired: { label: 'Expired', className: 'bg-red-100 text-red-800' },
 }
 
 export function OnboardingResponsesList() {
@@ -47,10 +48,16 @@ export function OnboardingResponsesList() {
       if (!requests?.length) return []
 
       const ids = requests.map((r) => r.id)
+      const companyIds = requests
+        .map((r) => r.completed_by_company_id)
+        .filter((id): id is string => Boolean(id))
 
-      const [{ data: sharedDataRows }, { data: sharedDocRows }] = await Promise.all([
+      const [{ data: sharedDataRows }, { data: sharedDocRows }, { data: companyRows }] = await Promise.all([
         supabase.from('shared_data').select('*').in('share_request_id', ids),
         supabase.from('shared_documents').select('share_request_id, company_documents(*)').in('share_request_id', ids),
+        companyIds.length
+          ? supabase.from('companies').select('*').in('id', companyIds)
+          : Promise.resolve({ data: [] }),
       ])
 
       return requests.map((req) => ({
@@ -60,10 +67,15 @@ export function OnboardingResponsesList() {
           .filter((sd) => sd.share_request_id === req.id)
           .map((sd) => sd.company_documents as unknown as CompanyDocumentRow)
           .filter(Boolean),
+        recipientCompany: (companyRows ?? []).find((row) => row.id === req.completed_by_company_id) ?? null,
       }))
     },
     enabled: !!company,
   })
+
+  const companyLabel = useMemo(() => {
+    return (row: CompanyRow | null) => row?.legal_name || row?.dba_name || 'Unknown company'
+  }, [])
 
   if (isLoading) {
     return (
@@ -110,6 +122,7 @@ export function OnboardingResponsesList() {
         <TableHeader>
           <TableRow>
             <TableHead>Recipient</TableHead>
+            <TableHead>Company</TableHead>
             <TableHead>Fields / Docs</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Date</TableHead>
@@ -122,8 +135,24 @@ export function OnboardingResponsesList() {
             return (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.recipient_email}</TableCell>
+                <TableCell className="text-sm">
+                  {r.recipientCompany?.id ? (
+                    <Button
+                      variant="link"
+                      className="h-auto p-0 text-sm"
+                      onClick={() => {
+                        window.location.href = `/admin/responses/${r.recipientCompany?.id}`
+                      }}
+                    >
+                      {companyLabel(r.recipientCompany)}
+                    </Button>
+                  ) : (
+                    <span className="text-gray-500">Unknown</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm text-gray-600">
-                  {r.mandatory_fields.length} required, {r.optional_fields.length} optional fields<br />
+                  {r.mandatory_fields.length} required, {r.optional_fields.length} optional fields
+                  <br />
                   {r.mandatory_documents.length} required, {r.optional_documents.length} optional docs
                 </TableCell>
                 <TableCell>
@@ -164,11 +193,15 @@ function ResponseDetailsDialog({
 }) {
   if (!response) return null
 
+  const companyName = response.recipientCompany?.legal_name
+    || response.recipientCompany?.dba_name
+    || 'Unknown company'
+
   const requiredFieldEntries = response.sharedData
     ? response.mandatory_fields.map((key) => ({
         key,
         label: fieldLabel(key),
-        value: response.sharedData!.field_data[key] ?? '—',
+        value: response.sharedData!.field_data[key] ?? '-',
       }))
     : []
 
@@ -176,7 +209,7 @@ function ResponseDetailsDialog({
     ? response.optional_fields.map((key) => ({
         key,
         label: fieldLabel(key),
-        value: response.sharedData!.field_data[key] ?? '—',
+        value: response.sharedData!.field_data[key] ?? '-',
       }))
     : []
 
@@ -188,10 +221,30 @@ function ResponseDetailsDialog({
     <Dialog open={!!response} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Share Request — {response.recipient_email}</DialogTitle>
+          <DialogTitle>Share Request - {response.recipient_email}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
+          <Card>
+            <CardContent className="py-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Company</p>
+                <p className="text-sm font-medium">{companyName}</p>
+              </div>
+              {response.completed_by_company_id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    window.location.href = `/admin/responses/${response.completed_by_company_id}`
+                  }}
+                >
+                  View Assets
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Pending / expired state */}
           {response.status !== 'completed' && (
             <Card>
@@ -299,8 +352,8 @@ function ResponseDetailsDialog({
                         <Badge variant="outline" className="text-xs">Not provided</Badge>
                       )}
                     </div>
-                  )
-                })}
+                  )}
+                )}
               </CardContent>
             </Card>
           )}
@@ -309,4 +362,3 @@ function ResponseDetailsDialog({
     </Dialog>
   )
 }
-

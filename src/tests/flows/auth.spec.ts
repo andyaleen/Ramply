@@ -42,7 +42,11 @@ test.describe('auth — form validation', () => {
     await page.getByLabel(/^password$/i).fill('abc')
     await page.getByLabel(/confirm password/i).fill('abc')
     await page.getByRole('button', { name: /create account/i }).click()
-    await expect(page.getByText(/at least 6 characters/i)).toBeVisible({ timeout: 5_000 })
+    // minLength={6} on the input triggers browser-native constraint validation
+    // before React's handler runs, so we check validity.tooShort directly
+    const passwordInput = page.getByLabel(/^password$/i)
+    const tooShort = await passwordInput.evaluate((el: HTMLInputElement) => el.validity.tooShort)
+    expect(tooShort).toBe(true)
   })
 
   test('sign-up tab becomes active when clicking the tab', async ({ page }) => {

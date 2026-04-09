@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { CATALOG_DOCUMENT_TYPES, documentTypeLabel, type DocumentTypeKey } from '@/lib/catalog'
@@ -22,6 +23,7 @@ async function hashFile(file: File): Promise<string> {
 export function DocumentVault() {
   const { user, company } = useAuth()
   const supabase = createClient()
+  const router = useRouter()
   // Only the active (latest) document per type — superseded rows are excluded
   const [docs, setDocs] = useState<CompanyDocumentRow[]>([])
   const [uploading, setUploading] = useState<DocumentTypeKey | null>(null)
@@ -44,6 +46,7 @@ export function DocumentVault() {
     inputRef.current?.click()
   }
 
+  /** Uploads a document, triggers OCR, then routes to the review page. */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     const docType = pendingType.current
@@ -111,6 +114,27 @@ export function DocumentVault() {
           ? `${documentTypeLabel(docType)} updated to v${nextVersion}`
           : `${documentTypeLabel(docType)} uploaded`
       )
+
+      let ingestError: string | null = null
+      try {
+        const response = await fetch('/api/documents/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ company_document_id: newRow.id }),
+        })
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => ({}))
+          ingestError = errorBody?.error ?? 'OCR request failed'
+        }
+      } catch (error) {
+        ingestError = error instanceof Error ? error.message : 'OCR request failed'
+      }
+
+      if (ingestError) {
+        toast.error('OCR failed to start. You can retry on the review page.')
+      }
+
+      router.push(`/dashboard/documents/review/${newRow.id}`)
     } catch (err) {
       console.error('Upload error:', err)
       toast.error('Upload failed. Please try again.')

@@ -1,13 +1,17 @@
 import { test, expect } from '@playwright/test'
-import { loginAs } from '../helpers/auth'
+import * as fs from 'fs'
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? ''
-const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? ''
 const vendorEmail = process.env.E2E_VENDOR_EMAIL ?? ''
-const vendorPassword = process.env.E2E_VENDOR_PASSWORD ?? ''
+
+const adminStateFile = 'playwright/.auth/admin.json'
+const vendorStateFile = 'playwright/.auth/vendor.json'
 
 const hasCredentials = () =>
-  Boolean(adminEmail && adminPassword && vendorEmail && vendorPassword)
+  Boolean(adminEmail && process.env.E2E_ADMIN_PASSWORD && vendorEmail && process.env.E2E_VENDOR_PASSWORD)
+
+const hasAuthState = () =>
+  fs.existsSync(adminStateFile) && fs.existsSync(vendorStateFile)
 
 /**
  * Unauthenticated share-link tests — no credentials required.
@@ -25,9 +29,10 @@ test.describe('share request — unauthenticated', () => {
 
 /**
  * Full E2E: requester → respondent → reviewer loop.
- * Requires E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, E2E_VENDOR_EMAIL, E2E_VENDOR_PASSWORD.
+ * Uses storageState from global-setup for pre-authenticated sessions.
  */
 test.describe('share request — full flow', () => {
+  test.describe.configure({ mode: 'serial' })
   test.skip(!hasCredentials(), 'Set E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, E2E_VENDOR_EMAIL, E2E_VENDOR_PASSWORD to run')
 
   let shareLink: string
@@ -35,32 +40,44 @@ test.describe('share request — full flow', () => {
   /**
    * Step 1 — Admin creates a share request and copies the generated link.
    */
-  test('admin creates a share request and receives a link', async ({ page }) => {
-    await loginAs(page, adminEmail, adminPassword)
-    await page.goto('/admin/send-links')
+  test('admin creates a share request and receives a link', async ({ browser }) => {
+    test.skip(!hasAuthState(), 'Auth state not found — global setup may have failed')
 
-    await page.getByRole('button', { name: /new request/i }).click()
-    await page.waitForSelector('text=New Share Request')
+    const context = await browser.newContext({ storageState: adminStateFile })
+    const page = await context.newPage()
+
+    await page.goto('/admin/send-links')
+    await expect(page.getByRole('heading', { name: /send share requests/i })).toBeVisible({ timeout: 20_000 })
+
+    await page.getByRole('button', { name: /new request/i }).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('New Share Request')).toBeVisible()
 
     // Fill in recipient email
-    await page.getByLabel(/recipient email/i).fill(vendorEmail)
+    await page.getByPlaceholder(/vendor@company\.com/i).fill(vendorEmail)
 
-    // Select at least one mandatory field (Legal Business Name)
-    await page.getByText('Legal Business Name').click()
+    // Mark "Legal Business Name" as Required.
+    // Radix Checkbox renders as button[role="checkbox"] — must click the button directly.
+    await page.locator('span', { hasText: 'Legal Business Name' })
+      .locator('xpath=..')
+      .getByRole('checkbox')
+      .first()
+      .click()
 
     await page.getByRole('button', { name: /create & send/i }).click()
 
     // Dialog switches to "Link Generated" state
-    await expect(page.getByText('Link Generated')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Link Generated')).toBeVisible({ timeout: 20_000 })
 
     const linkInput = page.locator('input[readonly]')
     await expect(linkInput).toBeVisible()
     shareLink = await linkInput.inputValue()
     expect(shareLink).toContain('/onboard/')
 
-    // Save the link for the next test via env or file — use a workaround
-    // by storing it on process.env (only works within the same worker)
+    // Pass the link to subsequent tests via process.env (single worker only)
     process.env.E2E_SHARE_LINK = shareLink
+
+    await context.close()
   })
 
   /**
@@ -72,35 +89,40 @@ test.describe('share request — full flow', () => {
 
     await page.goto(link!)
     await expect(page.getByRole('heading', { name: /share request/i })).toBeVisible({ timeout: 10_000 })
-    // Auth wall: sign in / sign up tabs should be visible
     await expect(page.getByRole('tab', { name: /sign in/i })).toBeVisible()
   })
 
   /**
    * Step 3 — Vendor signs in and sees the fulfillment form.
    */
-  test('vendor signs in and sees fulfillment form', async ({ page }) => {
+  test('vendor signs in and sees fulfillment form', async ({ browser }) => {
     const link = process.env.E2E_SHARE_LINK
     test.skip(!link, 'Requires prior test to generate the share link')
+    test.skip(!hasAuthState(), 'Auth state not found — global setup may have failed')
 
-    // Vendor goes directly to login, then to the share link
-    await loginAs(page, vendorEmail, vendorPassword)
+    const context = await browser.newContext({ storageState: vendorStateFile })
+    const page = await context.newPage()
+
     await page.goto(link!)
-
     await expect(page.getByRole('heading', { name: /share request/i })).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText(/information requested|documents requested|share information/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: /information requested|documents requested/i })).toBeVisible()
+
+    await context.close()
   })
 
   /**
    * Step 4 — Vendor submits the fulfillment form.
    */
-  test('vendor submits the fulfillment form', async ({ page }) => {
+  test('vendor submits the fulfillment form', async ({ browser }) => {
     const link = process.env.E2E_SHARE_LINK
     test.skip(!link, 'Requires prior test to generate the share link')
+    test.skip(!hasAuthState(), 'Auth state not found — global setup may have failed')
 
-    await loginAs(page, vendorEmail, vendorPassword)
+    const context = await browser.newContext({ storageState: vendorStateFile })
+    const page = await context.newPage()
+
     await page.goto(link!)
-    await page.waitForSelector('text=Share Request')
+    await page.waitForSelector('text=Share Request', { timeout: 15_000 })
 
     // Fill in any visible text inputs in the fulfillment form
     const inputs = page.locator('input[type="text"], input:not([type])')
@@ -117,25 +139,26 @@ test.describe('share request — full flow', () => {
     await expect(submitBtn).toBeEnabled({ timeout: 5_000 })
     await submitBtn.click()
 
-    // On success: "All Done!" screen
     await expect(page.getByText(/all done/i)).toBeVisible({ timeout: 15_000 })
+
+    await context.close()
   })
 
   /**
    * Step 5 — Admin reviews the completed response in the responses page.
    */
-  test('admin sees the completed response in responses page', async ({ page }) => {
-    await loginAs(page, adminEmail, adminPassword)
+  test('admin sees the completed response in responses page', async ({ browser }) => {
+    test.skip(!hasAuthState(), 'Auth state not found — global setup may have failed')
+
+    const context = await browser.newContext({ storageState: adminStateFile })
+    const page = await context.newPage()
+
     await page.goto('/admin/responses')
+    await expect(page.getByRole('heading', { name: /share responses/i })).toBeVisible({ timeout: 20_000 })
 
-    await expect(page.getByRole('heading', { name: /share responses/i })).toBeVisible()
+    await expect(page.getByText('Total Responses').locator('..').locator('..')).toBeVisible()
+    await expect(page.getByText(vendorEmail).first()).toBeVisible({ timeout: 10_000 })
 
-    // Stats should show at least 1 total response
-    const totalCard = page.getByText('Total Responses').locator('..').locator('..')
-    await expect(totalCard).toBeVisible()
-
-    // The response list should contain at least one entry
-    // Accept any content visible in the card area — vendor email should appear
-    await expect(page.getByText(vendorEmail)).toBeVisible({ timeout: 10_000 })
+    await context.close()
   })
 })

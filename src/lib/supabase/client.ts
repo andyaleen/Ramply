@@ -2,7 +2,9 @@ import { createBrowserClient } from '@supabase/ssr'
 
 export const createClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   // Resolve effective URL at runtime. In dev the client bundle is baked with
   // the build-time NEXT_PUBLIC_SUPABASE_URL; however a stale build or service
   // worker can cause a different/old host to be used (NXDOMAIN). To make
@@ -35,7 +37,7 @@ export const createClient = () => {
     }
 
     console.debug('[supabase] Effective NEXT_PUBLIC_SUPABASE_URL =', effectiveUrl)
-    console.debug('[supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY (first 8 chars) =', key?.slice(0, 8))
+    console.debug('[supabase] Supabase public key (first 8 chars) =', key?.slice(0, 8))
   }
 
   return createBrowserClient(effectiveUrl!, key!)

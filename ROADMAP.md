@@ -58,14 +58,17 @@ This roadmap is based on the strategic pivot to a standardized document sharing 
     - ✅ `companies` table has all Stripe billing columns
     - ✅ *Stripe keys set — `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`*
 11. ⚠️ **Third-Party Service Setup**
-    - **Resend** � ? domain verified, API key set in Vercel.
+    - **Resend** � ? domain verified, API key set in Vercel.
     - ? *Resend API key set in Vercel*
     - **Supabase (production)** — ✅ schema applied, `documents` bucket created, RLS active, env vars set.
-    - **Vercel** � ? connected, env vars set, build passes on main branch.
-12. ❌ **Testing & QA**
-    - Playwright config exists; write full E2E tests covering the requester → respondent → reviewer loop.
-    - Add Supabase integration smoke test (confirm schema + RLS on staging).
-    - **Vercel** � ? connected, env vars set, build passes on main branch.
+    - **Vercel** � ? connected, env vars set, build passes on main branch.
+12. ✅ **Testing & QA**
+    - ✅ Playwright config + global setup (storageState auth for admin + vendor)
+    - ✅ Smoke tests — public pages, redirects, invalid token (7 passing)
+    - ✅ Auth flow tests — form validation, bad credentials, mismatched/short passwords (5 passing)
+    - ✅ Share request full flow — requester → respondent → reviewer loop (5 passing, 1 unauthenticated)
+    - ✅ 18/18 tests passing
+    - ✅ Fixed recursive RLS policy on `companies_select_as_requester` (caused 500s)
 
 ## Phase 6: Document Intelligence & Request Ops ❌ NOT STARTED
 **Goal:** Extract and reuse document data without human review or confidence scoring.

@@ -93,10 +93,31 @@ CREATE TABLE IF NOT EXISTS company_documents (
   file_hash TEXT,           -- SHA-256 of file contents for deduplication
   version INT NOT NULL DEFAULT 1,
   superseded_by UUID REFERENCES company_documents(id) ON DELETE SET NULL,
-  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+  uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+  extracted_fields JSONB NOT NULL DEFAULT '{}',
+  approved_fields JSONB,
+  approved_at TIMESTAMPTZ
   -- No UNIQUE constraint here: versioning allows multiple rows per (company, type).
   -- "Active" document = latest version = one with no superseded_by pointing to another.
 );
+
+-- Document extractions — OCR outputs per company document
+CREATE TABLE IF NOT EXISTS document_extractions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  company_document_id UUID NOT NULL REFERENCES company_documents(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'succeeded', 'failed')),
+  raw_text TEXT,
+  structured_data JSONB NOT NULL DEFAULT '{}',
+  metadata JSONB,
+  error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS document_extractions_company_document_idx
+  ON document_extractions(company_document_id);
 
 -- Share requests — Company A requests specific fields/docs from Company B
 -- mandatory_fields, optional_fields, mandatory_documents, optional_documents contain keys from catalog.ts
@@ -156,6 +177,7 @@ CREATE TABLE IF NOT EXISTS shared_documents (
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE company_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE document_extractions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE share_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE request_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shared_data ENABLE ROW LEVEL SECURITY;
@@ -173,6 +195,8 @@ DROP POLICY IF EXISTS "companies_select_as_requester" ON companies;
 
 DROP POLICY IF EXISTS "company_documents_all_own" ON company_documents;
 DROP POLICY IF EXISTS "company_documents_select_requester" ON company_documents;
+
+DROP POLICY IF EXISTS "document_extractions_all_own" ON document_extractions;
 
 DROP POLICY IF EXISTS "request_templates_all_own" ON request_templates;
 
@@ -211,15 +235,15 @@ CREATE POLICY "companies_insert_own" ON companies
 CREATE POLICY "companies_update_own" ON companies
   FOR UPDATE USING (auth.uid() = owner_user_id);
 
--- Requesters can see the company profile of companies that fulfilled their requests
+-- Requesters can see the company profile of companies that fulfilled their requests.
+-- Uses JOIN instead of subquery on companies to avoid infinite RLS recursion.
 CREATE POLICY "companies_select_as_requester" ON companies
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM share_requests sr
+      JOIN companies requester ON requester.owner_user_id = auth.uid()
       WHERE sr.completed_by_company_id = companies.id
-        AND sr.requester_company_id IN (
-          SELECT id FROM companies WHERE owner_user_id = auth.uid()
-        )
+        AND sr.requester_company_id = requester.id
     )
   );
 
@@ -241,6 +265,15 @@ CREATE POLICY "company_documents_select_requester" ON company_documents
       JOIN companies rc ON sr.requester_company_id = rc.id
       WHERE sd.company_document_id = company_documents.id
         AND rc.owner_user_id = auth.uid()
+    )
+  );
+
+-- document_extractions policies
+CREATE POLICY "document_extractions_all_own" ON document_extractions
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM companies WHERE companies.id = document_extractions.company_id
+        AND companies.owner_user_id = auth.uid()
     )
   );
 
