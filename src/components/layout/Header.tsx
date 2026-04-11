@@ -27,15 +27,6 @@ export function Header({ showAuth = true, className = "" }: HeaderProps) {
               <span className="text-gray-700 hover:text-gray-900 cursor-pointer">Product</span>
               <ArrowRight className="w-4 h-4 text-gray-400 rotate-90" />
             </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-gray-700 hover:text-gray-900 cursor-pointer">Solutions</span>
-              <ArrowRight className="w-4 h-4 text-gray-400 rotate-90" />
-            </div>
-            <span className="text-gray-700 hover:text-gray-900 cursor-pointer">Enterprise</span>
-            <div className="flex items-center space-x-1">
-              <span className="text-gray-700 hover:text-gray-900 cursor-pointer">Resources</span>
-              <ArrowRight className="w-4 h-4 text-gray-400 rotate-90" />
-            </div>
             <span className="text-gray-700 hover:text-gray-900 cursor-pointer">Pricing</span>
           </nav>
           
