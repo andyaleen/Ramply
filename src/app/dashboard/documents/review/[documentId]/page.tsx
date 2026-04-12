@@ -1,9 +1,10 @@
-﻿import { DocumentReview } from '@/components/company/DocumentReview'
+import { DocumentReview } from '@/components/company/DocumentReview'
 
 interface DocumentReviewPageProps {
-  params: { documentId: string }
+  params: Promise<{ documentId: string }>
 }
 
-export default function DocumentReviewPage({ params }: DocumentReviewPageProps) {
-  return <DocumentReview documentId={params.documentId} />
+export default async function DocumentReviewPage({ params }: DocumentReviewPageProps) {
+  const { documentId } = await params
+  return <DocumentReview documentId={documentId} />
 }

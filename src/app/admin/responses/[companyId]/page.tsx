@@ -1,9 +1,10 @@
-﻿import { CompanyAssets } from '@/components/dashboard/CompanyAssets'
+import { CompanyAssets } from '@/components/dashboard/CompanyAssets'
 
 interface CompanyAssetsPageProps {
-  params: { companyId: string }
+  params: Promise<{ companyId: string }>
 }
 
-export default function CompanyAssetsPage({ params }: CompanyAssetsPageProps) {
-  return <CompanyAssets companyId={params.companyId} />
+export default async function CompanyAssetsPage({ params }: CompanyAssetsPageProps) {
+  const { companyId } = await params
+  return <CompanyAssets companyId={companyId} />
 }
