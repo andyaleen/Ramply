@@ -66,98 +66,69 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right side - Stacked Document Cards */}
-            <div className="relative flex items-center justify-center h-96 lg:h-auto">
+            {/* Right side - Neatly stacked document cards */}
+            <div className="flex items-center justify-center lg:justify-end">
+              <div className="relative w-80">
 
-              {/* Back card: Certificate of Insurance */}
-              <div className="absolute top-0 right-4 lg:right-0 w-72 bg-white rounded-2xl shadow-lg p-5 z-10 transform translate-y-2 rotate-1">
-                <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Certificate of Insurance</p>
-                <p className="text-base font-semibold text-gray-900">General Liability</p>
-                <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
-                <div className="mt-2 h-1.5 w-3/4 bg-blue-50 rounded-full" />
-              </div>
+                {/* Card 1 (bottom of stack) - Certificate of Insurance */}
+                <div className="relative bg-white rounded-2xl shadow-md p-5 mb-3 border border-gray-100">
+                  <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Certificate of Insurance</p>
+                  <p className="text-base font-semibold text-gray-900">General Liability</p>
+                  <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
+                  <div className="mt-2 h-1.5 w-3/4 bg-blue-50 rounded-full" />
+                </div>
 
-              {/* Middle card: Tax Document / W-9 */}
-              <div className="absolute top-16 right-2 lg:right-4 w-72 bg-white rounded-2xl shadow-lg p-5 z-20 transform -rotate-1">
-                <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Tax Document</p>
-                <p className="text-base font-semibold text-gray-900">W-9 Form</p>
-                <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
-                <div className="mt-2 h-1.5 w-2/3 bg-blue-50 rounded-full" />
-              </div>
+                {/* Card 2 - W-9 Tax Document */}
+                <div className="relative bg-white rounded-2xl shadow-md p-5 mb-3 border border-gray-100">
+                  <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Tax Document</p>
+                  <p className="text-base font-semibold text-gray-900">W-9 Form</p>
+                  <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
+                  <div className="mt-2 h-1.5 w-2/3 bg-blue-50 rounded-full" />
+                </div>
 
-              {/* Front card: Company Profile (styled like card 2) */}
-              <div className="relative w-80 bg-white rounded-2xl shadow-2xl z-30 transform translate-y-28 -translate-x-2">
-                <div className="p-5 space-y-5">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold tracking-widest text-blue-500 uppercase mb-1">Shared via Ramply</p>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Standard Vendor Onboarding
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-0.5">
-                        Complete vendor setup with all required documents
-                      </p>
+                {/* Card 3 - Resale Certificate */}
+                <div className="relative bg-white rounded-2xl shadow-md p-5 mb-3 border border-gray-100">
+                  <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Resale Certificate</p>
+                  <p className="text-base font-semibold text-gray-900">State Tax Exemption</p>
+                  <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
+                  <div className="mt-2 h-1.5 w-1/2 bg-blue-50 rounded-full" />
+                </div>
+
+                {/* Card 4 (top / foreground) - Vendor Onboarding summary */}
+                <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100">
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold tracking-widest text-blue-500 uppercase mb-1">Shared via Ramply</p>
+                        <h3 className="text-lg font-semibold text-gray-900">Standard Vendor Onboarding</h3>
+                        <p className="text-sm text-gray-500 mt-0.5">Complete vendor setup with all required documents</p>
+                      </div>
+                      <button className="text-gray-400 hover:text-gray-600 ml-2">
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600 ml-2">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-                  </div>
 
-                  {/* Required Information */}
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Required Information</h4>
-                    <div className="space-y-2.5">
-                      <div className="flex items-center text-sm text-gray-700">
-                        <div className="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center mr-3 shrink-0">
-                          <Building className="w-3.5 h-3.5 text-blue-600" />
-                        </div>
-                        Company Legal Information
-                      </div>
-                      <div className="flex items-center text-sm text-gray-700">
-                        <div className="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center mr-3 shrink-0">
-                          <svg className="w-3.5 h-3.5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M2 6C2 4.89543 2.89543 4 4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6ZM4 6V18H20V6H4ZM6 8H18V10H6V8ZM6 12H14V14H6V12Z"/>
-                          </svg>
-                        </div>
-                        Banking &amp; Payment Details
-                      </div>
-                      <div className="flex items-center text-sm text-gray-700">
-                        <div className="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center mr-3 shrink-0">
-                          <FileText className="w-3.5 h-3.5 text-blue-600" />
-                        </div>
-                        Tax Documentation (W-9)
-                      </div>
-                      <div className="flex items-center text-sm text-gray-700">
-                        <div className="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center mr-3 shrink-0">
-                          <Shield className="w-3.5 h-3.5 text-blue-600" />
-                        </div>
-                        Certificate of Insurance
-                      </div>
+                    <div className="flex items-center text-sm text-blue-600 font-medium">
+                      <CheckCircle className="w-4 h-4 mr-2 text-blue-500" />
+                      Verified and shared
                     </div>
-                  </div>
 
-                  {/* Verified badge */}
-                  <div className="flex items-center text-sm text-blue-600 font-medium pt-1">
-                    <CheckCircle className="w-4 h-4 mr-2 text-blue-500" />
-                    Verified and shared
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex space-x-2 pt-1">
-                    <Button variant="outline" size="sm" className="flex-1 border-gray-200">
-                      <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"/>
-                      </svg>
-                      Copy link
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-gray-200">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
-                      </svg>
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="sm" className="flex-1 border-gray-200">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"/>
+                        </svg>
+                        Copy link
+                      </Button>
+                      <Button variant="outline" size="sm" className="border-gray-200">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                        </svg>
+                      </Button>
+                    </div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
