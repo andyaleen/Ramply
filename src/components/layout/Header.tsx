@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { useRouter } from 'next/navigation'
-import { ArrowRight } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 
 interface HeaderProps {
   showAuth?: boolean
@@ -25,7 +25,7 @@ export function Header({ showAuth = true, className = "" }: HeaderProps) {
           <nav className="hidden md:flex items-center space-x-8">
             <div className="flex items-center space-x-1">
               <span className="text-gray-700 hover:text-gray-900 cursor-pointer">Product</span>
-              <ArrowRight className="w-4 h-4 text-gray-400 rotate-90" />
+              <ChevronDown className="w-4 h-4 text-gray-400" />
             </div>
             <span className="text-gray-700 hover:text-gray-900 cursor-pointer">Pricing</span>
           </nav>

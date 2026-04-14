@@ -2,37 +2,56 @@
 
 import { Button } from "@/components/ui/button"
 import { Layout } from "@/components/layout"
-import { useRouter } from 'next/navigation'
-import { Building, FileText, Shield, Users, ArrowRight, MoreVertical, CheckCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Building2, CheckCircle, FileText, Landmark, MoreVertical, ShieldCheck } from "lucide-react"
 
+const requiredInfo = [
+  {
+    label: "Company Legal Information",
+    icon: Building2,
+  },
+  {
+    label: "Banking & Payment Details",
+    icon: Landmark,
+  },
+  {
+    label: "Tax Documentation (W-9)",
+    icon: FileText,
+  },
+  {
+    label: "Certificate of Insurance",
+    icon: ShieldCheck,
+  },
+]
+
+/**
+ * Landing page hero layout that mirrors the product mock.
+ */
 export default function Landing() {
   const router = useRouter()
 
   return (
     <Layout>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-[#f5f5f0]">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-28">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section className="bg-[#f6f5f0]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
-            {/* Left side - Content */}
-            <div className="space-y-8">
+            <div className="bg-[#f9f8f4] rounded-2xl p-8 md:p-10 shadow-sm border border-[#ece9df]">
               <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase">
                 Vendor Onboarding, Solved
               </p>
 
-              <h1 className="text-5xl font-bold text-gray-900 leading-tight">
+              <h1 className="mt-4 text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
                 One profile.<br />
                 Every partner.<br />
                 Zero forms.
               </h1>
 
-              <p className="text-lg text-gray-600 max-w-md leading-relaxed">
+              <p className="mt-5 text-lg text-gray-600 max-w-md leading-relaxed">
                 Ramply replaces the endless cycle of vendor onboarding forms with a single, secure profile you share in one click. Your W-9s, certificates, and company data, always ready.
               </p>
 
-              {/* Auth Buttons */}
-              <div className="space-y-4">
+              <div className="mt-8 space-y-4">
                 <Button
                   className="w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium"
                   onClick={() => router.push('/signup')}
@@ -66,36 +85,10 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right side - Neatly stacked document cards */}
             <div className="flex items-center justify-center lg:justify-end">
-              <div className="relative w-80">
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
 
-                {/* Card 1 (bottom of stack) - Certificate of Insurance */}
-                <div className="relative bg-white rounded-2xl shadow-md p-5 mb-3 border border-gray-100">
-                  <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Certificate of Insurance</p>
-                  <p className="text-base font-semibold text-gray-900">General Liability</p>
-                  <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
-                  <div className="mt-2 h-1.5 w-3/4 bg-blue-50 rounded-full" />
-                </div>
-
-                {/* Card 2 - W-9 Tax Document */}
-                <div className="relative bg-white rounded-2xl shadow-md p-5 mb-3 border border-gray-100">
-                  <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Tax Document</p>
-                  <p className="text-base font-semibold text-gray-900">W-9 Form</p>
-                  <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
-                  <div className="mt-2 h-1.5 w-2/3 bg-blue-50 rounded-full" />
-                </div>
-
-                {/* Card 3 - Resale Certificate */}
-                <div className="relative bg-white rounded-2xl shadow-md p-5 mb-3 border border-gray-100">
-                  <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Resale Certificate</p>
-                  <p className="text-base font-semibold text-gray-900">State Tax Exemption</p>
-                  <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
-                  <div className="mt-2 h-1.5 w-1/2 bg-blue-50 rounded-full" />
-                </div>
-
-                {/* Card 4 (top / foreground) - Vendor Onboarding summary */}
-                <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100">
+                <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-100">
                   <div className="p-5 space-y-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -103,9 +96,21 @@ export default function Landing() {
                         <h3 className="text-lg font-semibold text-gray-900">Standard Vendor Onboarding</h3>
                         <p className="text-sm text-gray-500 mt-0.5">Complete vendor setup with all required documents</p>
                       </div>
-                      <button className="text-gray-400 hover:text-gray-600 ml-2">
+                      <button className="text-gray-400 hover:text-gray-600 ml-2" aria-label="More options">
                         <MoreVertical className="w-5 h-5" />
                       </button>
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] font-semibold tracking-widest text-gray-400 uppercase">Required Information</p>
+                      <div className="mt-3 space-y-2">
+                        {requiredInfo.map((item) => (
+                          <div key={item.label} className="flex items-center text-sm text-gray-600">
+                            <item.icon className="w-4 h-4 text-blue-500 mr-2" />
+                            {item.label}
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="flex items-center text-sm text-blue-600 font-medium">
@@ -129,95 +134,32 @@ export default function Landing() {
                   </div>
                 </div>
 
+                <div className="w-full max-w-xs space-y-4">
+                  <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100">
+                    <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Certificate of Insurance</p>
+                    <p className="text-base font-semibold text-gray-900">General Liability</p>
+                    <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
+                    <div className="mt-2 h-1.5 w-3/4 bg-blue-50 rounded-full" />
+                  </div>
+
+                  <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100">
+                    <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Tax Document</p>
+                    <p className="text-base font-semibold text-gray-900">W-9 Form</p>
+                    <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
+                    <div className="mt-2 h-1.5 w-2/3 bg-blue-50 rounded-full" />
+                  </div>
+
+                  <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100">
+                    <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Resale Certificate</p>
+                    <p className="text-base font-semibold text-gray-900">State Tax Exemption</p>
+                    <div className="mt-3 h-1.5 w-full bg-blue-100 rounded-full" />
+                    <div className="mt-2 h-1.5 w-1/2 bg-blue-50 rounded-full" />
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Stats bar */}
-        <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-              <div>
-                <p className="text-4xl font-bold text-blue-600">73%</p>
-                <p className="text-sm text-gray-500 mt-2">of vendor onboarding is still done via email</p>
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-blue-600">14 hrs</p>
-                <p className="text-sm text-gray-500 mt-2">average time to onboard a single vendor</p>
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-blue-600">$2.5B+</p>
-                <p className="text-sm text-gray-500 mt-2">vendor onboarding software market in 2026</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="bg-gray-50 py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Everything you need to onboard vendors
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Streamline your vendor management process with secure, automated onboarding that saves time and reduces manual work.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-6">
-                <Shield className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Secure &amp; Compliant</h3>
-              <p className="text-gray-600">
-                Bank-level security with encrypted data transmission and secure document storage that meets enterprise compliance standards.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-6">
-                <FileText className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Document Collection</h3>
-              <p className="text-gray-600">
-                Automatically collect W-9s, insurance certificates, banking information, and other required documents with validation.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-6">
-                <Users className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Easy Collaboration</h3>
-              <p className="text-gray-600">
-                Send secure onboarding links to vendors and track progress in real-time with automated notifications and reminders.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-blue-600 py-20">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Ready to streamline your vendor onboarding?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8">
-            Join thousands of companies that trust Ramply for their vendor management needs.
-          </p>
-          <Button
-            size="lg"
-            className="bg-white text-blue-600 hover:bg-gray-100 text-lg px-8 py-3"
-            onClick={() => router.push('/signup')}
-          >
-            Get started for free
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </Button>
         </div>
       </section>
     </Layout>
