@@ -9,13 +9,13 @@ import { LoadingFallback } from '@/components/LoadingFallback'
 import { createClient } from '@/lib/supabase/client'
 
 // ✅ Create supabase client
-const supabase = createClient()
 
 function LoginContent() {
   const { user, userProfile, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [checkingSession, setCheckingSession] = useState(true)
+  const [supabase] = useState(() => createClient())
 
   // ✅ Extract redirect query param (default to /dashboard)
   const redirectPath = searchParams.get('redirect') || '/dashboard'
