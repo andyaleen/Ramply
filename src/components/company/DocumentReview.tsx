@@ -263,8 +263,13 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            No OCR results yet. Run OCR to extract fields.
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <p className="text-sm text-muted-foreground">
+              No OCR results yet.
+            </p>
+            <Button size="sm" onClick={handleRetry} disabled={saving}>
+              {saving ? 'Working...' : 'Run OCR'}
+            </Button>
           </CardContent>
         </Card>
       )}

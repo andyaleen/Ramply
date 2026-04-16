@@ -34,7 +34,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserRow | null>(null)
   const [company, setCompany] = useState<CompanyRow | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
+
+  /**
+   * Keeps a single browser client instance for the lifetime of the provider so
+   * auth listeners and session bootstrap logic do not restart on every render.
+   */
+  if (!supabaseRef.current) {
+    supabaseRef.current = createClient()
+  }
+
+  const supabase = supabaseRef.current
 
   const userProfileRef = useRef<UserRow | null>(null)
   userProfileRef.current = userProfile

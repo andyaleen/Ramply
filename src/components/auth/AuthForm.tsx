@@ -19,27 +19,51 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const searchParams = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
   const initialTab = tabFromUrl || defaultTab
-  
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [activeTab, setActiveTab] = useState(initialTab)
   const { signIn } = useAuth()
   const router = useRouter()
   const supabase = createClient()
+
   const resetForm = () => {
     setEmail('')
     setPassword('')
     setConfirmPassword('')
     setError('')
     setSuccess(false)
+    setMagicLinkSent(false)
   }
+
   const handleTabChange = (value: string) => {
     setActiveTab(value as 'signin' | 'signup')
     resetForm()
+  }
+
+  /** Formats common Supabase network errors into user-friendly messages. */
+  const formatAuthError = (message: string): string => {
+    if (message === 'Failed to fetch' || message.includes('fetch') || message.includes('network')) {
+      return 'Unable to connect. Please check your internet connection and try again.'
+    }
+    if (message.includes('Invalid login credentials')) {
+      return 'Invalid email or password. Please check your credentials and try again.'
+    }
+    if (message.includes('Email not confirmed')) {
+      return 'Please check your email and confirm your account before signing in.'
+    }
+    if (message.includes('User already registered')) {
+      return 'An account with this email already exists. Please sign in instead.'
+    }
+    if (message.includes('invalid') && message.includes('email')) {
+      return 'The email address format is not accepted. Please try a different email address.'
+    }
+    return message
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -47,7 +71,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     setLoading(true)
     setError('')
 
-    // Basic validation
     if (!email || !password) {
       setError('Please enter both email and password')
       setLoading(false)
@@ -58,78 +81,62 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       setError('Password must be at least 6 characters')
       setLoading(false)
       return
-    }      try {
+    }
+
+    try {
       const { error } = await signIn(email.trim(), password)
       if (error) {
-        // Provide more helpful error messages
-        if (error.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please check your credentials and try again.')
-        } else if (error.message.includes('Email not confirmed')) {
-          setError('Please check your email and confirm your account before signing in.')
-        } else {
-          setError(error.message)
-        }
+        setError(formatAuthError(error.message))
       } else {
-        // Wait a moment for the auth context to update with user profile
+        // Wait briefly for the auth context to update, then redirect by role
         setTimeout(async () => {
-          // Get the latest auth state after sign in
           const { data: { session } } = await supabase.auth.getSession()
-          console.log("if user exists" , session?.user);
-          
           if (session?.user) {
-            // Fetch user profile to determine role
             const { data: userProfile } = await supabase
               .from('users')
               .select('role')
               .eq('id', session.user.id)
               .single()
-            
-            // Redirect based on role
+
             if (userProfile?.role === 'admin') {
-              console.log('Redirecting admin user to /admin')
               router.push('/admin')
             } else {
-              console.log('Redirecting regular user to /dashboard')
               router.push('/dashboard')
             }
-          } else {
-            // Fallback to dashboard if we can't determine role
-            // router.push('/dashboard')
           }
-        }, 500) // Small delay to ensure auth context is updated
+        }, 500)
       }
     } catch (err) {
       console.error('Sign in error:', err)
-      setError('An unexpected error occurred')    } finally {
+      setError('An unexpected error occurred')
+    } finally {
       setLoading(false)
     }
   }
-  
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    // Basic validation
     if (!email || !password || !confirmPassword) {
       setError('Please fill in all fields')
       setLoading(false)
       return
     }
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       setLoading(false)
       return
     }
 
-    // Validate password strength
     if (password.length < 6) {
       setError('Password must be at least 6 characters long')
       setLoading(false)
       return
-    }    // Email validation with more comprehensive checks
+    }
+
     const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address')
@@ -137,96 +144,72 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       return
     }
 
-    // Additional email validation checks
-    if (email.length < 5) {
-      setError('Email address is too short')
-      setLoading(false)
-      return
-    }
-
-    const emailParts = email.split('@')
-    if (emailParts.length !== 2 || emailParts[0].length < 2 || emailParts[1].length < 3) {
-      setError('Please enter a complete email address')
-      setLoading(false)
-      return
-    }
-
-    // Admin-specific validation - removed
-    // All users will be created as 'external' by default
-
-    console.log(`🔧 Regular user signup initiated for:`, email)
-
     try {
-      const redirectUrl = '/dashboard'
-      
-      console.log('🚀 Starting signup process...')
-      console.log('📧 Email:', email.trim())
-      console.log('🔗 Redirect URL:', `${window.location.origin}/auth/callback?next=${redirectUrl}`)
-      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${redirectUrl}`,
-          data: {
-            // Additional metadata that might help with email delivery
-            signup_source: 'web_form',
-            timestamp: new Date().toISOString()
-          }
-        }
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        },
       })
-      console.log("autherror======= ", authError);
-      
-      
-      console.log('📊 Signup response:', {
-        user: authData.user ? {
-          id: authData.user.id,
-          email: authData.user.email,
-          email_confirmed_at: authData.user.email_confirmed_at,
-          created_at: authData.user.created_at
-        } : null,
-        session: authData.session ? 'Session created' : 'No session',
-        error: authError
-      })      
+
       if (authError) {
-        console.error('❌ Auth signup error:', authError)
-        if (authError.message.includes('User already registered')) {
-          setError('An account with this email already exists. Please sign in instead.')
-        } else if (authError.message.includes('invalid') && authError.message.includes('email')) {
-          setError('The email address format is not accepted. Please try a different email address.')
-        } else if (authError.message.includes('Email address')) {
-          setError('There was an issue with the email address. Please try a different email or contact support.')
-        } else {
-          setError(authError.message)
-        }
+        setError(formatAuthError(authError.message))
         setLoading(false)
         return
       }
 
       if (authData.user) {
-        console.log('✅ User created successfully:', authData.user.id)
-        console.log('📧 Email confirmation should be sent to:', authData.user.email)
-        
-        // Check if email confirmation is required
-        if (!authData.session && authData.user.email_confirmed_at === null) {
-          console.log('📧 Email confirmation required - user should check their email')
-        } else if (authData.session) {
-          console.log('✅ User is immediately signed in (email confirmation not required)')
-        }
-        
-        // Don't create profile here - let AuthContext handle it
-        // This prevents the duplicate key constraint error
-        console.log('🔄 Profile creation will be handled by AuthContext')
-        
         setSuccess(true)
       }
     } catch (err) {
-      console.error('💥 Sign up error:', err)
+      console.error('Sign up error:', err)
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
     }
   }
+
+  /**
+   * Sends a passwordless magic link to the user's email via Supabase OTP.
+   * Works for both existing accounts and new sign-ups.
+   */
+  const handleMagicLink = async () => {
+    if (!email) {
+      setError('Please enter your email address first')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        },
+      })
+
+      if (error) {
+        setError(formatAuthError(error.message))
+      } else {
+        setMagicLinkSent(true)
+      }
+    } catch (err) {
+      console.error('Magic link error:', err)
+      setError('Failed to send magic link. Please check your connection and try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleGoogleSignIn = async () => {
     setLoading(true)
     setError('')
@@ -235,20 +218,64 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
-        }
+          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        },
       })
       if (error) {
-        setError(error.message)
+        setError(formatAuthError(error.message))
       }
-    } catch {
-      setError('An unexpected error occurred')
+    } catch (err) {
+      console.error('Google sign-in error:', err)
+      setError(
+        err instanceof TypeError && err.message === 'Failed to fetch'
+          ? 'Unable to connect. Please check your internet connection and try again.'
+          : 'Google sign-in failed. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
   }
 
-  // Success state for signup
+  // Magic link sent confirmation screen
+  if (magicLinkSent) {
+    return (
+      <div className="flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 min-h-[calc(100vh-140px)]">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-blue-600 p-3 rounded-full">
+                <Mail className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+            <CardDescription>
+              We sent a sign-in link to <strong>{email}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-600 text-center">
+              Click the link in your email to sign in. The link expires in 1 hour.
+            </p>
+            <div className="flex flex-col space-y-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMagicLinkSent(false)
+                  setError('')
+                }}
+                className="w-full"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Sign In
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Sign-up email confirmation screen
   if (success) {
     return (
       <div className="flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4 min-h-[calc(100vh-140px)]">
@@ -258,15 +285,13 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               <div className="bg-green-600 p-3 rounded-full">
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
-            </div>            
-            <CardTitle className="text-2xl font-bold">
-              Check Your Email
-            </CardTitle>
+            </div>
+            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
             <CardDescription>
-              We&apos;ve sent you a confirmation link at {email}
+              We&apos;ve sent a confirmation link to {email}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">            
+          <CardContent className="space-y-4">
             <p className="text-sm text-gray-600 text-center">
               Please check your email and click the confirmation link to activate your account.
             </p>
@@ -281,7 +306,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Sign In
-              </Button>              <Button
+              </Button>
+              <Button
                 onClick={() => {
                   setSuccess(false)
                   setEmail('')
@@ -312,12 +338,14 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
           <CardDescription>
             Streamline your vendor and customer onboarding process
           </CardDescription>
-        </CardHeader>        <CardContent>
-          {/* Google OAuth Button */}
+        </CardHeader>
+
+        <CardContent>
+          {/* Google OAuth */}
           <div className="mb-6">
-            <Button 
+            <Button
               onClick={handleGoogleSignIn}
-              variant="outline" 
+              variant="outline"
               className="w-full h-11"
               disabled={loading}
             >
@@ -329,7 +357,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               </svg>
               Continue with Google
             </Button>
-            
+
             <div className="flex items-center my-4">
               <div className="flex-1 border-t border-gray-300" />
               <span className="px-3 text-gray-500 text-sm">OR</span>
@@ -342,7 +370,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
-            
+
+            {/* ── Sign In Tab ── */}
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
@@ -374,7 +403,9 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                       required
                     />
                   </div>
-                </div>                {error && (
+                </div>
+
+                {error && (
                   <div className="space-y-2">
                     <p className="text-sm text-red-600">{error}</p>
                     {error.includes('Invalid email or password') && (
@@ -391,12 +422,26 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                     )}
                   </div>
                 )}
+
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Signing In...' : 'Sign In'}
                 </Button>
+
+                {/* Magic link alternative */}
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={handleMagicLink}
+                    disabled={loading}
+                    className="text-sm text-blue-600 hover:text-blue-500 hover:underline disabled:opacity-50"
+                  >
+                    Send magic link instead
+                  </button>
+                </div>
               </form>
             </TabsContent>
-            
+
+            {/* ── Sign Up Tab ── */}
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
@@ -413,7 +458,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                       required
                     />
                   </div>
-                </div>                
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
                   <div className="relative">
@@ -433,7 +478,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                 <div className="space-y-2">
                   <Label htmlFor="signup-confirm-password">Confirm Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />                    <Input
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
                       id="signup-confirm-password"
                       type="password"
                       placeholder="Confirm your password"
@@ -471,8 +517,10 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                 </Button>
               </form>
             </TabsContent>
-          </Tabs>        
-          </CardContent>            <CardFooter className="text-center text-sm text-muted-foreground">
+          </Tabs>
+        </CardContent>
+
+        <CardFooter className="text-center text-sm text-muted-foreground">
           <p className="w-full">
             By continuing, you agree to our{' '}
             <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
@@ -484,4 +532,3 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     </div>
   )
 }
-

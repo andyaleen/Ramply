@@ -42,6 +42,7 @@ export default function OnboardingPage() {
         .from('company_documents')
         .select('*')
         .eq('company_id', company.id)
+        .is('superseded_by', null)
       return data ?? []
     },
     enabled: !!company,

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import Link from 'next/link'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ShareRequestRow, CompanyDocumentRow } from '@/lib/database.types'
@@ -12,8 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, FileText, AlertTriangle } from 'lucide-react'
+import { CheckCircle, FileText, Upload, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useDocumentUpload } from '@/hooks/useDocumentUpload'
 
 type ShareRequestForFulfillment = Omit<ShareRequestRow, 'recipient_email' | 'token'>
 
@@ -24,8 +24,9 @@ interface FulfillmentFormProps {
 }
 
 export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: FulfillmentFormProps) {
-  const { company } = useAuth()
+  const { user, company } = useAuth()
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
   /** Pre-fill field values from the authenticated user's company profile */
   const [fieldValues, setFieldValues] = useState<Partial<Record<FieldKey, string>>>(() => {
@@ -39,6 +40,11 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
     return vals
   })
 
+  const allDocTypes = [
+    ...shareRequest.mandatory_documents,
+    ...shareRequest.optional_documents,
+  ] as DocumentTypeKey[]
+
   const findDoc = (docType: DocumentTypeKey) =>
     vaultDocs.find(d => d.document_type === docType) ?? null
 
@@ -46,14 +52,42 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
     docType => !vaultDocs.some(d => d.document_type === docType)
   ) as DocumentTypeKey[]
 
+  const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
+    user,
+    company,
+    existingDocs: vaultDocs,
+    onSuccess: ({ doc, duplicate }, docType) => {
+      if (duplicate) {
+        toast.info('This file is identical to the current version — no update needed.')
+        return
+      }
+      toast.success(`${documentTypeLabel(docType)} uploaded`)
+      queryClient.setQueryData<CompanyDocumentRow[]>(
+        ['vault-docs', company?.id],
+        (current = []) => {
+          const filtered = current.filter(existing => existing.document_type !== docType)
+          return [...filtered, doc]
+        }
+      )
+      queryClient.invalidateQueries({ queryKey: ['vault-docs', company?.id] })
+    },
+    onError: () => {
+      toast.error('Upload failed. Please try again.')
+    },
+    onClassified: (slotType, detectedType) => {
+      if (!detectedType || detectedType === slotType) return
+      toast.warning(
+        `This looks like a ${documentTypeLabel(detectedType)}, but it was uploaded to the ${documentTypeLabel(slotType)} slot. You can replace it if needed.`,
+        { duration: 8000 }
+      )
+    },
+  })
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!company) throw new Error('No company found')
 
-      const documentIds = [
-        ...shareRequest.mandatory_documents,
-        ...shareRequest.optional_documents,
-      ]
+      const documentIds = allDocTypes
         .map(findDoc)
         .filter((doc): doc is CompanyDocumentRow => !!doc)
         .map((doc) => doc.id)
@@ -122,60 +156,44 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
       )}
 
       {/* Documents */}
-      {(shareRequest.mandatory_documents.length > 0 || shareRequest.optional_documents.length > 0) && (
+      {allDocTypes.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Documents Requested</CardTitle>
-            {missingRequiredDocs.length > 0 && (
-              <div className="flex items-start gap-2 text-sm text-destructive mt-1">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>
-                  Missing required documents:{' '}
-                  {missingRequiredDocs.map(k => documentTypeLabel(k)).join(', ')}.{' '}
-                  Please upload them in your{' '}
-                  <Link href="/dashboard/documents" className="underline font-medium">Document Vault</Link> first.
-                </span>
-              </div>
-            )}
           </CardHeader>
           <CardContent className="space-y-2">
-            {shareRequest.mandatory_documents.map((docType) => {
-              const doc = findDoc(docType)
-              return (
-                <div key={docType} className="flex items-center justify-between p-3 border rounded-md">
-                  <div className="flex items-center gap-2">
-                    {doc
-                      ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                      : <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
-                    <span className="text-sm font-medium">{documentTypeLabel(docType)}</span>
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Required</Badge>
-                  </div>
-                  {doc
-                    ? <Badge variant="secondary" className="text-xs max-w-40 truncate">{doc.file_name}</Badge>
-                    : <Badge variant="destructive" className="text-xs">Not in vault</Badge>}
-                </div>
-              )
-            })}
-            {shareRequest.optional_documents.map((docType) => {
-              const doc = findDoc(docType)
-              return (
-                <div key={docType} className="flex items-center justify-between p-3 border rounded-md">
-                  <div className="flex items-center gap-2">
-                    {doc
-                      ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                      : <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
-                    <span className="text-sm font-medium">{documentTypeLabel(docType)}</span>
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-wide">Optional</Badge>
-                  </div>
-                  {doc
-                    ? <Badge variant="secondary" className="text-xs max-w-40 truncate">{doc.file_name}</Badge>
-                    : <Badge variant="outline" className="text-xs">Not in vault</Badge>}
-                </div>
-              )
-            })}
+            {shareRequest.mandatory_documents.map((docType) => (
+              <DocRow
+                key={docType}
+                docType={docType as DocumentTypeKey}
+                required
+                doc={findDoc(docType as DocumentTypeKey)}
+                uploading={uploading === docType}
+                onUpload={pick}
+              />
+            ))}
+            {shareRequest.optional_documents.map((docType) => (
+              <DocRow
+                key={docType}
+                docType={docType as DocumentTypeKey}
+                required={false}
+                doc={findDoc(docType as DocumentTypeKey)}
+                uploading={uploading === docType}
+                onUpload={pick}
+              />
+            ))}
           </CardContent>
         </Card>
       )}
+
+      {/* Hidden file input shared across all doc rows */}
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+        onChange={handleFileChange}
+      />
 
       <Button
         onClick={() => mutation.mutate()}
@@ -185,6 +203,48 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
       >
         {mutation.isPending ? 'Submitting…' : 'Share Information'}
       </Button>
+    </div>
+  )
+}
+
+interface DocRowProps {
+  docType: DocumentTypeKey
+  required: boolean
+  doc: CompanyDocumentRow | null
+  uploading: boolean
+  onUpload: (docType: DocumentTypeKey) => void
+}
+
+function DocRow({ docType, required, doc, uploading, onUpload }: DocRowProps) {
+  return (
+    <div className="flex items-center justify-between p-3 border rounded-md">
+      <div className="flex items-center gap-2 min-w-0">
+        {doc
+          ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+          : <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
+        <span className="text-sm font-medium truncate">{documentTypeLabel(docType)}</span>
+        <Badge variant="outline" className="text-[10px] uppercase tracking-wide shrink-0">
+          {required ? 'Required' : 'Optional'}
+        </Badge>
+      </div>
+      <div className="flex items-center gap-2 ml-3 shrink-0">
+        {doc && (
+          <span className="text-xs text-muted-foreground max-w-32 truncate hidden sm:block">
+            {doc.file_name}
+          </span>
+        )}
+        <Button
+          size="sm"
+          variant={doc ? 'outline' : 'default'}
+          onClick={() => onUpload(docType)}
+          disabled={uploading}
+        >
+          {uploading
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <><Upload className="h-3 w-3 mr-1" />{doc ? 'Replace' : 'Upload'}</>
+          }
+        </Button>
+      </div>
     </div>
   )
 }

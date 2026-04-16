@@ -1,8 +1,9 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { runOcr } from '@/lib/ocr'
 import { extractW9Fields } from '@/lib/ocr/w9-extractor'
+import { classifyDocument } from '@/lib/ocr/classifier'
 
 const IngestSchema = z.object({
   company_document_id: z.string().uuid(),
@@ -87,9 +88,15 @@ export async function POST(req: Request) {
       contentBase64: await blobToBase64(fileBlob),
     })
 
-    const extractedFields = documentRow.document_type === 'W9'
-      ? extractW9Fields(ocrResult.documentJson, ocrResult.rawText)
-      : null
+    // Run OCR field extraction and document classification in parallel
+    const [extractedFields, detectedDocumentType] = await Promise.all([
+      Promise.resolve(
+        documentRow.document_type === 'W9'
+          ? extractW9Fields(ocrResult.documentJson, ocrResult.rawText)
+          : null
+      ),
+      classifyDocument(ocrResult.rawText),
+    ])
 
     if (extractedFields) {
       await supabase
@@ -110,6 +117,7 @@ export async function POST(req: Request) {
         metadata: {
           ...ocrResult.metadata,
           extracted_fields: extractedFields,
+          detected_document_type: detectedDocumentType,
         },
       })
       .select()
@@ -120,7 +128,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to persist OCR extraction' }, { status: 500 })
     }
 
-    return NextResponse.json({ extraction })
+    return NextResponse.json({ extraction, detected_document_type: detectedDocumentType })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown OCR error'
 
