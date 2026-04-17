@@ -34,6 +34,18 @@ export default function Landing() {
   const { user, loading, isAdmin } = useAuth()
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const authCode = params.get('code')
+
+    if (authCode) {
+      const callbackParams = new URLSearchParams(params.toString())
+      if (!callbackParams.get('next')) {
+        callbackParams.set('next', '/dashboard')
+      }
+      router.replace(`/auth/callback?${callbackParams.toString()}`)
+      return
+    }
+
     if (!loading && user) {
       router.push(isAdmin ? '/admin' : '/dashboard')
     }
