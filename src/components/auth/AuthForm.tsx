@@ -381,6 +381,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                     <Input
                       id="signin-email"
                       type="email"
+                      autoComplete="username"
                       placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -396,6 +397,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                     <Input
                       id="signin-password"
                       type="password"
+                      autoComplete="current-password"
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -451,6 +453,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                     <Input
                       id="signup-email"
                       type="email"
+                      autoComplete="email"
                       placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -466,6 +469,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                     <Input
                       id="signup-password"
                       type="password"
+                      autoComplete="new-password"
                       placeholder="Create a password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -482,6 +486,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                     <Input
                       id="signup-confirm-password"
                       type="password"
+                      autoComplete="new-password"
                       placeholder="Confirm your password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}

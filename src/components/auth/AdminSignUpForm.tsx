@@ -195,6 +195,7 @@ export function AdminSignUpForm() {
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="admin@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -211,6 +212,7 @@ export function AdminSignUpForm() {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -227,6 +229,7 @@ export function AdminSignUpForm() {
                 <Input
                   id="confirmPassword"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="Confirm password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
