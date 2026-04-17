@@ -1,51 +1,51 @@
 'use client'
 
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { LoadingFallback } from '@/components/LoadingFallback'
 import { Layout } from '@/components/layout'
+import { useAuth } from '@/contexts/AuthContext'
 
 function AuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user, loading } = useAuth()
+  const [timedOut, setTimedOut] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
+    const code = searchParams.get('code')
+    const next = searchParams.get('next') || '/dashboard'
+    const authError = searchParams.get('error_description') || searchParams.get('error')
 
-    const completeAuth = async () => {
-      const code = searchParams.get('code')
-      const next = searchParams.get('next') || '/dashboard'
-
-      if (!code) {
-        if (!cancelled) {
-          router.replace('/auth/auth-code-error?error=No authorization code provided')
-        }
-        return
-      }
-
-      const supabase = createClient()
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-
-      if (cancelled) return
-
-      const sessionUser = data.session?.user
-
-      if (error || !sessionUser) {
-        const message = error?.message || 'Authentication failed'
-        router.replace(`/auth/auth-code-error?error=${encodeURIComponent(message)}`)
-        return
-      }
-
-      window.location.replace(`/post-login?next=${encodeURIComponent(next)}`)
+    if (!code) {
+      router.replace('/auth/auth-code-error?error=No authorization code provided')
+      return
     }
 
-    completeAuth()
+    if (authError) {
+      router.replace(`/auth/auth-code-error?error=${encodeURIComponent(authError)}`)
+      return
+    }
+
+    if (!loading && user) {
+      window.location.replace(`/post-login?next=${encodeURIComponent(next)}`)
+      return
+    }
+
+    if (!loading && !user && timedOut) {
+      router.replace('/auth/auth-code-error?error=Authentication session could not be established')
+    }
+  }, [loading, router, searchParams, timedOut, user])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setTimedOut(true)
+    }, 5000)
 
     return () => {
-      cancelled = true
+      window.clearTimeout(timer)
     }
-  }, [router, searchParams])
+  }, [])
 
   return (
     <Layout showAuth={false}>
