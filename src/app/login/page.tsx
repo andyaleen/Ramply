@@ -1,63 +1,29 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { LoadingFallback } from '@/components/LoadingFallback'
-import { createClient } from '@/lib/supabase/client'
-
-// ✅ Create supabase client
 
 function LoginContent() {
   const { user, userProfile, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [checkingSession, setCheckingSession] = useState(true)
-  const [supabase] = useState(() => createClient())
-
-  // ✅ Extract redirect query param (default to /dashboard)
   const redirectPath = searchParams.get('redirect') || '/dashboard'
 
-  // ✅ Check session once on mount
   useEffect(() => {
-    const refreshSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession()
-        console.log("Supabase session:", data?.session)
-        console.log("Supabase error", error);
-        // If session is missing, we can still proceed to show AuthForm
-        // Don't block on missing session
-      } catch (err) {
-        console.error("Error getting session:", err)
-      } finally {
-        setCheckingSession(false)
-      }
-    }
-
-    refreshSession()
-  }, [])
-
-
-  // ✅ Redirect only if user + profile exist and checks are done
-  useEffect(() => {
-
-    if (!checkingSession && !loading && user && userProfile) {
+    if (!loading && user && userProfile) {
       if (userProfile.role === 'admin') {
-        console.log('Redirecting admin to /admin')
         router.push('/admin')
       } else {
-        console.log(`Redirecting user to ${redirectPath}`)
         router.push(redirectPath)
       }
     }
-  }, [user, userProfile, loading, checkingSession, redirectPath, router])
+  }, [user, userProfile, loading, redirectPath, router])
 
-
-
-  // ✅ While checking session or loading user info
-  if (loading || checkingSession) {
+  if (loading) {
     return (
       <Layout showAuth={false}>
         <LoadingFallback
@@ -68,16 +34,18 @@ function LoginContent() {
       </Layout>
     )
   }
-  // ✅ Show AuthForm if not authenticated yet
+
   return (
     <Layout showAuth={false}>
-      <Suspense fallback={
-        <LoadingFallback
-          title="Loading"
-          description="Loading authentication form..."
-          onRefresh={() => window.location.reload()}
-        />
-      }>
+      <Suspense
+        fallback={
+          <LoadingFallback
+            title="Loading"
+            description="Loading authentication form..."
+            onRefresh={() => window.location.reload()}
+          />
+        }
+      >
         <AuthForm />
       </Suspense>
     </Layout>
@@ -86,15 +54,17 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <Layout showAuth={false}>
-        <LoadingFallback
-          title="Loading"
-          description="Loading login page..."
-          onRefresh={() => window.location.reload()}
-        />
-      </Layout>
-    }>
+    <Suspense
+      fallback={
+        <Layout showAuth={false}>
+          <LoadingFallback
+            title="Loading"
+            description="Loading login page..."
+            onRefresh={() => window.location.reload()}
+          />
+        </Layout>
+      }
+    >
       <LoginContent />
     </Suspense>
   )
