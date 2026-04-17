@@ -10,6 +10,7 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     const { pathname, search } = request.nextUrl
+    const hasAuthCode = request.nextUrl.searchParams.has('code')
     const isProtectedRoute =
       pathname.startsWith('/dashboard') ||
       pathname.startsWith('/admin') ||
@@ -18,6 +19,23 @@ export async function middleware(request: NextRequest) {
       pathname === '/promote' ||
       pathname === '/signout'
     const isAuthPage = pathname === '/login' || pathname === '/signup'
+
+    if (pathname === '/' && hasAuthCode) {
+      const callbackUrl = request.nextUrl.clone()
+      callbackUrl.pathname = '/auth/callback'
+      if (!callbackUrl.searchParams.get('next')) {
+        callbackUrl.searchParams.set('next', '/dashboard')
+      }
+      return NextResponse.redirect(callbackUrl)
+    }
+
+    if (pathname === '/' && user) {
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = '/post-login'
+      redirectUrl.search = ''
+      redirectUrl.searchParams.set('next', '/dashboard')
+      return NextResponse.redirect(redirectUrl)
+    }
 
     if (!user && isProtectedRoute) {
       const loginUrl = request.nextUrl.clone()
