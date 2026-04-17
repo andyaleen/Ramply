@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Layout } from '@/components/layout'
 import { LoadingFallback } from '@/components/LoadingFallback'
@@ -8,7 +8,7 @@ import { ProfileSetup } from '@/components/profile/ProfileSetup'
 import { useAuth } from '@/contexts/AuthContext'
 import { getAuthorizedAppPath, getDefaultAuthenticatedPath, isCompanyProfileComplete } from '@/lib/auth/routing'
 
-export default function CompleteProfilePage() {
+function CompleteProfileContent() {
   const { user, userProfile, company, loading, profileLoading, refreshUserProfile } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -58,5 +58,23 @@ export default function CompleteProfilePage() {
         }}
       />
     </Layout>
+  )
+}
+
+export default function CompleteProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <Layout showAuth={false}>
+          <LoadingFallback
+            title="Preparing Profile Setup"
+            description="Loading your account details..."
+            onRefresh={() => window.location.reload()}
+          />
+        </Layout>
+      }
+    >
+      <CompleteProfileContent />
+    </Suspense>
   )
 }

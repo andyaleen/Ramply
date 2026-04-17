@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Layout } from '@/components/layout'
 import { LoadingFallback } from '@/components/LoadingFallback'
 import { useAuth } from '@/contexts/AuthContext'
 import { getPostLoginDestination } from '@/lib/auth/routing'
 
-export default function PostLoginPage() {
+function PostLoginContent() {
   const { user, userProfile, company, loading, profileLoading, refreshUserProfile } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -42,5 +42,23 @@ export default function PostLoginPage() {
         onRefresh={() => window.location.reload()}
       />
     </Layout>
+  )
+}
+
+export default function PostLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <Layout showAuth={false}>
+          <LoadingFallback
+            title="Signing You In"
+            description="Preparing your session..."
+            onRefresh={() => window.location.reload()}
+          />
+        </Layout>
+      }
+    >
+      <PostLoginContent />
+    </Suspense>
   )
 }
