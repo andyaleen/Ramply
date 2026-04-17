@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { useRouter } from 'next/navigation'
 import { ChevronDown } from "lucide-react"
+import { useAuth } from '@/contexts/AuthContext'
 
 interface HeaderProps {
   showAuth?: boolean
@@ -11,6 +12,9 @@ interface HeaderProps {
 
 export function Header({ showAuth = true, className = "" }: HeaderProps) {
   const router = useRouter()
+  const { user, isAdmin } = useAuth()
+
+  const primaryDestination = isAdmin ? '/admin' : '/dashboard'
 
   return (
     <header className={`border-b border-gray-200 ${className}`}>
@@ -32,19 +36,30 @@ export function Header({ showAuth = true, className = "" }: HeaderProps) {
           
           {showAuth && (
             <div className="flex items-center space-x-4">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => router.push('/login')}
-              >
-                Log in
-              </Button>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => router.push('/signup')}
-              >
-                Get started
-              </Button>
+              {user ? (
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => router.push(primaryDestination)}
+                >
+                  {isAdmin ? 'Open Admin' : 'Go to Dashboard'}
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => router.push('/login')}
+                  >
+                    Log in
+                  </Button>
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => router.push('/signup')}
+                  >
+                    Get started
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>

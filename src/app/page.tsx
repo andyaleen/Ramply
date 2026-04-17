@@ -1,9 +1,11 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Layout } from "@/components/layout"
 import { useRouter } from "next/navigation"
 import { Building2, CheckCircle, FileText, Landmark, MoreVertical, ShieldCheck } from "lucide-react"
+import { useAuth } from '@/contexts/AuthContext'
 
 const requiredInfo = [
   {
@@ -29,6 +31,13 @@ const requiredInfo = [
  */
 export default function Landing() {
   const router = useRouter()
+  const { user, loading, isAdmin } = useAuth()
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push(isAdmin ? '/admin' : '/dashboard')
+    }
+  }, [user, loading, isAdmin, router])
 
   return (
     <Layout>
