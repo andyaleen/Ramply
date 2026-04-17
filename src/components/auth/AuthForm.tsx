@@ -20,6 +20,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const searchParams = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
   const initialTab = tabFromUrl || defaultTab
+  const requestedPath = searchParams.get('redirect') || '/dashboard'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -89,23 +90,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       if (error) {
         setError(formatAuthError(error.message))
       } else {
-        // Wait briefly for the auth context to update, then redirect by role
-        setTimeout(async () => {
-          const { data: { session } } = await supabase.auth.getSession()
-          if (session?.user) {
-            const { data: userProfile } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', session.user.id)
-              .single()
-
-            if (userProfile?.role === 'admin') {
-              router.push('/admin')
-            } else {
-              router.push('/dashboard')
-            }
-          }
-        }, 500)
+        router.replace(`/post-login?next=${encodeURIComponent(requestedPath)}`)
       }
     } catch (err) {
       console.error('Sign in error:', err)
@@ -216,7 +201,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     setError('')
 
     try {
-      const authError = await startGoogleAuth('/dashboard')
+      const authError = await startGoogleAuth(requestedPath)
       if (authError) {
         setError(formatAuthError(authError))
       }

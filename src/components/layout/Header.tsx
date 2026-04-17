@@ -14,7 +14,7 @@ export function Header({ showAuth = true, className = "" }: HeaderProps) {
   const router = useRouter()
   const { user, isAdmin } = useAuth()
 
-  const primaryDestination = isAdmin ? '/admin' : '/dashboard'
+  const primaryDestination = `/post-login?next=${encodeURIComponent(isAdmin ? '/admin' : '/dashboard')}`
 
   return (
     <header className={`border-b border-gray-200 ${className}`}>

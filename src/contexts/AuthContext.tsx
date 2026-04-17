@@ -2,22 +2,25 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
-  useState,
-  useCallback,
   useMemo,
   useRef,
+  useState,
 } from 'react'
+import type { AuthError, User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { User, AuthError } from '@supabase/supabase-js'
-import type { UserRow, CompanyRow } from '@/lib/database.types'
+import type { CompanyRow, UserRow } from '@/lib/database.types'
+import { isCompanyProfileComplete } from '@/lib/auth/routing'
 
 interface AuthContextType {
   user: User | null
   userProfile: UserRow | null
   company: CompanyRow | null
   loading: boolean
+  profileLoading: boolean
+  isProfileComplete: boolean
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
@@ -27,143 +30,214 @@ interface AuthContextType {
   promoteToAdmin: (userId: string) => Promise<{ error: string | null }>
 }
 
+type BootstrapState = {
+  userProfile: UserRow | null
+  company: CompanyRow | null
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+/**
+ * Resolves the application's user/profile/company state from the current
+ * Supabase session without blocking basic authentication on profile creation.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserRow | null>(null)
   const [company, setCompany] = useState<CompanyRow | null>(null)
   const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(false)
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
+  const bootstrapRef = useRef<{ userId: string; promise: Promise<BootstrapState> } | null>(null)
 
-  /**
-   * Keeps a single browser client instance for the lifetime of the provider so
-   * auth listeners and session bootstrap logic do not restart on every render.
-   */
   if (!supabaseRef.current) {
     supabaseRef.current = createClient()
   }
 
   const supabase = supabaseRef.current
 
-  const userProfileRef = useRef<UserRow | null>(null)
-  userProfileRef.current = userProfile
-
-  const fetchUserProfile = useCallback(
-    async (userId: string, userEmail?: string) => {
-      try {
-        // Fetch user row (id/email/role only)
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle()
-
-        if (userError) throw userError
-
-        if (userData) {
-          setUserProfile(userData)
-        } else {
-          // Create user row if it doesn't exist (trigger may not have fired)
-          const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert([{ id: userId, email: userEmail ?? '', role: 'external' }])
-            .select()
-            .single()
-
-          if (createError && createError.code !== '23505') throw createError
-
-          if (newUser) setUserProfile(newUser)
-        }
-
-        // Fetch or create company row
-        const { data: companyData, error: companyError } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('owner_user_id', userId)
-          .maybeSingle()
-
-        if (companyError) throw companyError
-
-        if (companyData) {
-          setCompany(companyData)
-        } else {
-          const { data: newCompany, error: createCompanyError } = await supabase
-            .from('companies')
-            .insert([{ owner_user_id: userId }])
-            .select()
-            .single()
-
-          if (createCompanyError && createCompanyError.code !== '23505') throw createCompanyError
-          if (newCompany) setCompany(newCompany)
-        }
-      } catch (err) {
-        console.error('Error loading user profile:', err)
+  /**
+   * Fetches or creates the app-owned rows that sit behind an authenticated user.
+   */
+  const bootstrapUserState = useCallback(
+    async (authUser: User): Promise<BootstrapState> => {
+      const existingBootstrap = bootstrapRef.current
+      if (existingBootstrap?.userId === authUser.id) {
+        return existingBootstrap.promise
       }
+
+      const bootstrapPromise = (async () => {
+        setProfileLoading(true)
+        try {
+          const { data: existingUser, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authUser.id)
+            .maybeSingle()
+
+          if (userError) throw userError
+
+          let resolvedUser = existingUser
+          if (!resolvedUser) {
+            const { data: createdUser, error: createUserError } = await supabase
+              .from('users')
+              .insert([{ id: authUser.id, email: authUser.email ?? '', role: 'external' }])
+              .select()
+              .single()
+
+            if (createUserError && createUserError.code !== '23505') throw createUserError
+            resolvedUser = createdUser ?? null
+          }
+
+          if (!resolvedUser) {
+            const { data: reloadedUser, error: reloadUserError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', authUser.id)
+              .single()
+
+            if (reloadUserError) throw reloadUserError
+            resolvedUser = reloadedUser
+          }
+
+          const { data: existingCompany, error: companyError } = await supabase
+            .from('companies')
+            .select('*')
+            .eq('owner_user_id', authUser.id)
+            .maybeSingle()
+
+          if (companyError) throw companyError
+
+          let resolvedCompany = existingCompany
+          if (!resolvedCompany) {
+            const { data: createdCompany, error: createCompanyError } = await supabase
+              .from('companies')
+              .insert([{ owner_user_id: authUser.id }])
+              .select()
+              .single()
+
+            if (createCompanyError && createCompanyError.code !== '23505') throw createCompanyError
+            resolvedCompany = createdCompany ?? null
+          }
+
+          if (!resolvedCompany) {
+            const { data: reloadedCompany, error: reloadCompanyError } = await supabase
+              .from('companies')
+              .select('*')
+              .eq('owner_user_id', authUser.id)
+              .single()
+
+            if (reloadCompanyError) throw reloadCompanyError
+            resolvedCompany = reloadedCompany
+          }
+
+          setUserProfile(resolvedUser)
+          setCompany(resolvedCompany)
+
+          return {
+            userProfile: resolvedUser,
+            company: resolvedCompany,
+          }
+        } finally {
+          setProfileLoading(false)
+          if (bootstrapRef.current?.userId === authUser.id) {
+            bootstrapRef.current = null
+          }
+        }
+      })()
+
+      bootstrapRef.current = {
+        userId: authUser.id,
+        promise: bootstrapPromise,
+      }
+
+      return bootstrapPromise
     },
     [supabase]
   )
 
   useEffect(() => {
-    const getSession = async () => {
+    let mounted = true
+
+    const initializeSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          setUser(session.user)
-          await fetchUserProfile(session.user.id, session.user.email)
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!mounted) return
+
+        const sessionUser = session?.user ?? null
+        setUser(sessionUser)
+        setLoading(false)
+
+        if (sessionUser) {
+          void bootstrapUserState(sessionUser)
+        } else {
+          setUserProfile(null)
+          setCompany(null)
         }
       } catch (err) {
         console.error('Error getting session:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    getSession()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
+        if (mounted) {
           setUser(null)
           setUserProfile(null)
           setCompany(null)
           setLoading(false)
-        } else if (session?.user) {
-          setUser(session.user)
-          if (!userProfileRef.current || userProfileRef.current.id !== session.user.id) {
-            setLoading(true)
-            try {
-              await fetchUserProfile(session.user.id, session.user.email)
-            } finally {
-              setLoading(false)
-            }
-          } else {
-            setLoading(false)
-          }
-        } else {
-          setLoading(false)
         }
       }
-    )
+    }
 
-    return () => subscription.unsubscribe()
-  }, [supabase, fetchUserProfile])
+    void initializeSession()
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
-  }, [supabase])
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user ?? null
+      setUser(sessionUser)
+      setLoading(false)
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password })
-    return { error }
-  }, [supabase])
+      if (!sessionUser) {
+        bootstrapRef.current = null
+        setUserProfile(null)
+        setCompany(null)
+        setProfileLoading(false)
+        return
+      }
+
+      void bootstrapUserState(sessionUser)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [bootstrapUserState, supabase])
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      return { error }
+    },
+    [supabase]
+  )
+
+  const signUp = useCallback(
+    async (email: string, password: string) => {
+      const { error } = await supabase.auth.signUp({ email, password })
+      return { error }
+    },
+    [supabase]
+  )
 
   const signOut = useCallback(async () => {
+    bootstrapRef.current = null
     setUser(null)
     setUserProfile(null)
     setCompany(null)
     setLoading(false)
+    setProfileLoading(false)
+
     try {
       await supabase.auth.signOut()
     } catch (err) {
@@ -171,36 +245,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase])
 
-  const updateCompany = useCallback(async (data: Partial<CompanyRow>) => {
-    if (!user) return
+  /**
+   * Persists company changes for the signed-in user and updates local context.
+   */
+  const updateCompany = useCallback(
+    async (data: Partial<CompanyRow>) => {
+      if (!user) return
 
-    const { data: updated, error } = await supabase
-      .from('companies')
-      .update({ ...data, updated_at: new Date().toISOString() })
-      .eq('owner_user_id', user.id)
-      .select()
-      .single()
+      const { data: updated, error } = await supabase
+        .from('companies')
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq('owner_user_id', user.id)
+        .select()
+        .single()
 
-    if (error) throw error
-    setCompany(updated)
-  }, [user, supabase])
+      if (error) throw error
+      setCompany(updated)
+    },
+    [supabase, user]
+  )
 
   const refreshUserProfile = useCallback(async () => {
     if (!user) return
-    await fetchUserProfile(user.id, user.email)
-  }, [user, fetchUserProfile])
+    await bootstrapUserState(user)
+  }, [bootstrapUserState, user])
 
-  const promoteToAdmin = useCallback(async (userId: string) => {
-    if (userProfile?.role !== 'admin') {
-      return { error: 'Only admins can promote users' }
-    }
-    const { error } = await supabase
-      .from('users')
-      .update({ role: 'admin', updated_at: new Date().toISOString() })
-      .eq('id', userId)
+  const promoteToAdmin = useCallback(
+    async (userId: string) => {
+      if (userProfile?.role !== 'admin') {
+        return { error: 'Only admins can promote users' }
+      }
 
-    return { error: error?.message ?? null }
-  }, [userProfile?.role, supabase])
+      const { error } = await supabase
+        .from('users')
+        .update({ role: 'admin', updated_at: new Date().toISOString() })
+        .eq('id', userId)
+
+      return { error: error?.message ?? null }
+    },
+    [supabase, userProfile?.role]
+  )
 
   const contextValue = useMemo(
     () => ({
@@ -208,6 +292,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userProfile,
       company,
       loading,
+      profileLoading,
+      isProfileComplete: isCompanyProfileComplete(company),
       signIn,
       signUp,
       signOut,
@@ -216,14 +302,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAdmin: userProfile?.role === 'admin',
       promoteToAdmin,
     }),
-    [user, userProfile, company, loading, signIn, signUp, signOut, updateCompany, refreshUserProfile, promoteToAdmin]
+    [
+      company,
+      loading,
+      profileLoading,
+      promoteToAdmin,
+      refreshUserProfile,
+      signIn,
+      signOut,
+      signUp,
+      updateCompany,
+      user,
+      userProfile,
+    ]
   )
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

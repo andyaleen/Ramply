@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingFallback } from '@/components/LoadingFallback'
@@ -9,7 +9,6 @@ import { Layout } from '@/components/layout'
 function AuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -34,23 +33,11 @@ function AuthCallbackContent() {
 
       if (error || !sessionUser) {
         const message = error?.message || 'Authentication failed'
-        setError(message)
         router.replace(`/auth/auth-code-error?error=${encodeURIComponent(message)}`)
         return
       }
 
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', sessionUser.id)
-        .maybeSingle()
-
-      const destination =
-        next === '/dashboard' && userProfile?.role === 'admin'
-          ? '/admin'
-          : next
-
-      window.location.replace(destination)
+      window.location.replace(`/post-login?next=${encodeURIComponent(next)}`)
     }
 
     completeAuth()
@@ -59,18 +46,6 @@ function AuthCallbackContent() {
       cancelled = true
     }
   }, [router, searchParams])
-
-  if (error) {
-    return (
-      <Layout showAuth={false}>
-        <LoadingFallback
-          title="Authentication Error"
-          description={error}
-          showTimeoutWarning={false}
-        />
-      </Layout>
-    )
-  }
 
   return (
     <Layout showAuth={false}>

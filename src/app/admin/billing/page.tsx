@@ -20,7 +20,7 @@ interface BillingInfo {
 }
 
 export default function BillingPage() {
-  const { user, company, loading, isAdmin } = useAuth()
+  const { company, profileLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [checkoutPending, setCheckoutPending] = useState(false)
@@ -35,13 +35,6 @@ export default function BillingPage() {
       toast.info('Checkout canceled — your plan was not changed.')
     }
   }, [searchParams])
-
-  useEffect(() => {
-    if (!loading) {
-      if (!user) router.push('/login')
-      else if (!isAdmin) router.push('/dashboard')
-    }
-  }, [user, loading, isAdmin, router])
 
   const { data: billing, isLoading } = useQuery<BillingInfo>({
     queryKey: ['billing', company?.id],
@@ -104,7 +97,7 @@ export default function BillingPage() {
     }
   }
 
-  if (loading || isLoading) {
+  if (profileLoading || isLoading) {
     return (
       <div className="p-6 space-y-4">
         {[...Array(3)].map((_, i) => (

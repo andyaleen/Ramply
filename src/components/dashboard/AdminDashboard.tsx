@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
@@ -18,14 +17,8 @@ interface AdminStats {
 }
 
 export function AdminDashboard() {
-  const { user, userProfile, company, isAdmin, loading: authLoading } = useAuth()
+  const { company, profileLoading } = useAuth()
   const router = useRouter()
-
-  useEffect(() => {
-    if (authLoading) return
-    if (!user) router.push('/login')
-    else if (userProfile && !isAdmin) router.push('/dashboard')
-  }, [authLoading, user, userProfile, isAdmin, router])
 
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ['admin-stats', company?.id],
@@ -49,7 +42,7 @@ export function AdminDashboard() {
     enabled: !!company,
   })
 
-  if (authLoading || !user || !userProfile || !isAdmin) {
+  if (profileLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />

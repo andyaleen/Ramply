@@ -32,7 +32,7 @@ const requiredInfo = [
  */
 export default function Landing() {
   const router = useRouter()
-  const { user, loading, isAdmin } = useAuth()
+  const { user, loading } = useAuth()
   const [startingGoogleAuth, setStartingGoogleAuth] = useState(false)
   const [googleAuthError, setGoogleAuthError] = useState('')
 
@@ -50,9 +50,9 @@ export default function Landing() {
     }
 
     if (!loading && user) {
-      router.push(isAdmin ? '/admin' : '/dashboard')
+      router.replace('/post-login?next=/dashboard')
     }
-  }, [user, loading, isAdmin, router])
+  }, [user, loading, router])
 
   /** Starts Google OAuth directly from the landing page hero. */
   const handleGoogleAuth = async () => {

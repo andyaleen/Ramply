@@ -7,21 +7,14 @@ import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
 
 export default function SignUpPage() {
-  const { user, userProfile, loading } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && user && userProfile) {
-      // Role-based redirection for signup
-      if (userProfile.role === 'admin') {
-        console.log('Signup page: Redirecting admin user to /admin')
-        router.push('/admin')
-      } else {
-        console.log('Signup page: Redirecting regular user to /dashboard')
-        router.push('/dashboard')
-      }
+    if (!loading && user) {
+      router.replace('/post-login?next=/dashboard')
     }
-  }, [user, userProfile, loading, router])
+  }, [user, loading, router])
 
   if (loading) {
     return (

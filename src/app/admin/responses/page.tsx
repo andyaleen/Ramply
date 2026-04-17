@@ -1,14 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { OnboardingResponsesList } from '@/components/dashboard/OnboardingResponsesList'
-import { LoadingFallback } from '@/components/LoadingFallback'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Users, FileText } from 'lucide-react'
+import { ArrowLeft, FileText, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface ResponseStats {
@@ -18,15 +16,8 @@ interface ResponseStats {
 }
 
 export default function ResponsesPage() {
-  const { user, userProfile, company, loading, isAdmin } = useAuth()
+  const { company, profileLoading } = useAuth()
   const router = useRouter()
-
-  useEffect(() => {
-    if (!loading) {
-      if (!user) router.push('/login')
-      else if (userProfile && !isAdmin) router.push('/dashboard')
-    }
-  }, [user, loading, router, isAdmin, userProfile])
 
   const { data: stats, isLoading: statsLoading } = useQuery<ResponseStats>({
     queryKey: ['response-stats', company?.id],
@@ -61,40 +52,13 @@ export default function ResponsesPage() {
     enabled: !!company,
   })
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <LoadingFallback
-          title="Loading Responses"
-          description="Verifying your admin permissions..."
-          onRefresh={() => window.location.reload()}
-        />
-      </div>
-    )
-  }
-
-  if (!user) {
+  if (profileLoading) {
     return (
       <div className="p-6">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium mb-2">Authentication Required</h3>
-            <Button onClick={() => router.push('/login')}>Sign In</Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (userProfile && !isAdmin) {
-    return (
-      <div className="p-6">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium mb-2">Admin Access Required</h3>
-            <Button onClick={() => router.push('/dashboard')}>Go to Dashboard</Button>
+            <h3 className="text-lg font-medium mb-2">Loading Responses</h3>
           </CardContent>
         </Card>
       </div>

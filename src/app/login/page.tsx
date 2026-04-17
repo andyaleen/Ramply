@@ -8,20 +8,16 @@ import { AuthForm } from '@/components/auth/AuthForm'
 import { LoadingFallback } from '@/components/LoadingFallback'
 
 function LoginContent() {
-  const { user, userProfile, loading } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectPath = searchParams.get('redirect') || '/dashboard'
 
   useEffect(() => {
-    if (!loading && user && userProfile) {
-      if (userProfile.role === 'admin') {
-        router.push('/admin')
-      } else {
-        router.push(redirectPath)
-      }
+    if (!loading && user) {
+      router.replace(`/post-login?next=${encodeURIComponent(redirectPath)}`)
     }
-  }, [user, userProfile, loading, redirectPath, router])
+  }, [user, loading, redirectPath, router])
 
   if (loading) {
     return (
