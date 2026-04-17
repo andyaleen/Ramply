@@ -7,7 +7,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,  
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -62,15 +62,16 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent>
         {navigationConfig.map((group) => (
           <SidebarGroup key={group.title}>
             <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>                {group.items.map((item) => (
+              <SidebarMenu>
+                {group.items.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
+                    <SidebarMenuButton
                       isActive={pathname === item.url}
                       onClick={() => router.push(item.url)}
                       className="flex items-center gap-2 w-full cursor-pointer"
@@ -78,8 +79,8 @@ export function AppSidebar() {
                       <item.icon className="h-4 w-4" />
                       <span className="flex-1">{item.title}</span>
                       {item.badge && (
-                        <Badge 
-                          variant={item.isNew ? "default" : "secondary"} 
+                        <Badge
+                          variant={item.isNew ? "default" : "secondary"}
                           className="text-xs"
                         >
                           {item.badge}
@@ -93,12 +94,12 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      
+
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>                
+              <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
@@ -112,7 +113,7 @@ export function AppSidebar() {
                     <span className="truncate font-semibold">
                       {company?.contact_name || 'User'}
                     </span>
-                    <span className="truncate text-xs">
+                    <span className="truncate text-xs text-muted-foreground">
                       {company?.contact_email || userProfile?.email || 'user@example.com'}
                     </span>
                   </div>
@@ -124,8 +125,8 @@ export function AppSidebar() {
                 side="bottom"
                 align="end"
                 sideOffset={4}
-              >                
-              <DropdownMenuLabel className="p-0 font-normal">
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
                       <AvatarFallback className="rounded-lg">
@@ -136,7 +137,7 @@ export function AppSidebar() {
                       <span className="truncate font-semibold">
                         {company?.contact_name || 'User'}
                       </span>
-                      <span className="truncate text-xs">
+                      <span className="truncate text-xs text-muted-foreground">
                         {company?.contact_email || userProfile?.email || 'user@example.com'}
                       </span>
                     </div>
@@ -164,4 +165,3 @@ export function AppSidebar() {
     </Sidebar>
   )
 }
-

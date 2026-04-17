@@ -178,7 +178,7 @@ export function SendOnboardingRequestDialog({
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={handleClose}>Cancel</Button>
-            <Button onClick={() => { handleClose(); router.push('/admin/billing') }}>
+            <Button onClick={() => { handleClose(); router.push('/dashboard/billing') }}>
               View Plans
             </Button>
           </DialogFooter>

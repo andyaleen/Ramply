@@ -1,7 +1,7 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import { AdminDashboard } from '@/components/dashboard/AdminDashboard'
-
-export default function AdminPage() {
-  return <AdminDashboard />
+// Legacy /admin has been consolidated into /dashboard.
+// next.config.ts handles this at the edge; this server-side redirect is a fallback.
+export default function LegacyAdminPage() {
+  redirect('/dashboard')
 }

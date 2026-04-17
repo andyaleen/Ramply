@@ -36,8 +36,10 @@ test.describe('smoke — public pages', () => {
   })
 
   test('unauthenticated /admin redirects to /login', async ({ page }) => {
+    // /admin is a legacy path that now 308s to /dashboard; unauthenticated users
+    // should end up at /login either way.
     await page.goto('/admin')
-    await expect(page).toHaveURL(/login|\/admin/, { timeout: 8000 })
+    await expect(page).toHaveURL(/login|\/dashboard/, { timeout: 8000 })
   })
 
   test('unauthenticated /dashboard redirects to /login', async ({ page }) => {

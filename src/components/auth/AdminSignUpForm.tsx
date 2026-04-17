@@ -71,7 +71,7 @@ export function AdminSignUpForm() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/admin`
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
         }
       })
 

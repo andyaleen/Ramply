@@ -1,9 +1,10 @@
-import { 
-  Home, 
-  Settings, 
-  Users, 
-  Building2, 
+import {
+  Home,
+  Settings,
+  Users,
+  Building2,
   BarChart3,
+  BookTemplate,
   HelpCircle,
   User,
   Bell,
@@ -13,6 +14,8 @@ import {
   Shield,
   Workflow,
   Calendar,
+  CreditCard,
+  Mail,
   MessageSquare,
   Archive,
   Download,
@@ -226,9 +229,24 @@ export const navigationConfig: NavigationGroup[] = [
         icon: Home,
       },
       {
-        title: "Requests",
-        url: "/dashboard/requests",
+        title: "Send Requests",
+        url: "/dashboard/send-links",
+        icon: Mail,
+      },
+      {
+        title: "Responses",
+        url: "/dashboard/responses",
         icon: Users,
+      },
+      {
+        title: "Templates",
+        url: "/dashboard/templates",
+        icon: BookTemplate,
+      },
+      {
+        title: "Received",
+        url: "/dashboard/requests",
+        icon: FileText,
       },
       {
         title: "Documents",
@@ -238,8 +256,13 @@ export const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
-    title: "Settings",
+    title: "Account",
     items: [
+      {
+        title: "Billing",
+        url: "/dashboard/billing",
+        icon: CreditCard,
+      },
       {
         title: "Profile",
         url: "/dashboard/profile",

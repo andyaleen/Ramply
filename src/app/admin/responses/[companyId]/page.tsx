@@ -1,10 +1,10 @@
-import { CompanyAssets } from '@/components/dashboard/CompanyAssets'
+import { redirect } from 'next/navigation'
 
-interface CompanyAssetsPageProps {
+interface LegacyParams {
   params: Promise<{ companyId: string }>
 }
 
-export default async function CompanyAssetsPage({ params }: CompanyAssetsPageProps) {
+export default async function LegacyAdminCompanyAssets({ params }: LegacyParams) {
   const { companyId } = await params
-  return <CompanyAssets companyId={companyId} />
+  redirect(`/dashboard/responses/${companyId}`)
 }

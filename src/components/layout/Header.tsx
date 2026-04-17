@@ -12,9 +12,9 @@ interface HeaderProps {
 
 export function Header({ showAuth = true, className = "" }: HeaderProps) {
   const router = useRouter()
-  const { user, isAdmin } = useAuth()
+  const { user } = useAuth()
 
-  const primaryDestination = `/post-login?next=${encodeURIComponent(isAdmin ? '/admin' : '/dashboard')}`
+  const primaryDestination = `/post-login?next=${encodeURIComponent('/dashboard')}`
 
   return (
     <header className={`border-b border-gray-200 ${className}`}>
@@ -41,7 +41,7 @@ export function Header({ showAuth = true, className = "" }: HeaderProps) {
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={() => router.push(primaryDestination)}
                 >
-                  {isAdmin ? 'Open Admin' : 'Go to Dashboard'}
+                  Go to Dashboard
                 </Button>
               ) : (
                 <>

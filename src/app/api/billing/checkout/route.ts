@@ -39,8 +39,8 @@ export async function POST() {
       : { customer_email: user.email }),
     // Pass company ID so the webhook can link the subscription back
     client_reference_id: company.id,
-    success_url: `${appUrl}/admin/billing?success=1`,
-    cancel_url: `${appUrl}/admin/billing?canceled=1`,
+    success_url: `${appUrl}/dashboard/billing?success=1`,
+    cancel_url: `${appUrl}/dashboard/billing?canceled=1`,
     subscription_data: {
       metadata: { company_id: company.id },
     },

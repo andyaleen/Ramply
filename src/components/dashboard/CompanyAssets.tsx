@@ -133,7 +133,7 @@ export function CompanyAssets({ companyId }: CompanyAssetsProps) {
             Documents shared in completed requests from this company.
           </p>
         </div>
-        <Button variant="outline" onClick={() => router.push('/admin/responses')}>
+        <Button variant="outline" onClick={() => router.push('/dashboard/responses')}>
           Back to Responses
         </Button>
       </div>

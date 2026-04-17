@@ -7,48 +7,41 @@ export interface UserProfile {
 }
 
 /**
- * Get the appropriate dashboard route based on user role
+ * Returns the unified dashboard route for any authenticated user.
+ * Role-based routing has been collapsed — all users land on /dashboard.
+ * The userRole argument is retained for signature compatibility.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function getDashboardRoute(userRole: string | undefined): string {
-  return userRole === 'admin' ? '/admin' : '/dashboard'
+  return '/dashboard'
 }
 
 /**
- * Hook for role-based navigation
+ * Hook for dashboard navigation. The `isAdmin` flag is preserved for callers
+ * that key non-routing behavior off of role, but all navigation helpers now
+ * resolve to /dashboard.
  */
 export function useRoleBasedNavigation() {
   const router = useRouter()
   const { userProfile } = useAuth()
 
   const navigateToDashboard = () => {
-    const route = getDashboardRoute(userProfile?.role)
-    console.log(`Navigating to ${route} for role: ${userProfile?.role}`)
-    router.push(route)
-  }
-
-  const navigateToAdminPage = () => {
-    if (userProfile?.role === 'admin') {
-      router.push('/admin')
-    } else {
-      // Redirect non-admin users to regular dashboard
-      router.push('/dashboard')
-    }
+    router.push('/dashboard')
   }
 
   return {
     navigateToDashboard,
-    navigateToAdminPage,
-    getDashboardRoute: () => getDashboardRoute(userProfile?.role),
-    isAdmin: userProfile?.role === 'admin'
+    navigateToAdminPage: navigateToDashboard,
+    getDashboardRoute: () => '/dashboard',
+    isAdmin: userProfile?.role === 'admin',
   }
 }
 
 /**
- * Server-side utility for role-based redirection
+ * Server-side utility for post-auth redirection. Always returns the provided
+ * destination (defaulting to /dashboard); the userRole argument is retained
+ * for signature compatibility with legacy callers.
  */
 export function getRedirectUrlForRole(userRole: string | undefined, defaultUrl: string = '/dashboard'): string {
-  if (defaultUrl === '/dashboard' && userRole === 'admin') {
-    return '/admin'
-  }
   return defaultUrl
 }

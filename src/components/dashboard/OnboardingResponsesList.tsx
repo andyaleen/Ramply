@@ -141,7 +141,7 @@ export function OnboardingResponsesList() {
                       variant="link"
                       className="h-auto p-0 text-sm"
                       onClick={() => {
-                        window.location.href = `/admin/responses/${r.recipientCompany?.id}`
+                        window.location.href = `/dashboard/responses/${r.recipientCompany?.id}`
                       }}
                     >
                       {companyLabel(r.recipientCompany)}
@@ -236,7 +236,7 @@ function ResponseDetailsDialog({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    window.location.href = `/admin/responses/${response.completed_by_company_id}`
+                    window.location.href = `/dashboard/responses/${response.completed_by_company_id}`
                   }}
                 >
                   View Assets

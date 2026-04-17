@@ -46,7 +46,7 @@ test.describe('share request — full flow', () => {
     const context = await browser.newContext({ storageState: adminStateFile })
     const page = await context.newPage()
 
-    await page.goto('/admin/send-links')
+    await page.goto('/dashboard/send-links')
     await expect(page.getByRole('heading', { name: /send share requests/i })).toBeVisible({ timeout: 20_000 })
 
     await page.getByRole('button', { name: /new request/i }).first().click()
@@ -153,7 +153,7 @@ test.describe('share request — full flow', () => {
     const context = await browser.newContext({ storageState: adminStateFile })
     const page = await context.newPage()
 
-    await page.goto('/admin/responses')
+    await page.goto('/dashboard/responses')
     await expect(page.getByRole('heading', { name: /share responses/i })).toBeVisible({ timeout: 20_000 })
 
     await expect(page.getByText('Total Responses').locator('..').locator('..')).toBeVisible()

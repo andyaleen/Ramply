@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 export default function AdminRedirectPage() {
   useEffect(() => {
-    window.location.replace('/post-login?next=/admin')
+    window.location.replace('/post-login?next=/dashboard')
   }, [])
 
   return null

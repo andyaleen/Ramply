@@ -121,11 +121,11 @@ export default function PromotePage() {
                   </div>
                 </div>
 
-                <Button 
-                  onClick={() => window.location.href = '/admin'}
+                <Button
+                  onClick={() => window.location.href = '/dashboard'}
                   className="w-full"
                 >
-                  Go to Admin Dashboard
+                  Go to Dashboard
                 </Button>
               </div>
             )}

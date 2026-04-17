@@ -25,7 +25,7 @@ export async function loginAs(page: Page, email: string, password: string): Prom
     .getByRole('button', { name: /sign in/i })
     .click()
 
-  // Wait for redirect away from /login (admin → /admin, user → /dashboard).
+  // Wait for redirect away from /login — all users now land on /dashboard.
   // AuthContext has a 500ms setTimeout + async profile fetch before redirecting,
   // so we use a generous timeout and also accept any non-login URL.
   await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 30_000 })
