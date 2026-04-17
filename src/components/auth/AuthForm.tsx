@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
+import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -215,22 +216,10 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     setError('')
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-        },
-      })
-      if (error) {
-        setError(formatAuthError(error.message))
+      const authError = await startGoogleAuth('/dashboard')
+      if (authError) {
+        setError(formatAuthError(authError))
       }
-    } catch (err) {
-      console.error('Google sign-in error:', err)
-      setError(
-        err instanceof TypeError && err.message === 'Failed to fetch'
-          ? 'Unable to connect. Please check your internet connection and try again.'
-          : 'Google sign-in failed. Please try again.'
-      )
     } finally {
       setLoading(false)
     }

@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Layout } from "@/components/layout"
 import { useRouter } from "next/navigation"
 import { Building2, CheckCircle, FileText, Landmark, MoreVertical, ShieldCheck } from "lucide-react"
 import { useAuth } from '@/contexts/AuthContext'
+import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
 
 const requiredInfo = [
   {
@@ -32,6 +33,8 @@ const requiredInfo = [
 export default function Landing() {
   const router = useRouter()
   const { user, loading, isAdmin } = useAuth()
+  const [startingGoogleAuth, setStartingGoogleAuth] = useState(false)
+  const [googleAuthError, setGoogleAuthError] = useState('')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -50,6 +53,18 @@ export default function Landing() {
       router.push(isAdmin ? '/admin' : '/dashboard')
     }
   }, [user, loading, isAdmin, router])
+
+  /** Starts Google OAuth directly from the landing page hero. */
+  const handleGoogleAuth = async () => {
+    setStartingGoogleAuth(true)
+    setGoogleAuthError('')
+
+    const error = await startGoogleAuth('/dashboard')
+    if (error) {
+      setGoogleAuthError(error)
+      setStartingGoogleAuth(false)
+    }
+  }
 
   return (
     <Layout>
@@ -75,7 +90,8 @@ export default function Landing() {
               <div className="mt-8 space-y-4">
                 <Button
                   className="w-full max-w-sm bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium"
-                  onClick={() => router.push('/signup')}
+                  onClick={handleGoogleAuth}
+                  disabled={startingGoogleAuth}
                 >
                   <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                     <path fill="white" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -83,8 +99,12 @@ export default function Landing() {
                     <path fill="white" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                     <path fill="white" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
-                  Continue with Google
+                  {startingGoogleAuth ? 'Connecting to Google...' : 'Continue with Google'}
                 </Button>
+
+                {googleAuthError && (
+                  <p className="text-sm text-red-600 max-w-sm">{googleAuthError}</p>
+                )}
 
                 <div className="flex items-center max-w-sm">
                   <div className="flex-1 border-t border-gray-300" />

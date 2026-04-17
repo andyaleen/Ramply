@@ -30,7 +30,9 @@ function AuthCallbackContent() {
 
       if (cancelled) return
 
-      if (error || !data.session?.user) {
+      const sessionUser = data.session?.user
+
+      if (error || !sessionUser) {
         const message = error?.message || 'Authentication failed'
         setError(message)
         router.replace(`/auth/auth-code-error?error=${encodeURIComponent(message)}`)
@@ -40,7 +42,7 @@ function AuthCallbackContent() {
       const { data: userProfile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', data.session.user.id)
+        .eq('id', sessionUser.id)
         .maybeSingle()
 
       const destination =
@@ -48,7 +50,7 @@ function AuthCallbackContent() {
           ? '/admin'
           : next
 
-      router.replace(destination)
+      window.location.replace(destination)
     }
 
     completeAuth()
