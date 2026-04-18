@@ -2,6 +2,24 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Ramply design system tokens.
+ * These sit alongside the shadcn token block below so product surfaces
+ * can opt into the brand palette via --ramply-* (or the convenience
+ * aliases --brand-*) without disturbing shadcn component defaults.
+ */
+:root {
+  --ramply-primary: #287253;
+  --ramply-primary-dark: #1A4D38;
+  --ramply-primary-light: #E8F2ED;
+  --ramply-background: #F0EFE9;
+  --ramply-surface: #FFFFFF;
+  --ramply-foreground: #0F1F18;
+  --ramply-text-mid: #4A5C54;
+  --ramply-text-muted: #7A8C84;
+  --ramply-border: #DDDCD5;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
