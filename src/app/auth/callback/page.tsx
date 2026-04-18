@@ -28,7 +28,9 @@ function AuthCallbackContent() {
     }
 
     if (!loading && user) {
-      window.location.replace(`/post-login?next=${encodeURIComponent(next)}`)
+      // Send the user straight to their destination — profile completeness
+      // is handled by the dashboard shell once they land.
+      window.location.replace(next)
       return
     }
 

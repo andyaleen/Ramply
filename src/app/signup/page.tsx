@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
+import { LoadingFallback } from '@/components/LoadingFallback'
 
 export default function SignUpPage() {
   const { user, loading } = useAuth()
@@ -12,16 +13,18 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/post-login?next=/dashboard')
+      router.replace('/dashboard')
     }
   }, [user, loading, router])
 
   if (loading) {
     return (
       <Layout showAuth={false}>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingFallback
+          title="Loading"
+          description="Checking your session…"
+          showTimeoutWarning={false}
+        />
       </Layout>
     )
   }

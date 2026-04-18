@@ -1,10 +1,11 @@
 'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Building2, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
+import { Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
+
+const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
+const sansBody = "font-['DM_Sans',sans-serif]"
 
 interface LoadingFallbackProps {
   title?: string
@@ -14,95 +15,96 @@ interface LoadingFallbackProps {
   timeoutMs?: number
 }
 
-export function LoadingFallback({ 
-  title = "Loading...", 
-  description = "Please wait while we set up your session",
+/**
+ * Full-page loading state that matches the April 2026 Ramply palette:
+ * warm-gray background, serif headline, muted sage secondary text, and a
+ * single brand-green progress spinner. Kept intentionally minimal so any
+ * brief flash between route transitions feels on-brand instead of jarring.
+ */
+export function LoadingFallback({
+  title = 'Loading',
+  description = 'One moment while we get things ready…',
   showTimeoutWarning = true,
   onRefresh,
-  timeoutMs = 10000 // 10 seconds
+  timeoutMs = 10000,
 }: LoadingFallbackProps) {
   const [showTimeout, setShowTimeout] = useState(false)
-  
+
   useEffect(() => {
     if (!showTimeoutWarning) return
-    
+
     const timer = setTimeout(() => {
       setShowTimeout(true)
     }, timeoutMs)
-    
+
     return () => clearTimeout(timer)
   }, [showTimeoutWarning, timeoutMs])
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-full relative">
-              <Building2 className="h-6 w-6 text-white" />
-              <Loader2 className="h-4 w-4 text-white animate-spin absolute -top-1 -right-1" />
+    <div
+      className={`${sansBody} min-h-screen flex items-center justify-center bg-[#F0EFE9] text-[#0F1F18] px-6`}
+    >
+      <div className="w-full max-w-sm text-center">
+        <div className="flex items-center justify-center">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#DDDCD5] bg-white">
+            <Loader2 className="h-5 w-5 animate-spin text-[#287253]" aria-hidden />
+          </span>
+        </div>
+
+        <h1
+          className={`${serifTitle} mt-6 text-[32px] leading-tight text-[#0F1F18]`}
+        >
+          {title}
+        </h1>
+        <p className="mt-3 text-[14px] font-light leading-relaxed text-[#4A5C54]">
+          {description}
+        </p>
+
+        {showTimeout && (
+          <div className="mt-8 rounded-xl border border-[#DDDCD5] bg-white p-4 text-left">
+            <div className="flex items-center gap-2 text-[#0F1F18]">
+              <AlertCircle className="h-4 w-4 text-[#287253]" aria-hidden />
+              <p className="text-sm font-medium">Taking longer than expected</p>
             </div>
+            <p className="mt-2 text-sm text-[#7A8C84]">
+              This might be a slow connection. You can keep waiting or try again.
+            </p>
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                className="mt-3 w-full border-[#DDDCD5] text-[#0F1F18] hover:border-[#287253] hover:text-[#287253]"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Try again
+              </Button>
+            )}
           </div>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          {/* Loading skeleton */}
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-          
-          {/* Timeout warning */}
-          {showTimeout && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-3">
-              <div className="flex items-center gap-2 text-yellow-800">
-                <AlertCircle className="h-4 w-4" />
-                <p className="text-sm font-medium">Taking longer than expected</p>
-              </div>
-              <p className="text-sm text-yellow-700">
-                This might be due to a slow network connection or server issues.
-              </p>
-              {onRefresh && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={onRefresh}
-                  className="w-full"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-              )}
-            </div>
-          )}
-          
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 text-sm text-gray-600">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Connecting to server...
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   )
 }
 
-// Simpler loading spinner for inline use
-export function LoadingSpinner({ size = "md", text }: { size?: "sm" | "md" | "lg"; text?: string }) {
+/** Compact spinner for inline use inside a page or card. */
+export function LoadingSpinner({
+  size = 'md',
+  text,
+}: {
+  size?: 'sm' | 'md' | 'lg'
+  text?: string
+}) {
   const sizeClasses = {
-    sm: "h-4 w-4",
-    md: "h-6 w-6", 
-    lg: "h-8 w-8"
+    sm: 'h-4 w-4',
+    md: 'h-6 w-6',
+    lg: 'h-8 w-8',
   }
-  
+
   return (
-    <div className="flex items-center justify-center gap-2">
-      <Loader2 className={`animate-spin ${sizeClasses[size]}`} />
-      {text && <span className="text-sm text-gray-600">{text}</span>}
+    <div className="flex items-center justify-center gap-2 text-[#4A5C54]">
+      <Loader2 className={`animate-spin text-[#287253] ${sizeClasses[size]}`} />
+      {text && <span className="text-sm">{text}</span>}
     </div>
   )
 }

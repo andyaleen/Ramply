@@ -15,7 +15,7 @@ function LoginContent() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace(`/post-login?next=${encodeURIComponent(redirectPath)}`)
+      router.replace(redirectPath)
     }
   }, [user, loading, redirectPath, router])
 

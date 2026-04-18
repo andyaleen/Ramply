@@ -30,10 +30,12 @@ export async function middleware(request: NextRequest) {
     }
 
     if (pathname === '/' && user) {
+      // Signed-in users skip the landing page and go straight to their
+      // dashboard. Profile completeness / admin routing is handled inside
+      // the dashboard shell, so there's no need to stop at /post-login.
       const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = '/post-login'
+      redirectUrl.pathname = '/dashboard'
       redirectUrl.search = ''
-      redirectUrl.searchParams.set('next', '/dashboard')
       return NextResponse.redirect(redirectUrl)
     }
 
@@ -46,10 +48,17 @@ export async function middleware(request: NextRequest) {
     }
 
     if (user && isAuthPage) {
+      // Already signed in — bounce straight to the requested destination
+      // (or the dashboard) instead of flashing the legacy /post-login
+      // interstitial. We re-resolve the redirect target on the client via
+      // ProtectedAppShell, which covers profile completeness.
+      const requestedRedirect = request.nextUrl.searchParams.get('redirect')
       const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = '/post-login'
+      redirectUrl.pathname =
+        requestedRedirect && requestedRedirect.startsWith('/')
+          ? requestedRedirect.split('?')[0]
+          : '/dashboard'
       redirectUrl.search = ''
-      redirectUrl.searchParams.set('next', '/dashboard')
       return NextResponse.redirect(redirectUrl)
     }
 

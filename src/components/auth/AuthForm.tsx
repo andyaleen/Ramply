@@ -90,7 +90,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       if (error) {
         setError(formatAuthError(error.message))
       } else {
-        router.replace(`/post-login?next=${encodeURIComponent(requestedPath)}`)
+        router.replace(requestedPath)
       }
     } catch (err) {
       console.error('Sign in error:', err)

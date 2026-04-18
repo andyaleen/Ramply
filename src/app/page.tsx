@@ -33,7 +33,9 @@ export default function Landing() {
     }
 
     if (!loading && user) {
-      router.replace('/post-login?next=/dashboard')
+      // Skip the interstitial /post-login screen — the dashboard shell
+      // handles profile completeness and auth guarding on its own.
+      router.replace('/dashboard')
     }
   }, [user, loading, router])
 
