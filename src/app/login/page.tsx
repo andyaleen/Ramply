@@ -22,7 +22,7 @@ function LoginContent() {
 
   if (loading) {
     return (
-      <Layout showAuth={false}>
+      <Layout showAuth={false} showHeader={false} showFooter={false} className="bg-[#F0EFE9]">
         <LoadingFallback
           title="Checking Authentication"
           description="Please wait while we verify your session..."
@@ -33,7 +33,7 @@ function LoginContent() {
   }
 
   return (
-    <Layout showAuth={false}>
+    <Layout showAuth={false} showHeader={false} showFooter={false} className="bg-[#F0EFE9]">
       <Suspense
         fallback={
           <LoadingFallback
@@ -53,7 +53,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <Layout showAuth={false}>
+        <Layout showAuth={false} showHeader={false} showFooter={false} className="bg-[#F0EFE9]">
           <LoadingFallback
             title="Loading"
             description="Loading login page..."

@@ -4,6 +4,8 @@ type MinimalUserProfile = Pick<UserRow, 'role'> | null | undefined
 type MinimalCompany = Pick<CompanyRow, 'legal_name' | 'contact_name'> | null | undefined
 
 const INVALID_NEXT_PREFIXES = ['/auth/', '/login', '/signup', '/post-login']
+const PROTECTED_APP_PREFIXES = ['/dashboard', '/admin']
+const PROTECTED_APP_PATHS = new Set(['/complete-profile', '/post-login', '/promote', '/signout'])
 
 /** Mapping from legacy /admin/* paths to their /dashboard/* equivalents. */
 const LEGACY_ADMIN_PATH_MAP: Record<string, string> = {
@@ -18,6 +20,13 @@ const LEGACY_ADMIN_PATH_MAP: Record<string, string> = {
 
 export function isCompanyProfileComplete(company: MinimalCompany): boolean {
   return Boolean(company?.legal_name?.trim() && company?.contact_name?.trim())
+}
+
+export function isProtectedAppPath(pathname: string): boolean {
+  return (
+    PROTECTED_APP_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+    PROTECTED_APP_PATHS.has(pathname)
+  )
 }
 
 /**

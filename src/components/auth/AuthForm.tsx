@@ -2,31 +2,31 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Building2, CheckCircle, Lock, Mail } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
+import { AuthScreen } from '@/components/auth/AuthScreen'
 import { normalizeRequestedPath } from '@/lib/auth/routing'
-import {
-  AUTH_PASSWORD_MIN_LENGTH,
-  getSessionExpiryMessage,
-} from '@/lib/auth/session-policy'
+import { AUTH_PASSWORD_MIN_LENGTH } from '@/lib/auth/session-policy'
 import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, Mail, Lock, CheckCircle, ArrowLeft } from 'lucide-react'
 
 interface AuthFormProps {
   defaultTab?: 'signin' | 'signup'
 }
 
+/**
+ * Unified Ramply authentication surface for sign-in, sign-up, and magic-link fallback.
+ */
 export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const searchParams = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
   const initialTab = tabFromUrl || defaultTab
   const requestedPath = normalizeRequestedPath(searchParams.get('redirect'), '/dashboard')
-  const sessionMessage = getSessionExpiryMessage(searchParams.get('reason'))
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,6 +36,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const [success, setSuccess] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [activeTab, setActiveTab] = useState(initialTab)
+
   const { signIn } = useAuth()
   const router = useRouter()
   const supabase = createClient()
@@ -54,7 +55,9 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     resetForm()
   }
 
-  /** Formats common Supabase network errors into user-friendly messages. */
+  /**
+   * Formats common Supabase network errors into user-friendly messages.
+   */
   const formatAuthError = (message: string): string => {
     if (message === 'Failed to fetch' || message.includes('fetch') || message.includes('network')) {
       return 'Unable to connect. Please check your internet connection and try again.'
@@ -86,9 +89,9 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     }
 
     try {
-      const { error } = await signIn(email.trim(), password)
-      if (error) {
-        setError(formatAuthError(error.message))
+      const { error: signInError } = await signIn(email.trim(), password)
+      if (signInError) {
+        setError(formatAuthError(signInError.message))
       } else {
         router.replace(requestedPath)
       }
@@ -158,7 +161,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
 
   /**
    * Sends a passwordless magic link to the user's email via Supabase OTP.
-   * Works for both existing accounts and new sign-ups.
    */
   const handleMagicLink = async () => {
     if (!email) {
@@ -176,15 +178,15 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     setError('')
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error: magicLinkError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         },
       })
 
-      if (error) {
-        setError(formatAuthError(error.message))
+      if (magicLinkError) {
+        setError(formatAuthError(magicLinkError.message))
       } else {
         setMagicLinkSent(true)
       }
@@ -210,126 +212,73 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
     }
   }
 
-  // Magic link sent confirmation screen
   if (magicLinkSent) {
     return (
-      <div className="flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 min-h-[calc(100vh-140px)]">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex items-center justify-center mb-4">
-              <div className="bg-blue-600 p-3 rounded-full">
-                <Mail className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
-            <CardDescription>
-              We sent a sign-in link to <strong>{email}</strong>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600 text-center">
-              Click the link in your email to sign in. For security, use it as soon as possible.
-            </p>
-            <div className="flex flex-col space-y-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setMagicLinkSent(false)
-                  setError('')
-                }}
-                className="w-full"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Sign In
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthScreen>
+        <StatusCard
+          icon={<Mail className="h-6 w-6 text-white" />}
+          title="Check your email"
+          description={`We sent a sign-in link to ${email}. For security, use it as soon as possible.`}
+          primaryLabel="Back to Sign In"
+          onPrimaryClick={() => {
+            setMagicLinkSent(false)
+            setError('')
+          }}
+        />
+      </AuthScreen>
     )
   }
 
-  // Sign-up email confirmation screen
   if (success) {
     return (
-      <div className="flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4 min-h-[calc(100vh-140px)]">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex items-center justify-center mb-4">
-              <div className="bg-green-600 p-3 rounded-full">
-                <CheckCircle className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
-            <CardDescription>
-              We&apos;ve sent a confirmation link to {email}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-gray-600 text-center">
-              Please check your email and click the confirmation link to activate your account.
-            </p>
-            <div className="flex flex-col space-y-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setActiveTab('signin')
-                  resetForm()
-                }}
-                className="w-full"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Sign In
-              </Button>
-              <Button
-                onClick={() => {
-                  setSuccess(false)
-                  setEmail('')
-                  setPassword('')
-                  setConfirmPassword('')
-                }}
-                className="w-full"
-              >
-                Try Different Email
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthScreen>
+        <StatusCard
+          icon={<CheckCircle className="h-6 w-6 text-white" />}
+          title="Confirm your account"
+          description={`We sent a confirmation link to ${email}. Open it to activate your Ramply account.`}
+          primaryLabel="Back to Sign In"
+          onPrimaryClick={() => {
+            setActiveTab('signin')
+            resetForm()
+          }}
+          secondaryLabel="Try Different Email"
+          onSecondaryClick={() => {
+            setSuccess(false)
+            setEmail('')
+            setPassword('')
+            setConfirmPassword('')
+          }}
+        />
+      </AuthScreen>
     )
   }
 
   return (
-    <div className="flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 min-h-[calc(100vh-140px)]">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex items-center justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-full">
+    <AuthScreen>
+      <Card className="w-full rounded-[28px] border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)]">
+        <CardHeader className="space-y-2 border-b border-[#EEECE5] px-8 pb-6 pt-8 text-center">
+          <div className="mb-3 flex items-center justify-center">
+            <div className="rounded-full bg-[#287253] p-3">
               <Building2 className="h-6 w-6 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Ramply</CardTitle>
-          <CardDescription>
-            Streamline your vendor and customer onboarding process
+          <CardTitle className="text-3xl font-semibold tracking-tight text-[#0F1F18]">
+            Welcome back to Ramply
+          </CardTitle>
+          <CardDescription className="mx-auto max-w-md text-[15px] leading-relaxed text-[#5D6D66]">
+            Sign in to share company information, manage onboarding requests, and keep your verified profile moving.
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
-          {sessionMessage && (
-            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              {sessionMessage}
-            </div>
-          )}
-
-          {/* Google OAuth */}
+        <CardContent className="px-8 py-8">
           <div className="mb-6">
             <Button
               onClick={handleGoogleSignIn}
               variant="outline"
-              className="w-full h-11"
+              className="h-11 w-full border-[#DDDCD5] text-[#0F1F18] hover:border-[#287253] hover:bg-[#F7F8F4]"
               disabled={loading}
             >
-              <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+              <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
                 <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -338,84 +287,63 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               Continue with Google
             </Button>
 
-            <div className="flex items-center my-4">
-              <div className="flex-1 border-t border-gray-300" />
-              <span className="px-3 text-gray-500 text-sm">OR</span>
-              <div className="flex-1 border-t border-gray-300" />
+            <div className="my-4 flex items-center">
+              <div className="flex-1 border-t border-[#DDDCD5]" />
+              <span className="px-3 text-sm text-[#7A8C84]">OR</span>
+              <div className="flex-1 border-t border-[#DDDCD5]" />
             </div>
           </div>
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 bg-[#F6F4EE]">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
 
-            {/* ── Sign In Tab ── */}
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signin-email"
-                      type="email"
-                      autoComplete="username"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      autoComplete="current-password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+                <Field
+                  id="signin-email"
+                  label="Email"
+                  type="email"
+                  autoComplete="username"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={setEmail}
+                  icon={<Mail className="h-4 w-4 text-muted-foreground" />}
+                />
+                <Field
+                  id="signin-password"
+                  label="Password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={setPassword}
+                  icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                />
 
-                {error && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-red-600">{error}</p>
-                    {error.includes('Invalid email or password') && (
-                      <p className="text-sm text-gray-600">
-                        Don&apos;t have an account?{' '}
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('signup')}
-                          className="text-blue-600 hover:text-blue-500 font-medium underline"
-                        >
-                          Sign up here
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                )}
+                <ErrorBlock
+                  error={error}
+                  actionLabel="Sign up here"
+                  showAction={error.includes('Invalid email or password')}
+                  onAction={() => setActiveTab('signup')}
+                />
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#0F1F18] text-white hover:bg-[#1D3329]"
+                  disabled={loading}
+                >
                   {loading ? 'Signing In...' : 'Sign In'}
                 </Button>
 
-                {/* Magic link alternative */}
                 <div className="text-center">
                   <button
                     type="button"
                     onClick={handleMagicLink}
                     disabled={loading}
-                    className="text-sm text-blue-600 hover:text-blue-500 hover:underline disabled:opacity-50"
+                    className="text-sm text-[#287253] hover:text-[#1A4D38] hover:underline disabled:opacity-50"
                   >
                     Send magic link instead
                   </button>
@@ -423,84 +351,54 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
               </form>
             </TabsContent>
 
-            {/* ── Sign Up Tab ── */}
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                      minLength={AUTH_PASSWORD_MIN_LENGTH}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Use at least {AUTH_PASSWORD_MIN_LENGTH} characters.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="signup-confirm-password"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="Confirm your password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10"
-                      required
-                      minLength={AUTH_PASSWORD_MIN_LENGTH}
-                    />
-                  </div>
-                </div>
+                <Field
+                  id="signup-email"
+                  label="Email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={setEmail}
+                  icon={<Mail className="h-4 w-4 text-muted-foreground" />}
+                />
+                <Field
+                  id="signup-password"
+                  label="Password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Create a password"
+                  value={password}
+                  onChange={setPassword}
+                  minLength={AUTH_PASSWORD_MIN_LENGTH}
+                  helperText={`Use at least ${AUTH_PASSWORD_MIN_LENGTH} characters.`}
+                  icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                />
+                <Field
+                  id="signup-confirm-password"
+                  label="Confirm Password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  minLength={AUTH_PASSWORD_MIN_LENGTH}
+                  icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+                />
 
-                {error && (
-                  <div className="space-y-2">
-                    <p className={`text-sm ${error.includes('Check your email') ? 'text-green-600' : 'text-red-600'}`}>
-                      {error}
-                    </p>
-                    {error.includes('already exists') && (
-                      <p className="text-sm text-gray-600">
-                        Already have an account?{' '}
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('signin')}
-                          className="text-blue-600 hover:text-blue-500 font-medium underline"
-                        >
-                          Sign in here
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                )}
+                <ErrorBlock
+                  error={error}
+                  actionLabel="Sign in here"
+                  showAction={error.includes('already exists')}
+                  onAction={() => setActiveTab('signin')}
+                />
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#287253] text-white hover:bg-[#1A4D38]"
+                  disabled={loading}
+                >
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </Button>
               </form>
@@ -508,15 +406,140 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
           </Tabs>
         </CardContent>
 
-        <CardFooter className="text-center text-sm text-muted-foreground">
+        <CardFooter className="px-8 pb-8 text-center text-sm text-muted-foreground">
           <p className="w-full">
             By continuing, you agree to our{' '}
-            <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
+            <a href="#" className="text-[#287253] hover:underline">Terms of Service</a>
             {' '}and{' '}
-            <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+            <a href="#" className="text-[#287253] hover:underline">Privacy Policy</a>
           </p>
         </CardFooter>
       </Card>
+    </AuthScreen>
+  )
+}
+
+interface FieldProps {
+  id: string
+  label: string
+  type: string
+  autoComplete: string
+  placeholder: string
+  value: string
+  onChange: (value: string) => void
+  icon: React.ReactNode
+  helperText?: string
+  minLength?: number
+}
+
+function Field({
+  id,
+  label,
+  type,
+  autoComplete,
+  placeholder,
+  value,
+  onChange,
+  icon,
+  helperText,
+  minLength,
+}: FieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="relative">
+        <div className="pointer-events-none absolute left-3 top-3">{icon}</div>
+        <Input
+          id={id}
+          type={type}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="pl-10"
+          required
+          minLength={minLength}
+        />
+      </div>
+      {helperText ? (
+        <p className="text-xs text-[#7A8C84]">{helperText}</p>
+      ) : null}
     </div>
+  )
+}
+
+interface ErrorBlockProps {
+  error: string
+  showAction: boolean
+  actionLabel: string
+  onAction: () => void
+}
+
+function ErrorBlock({ error, showAction, actionLabel, onAction }: ErrorBlockProps) {
+  if (!error) return null
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-red-600">{error}</p>
+      {showAction ? (
+        <p className="text-sm text-[#5D6D66]">
+          <button
+            type="button"
+            onClick={onAction}
+            className="font-medium text-[#287253] underline hover:text-[#1A4D38]"
+          >
+            {actionLabel}
+          </button>
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+interface StatusCardProps {
+  icon: React.ReactNode
+  title: string
+  description: string
+  primaryLabel: string
+  onPrimaryClick: () => void
+  secondaryLabel?: string
+  onSecondaryClick?: () => void
+}
+
+function StatusCard({
+  icon,
+  title,
+  description,
+  primaryLabel,
+  onPrimaryClick,
+  secondaryLabel,
+  onSecondaryClick,
+}: StatusCardProps) {
+  return (
+    <Card className="w-full max-w-xl rounded-[28px] border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)]">
+      <CardHeader className="space-y-2 px-8 pb-4 pt-8 text-center">
+        <div className="mb-3 flex items-center justify-center">
+          <div className="rounded-full bg-[#287253] p-3">
+            {icon}
+          </div>
+        </div>
+        <CardTitle className="text-3xl font-semibold tracking-tight text-[#0F1F18]">
+          {title}
+        </CardTitle>
+        <CardDescription className="text-[15px] leading-relaxed text-[#5D6D66]">
+          {description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 px-8 pb-8">
+        <Button onClick={onPrimaryClick} className="w-full bg-[#287253] text-white hover:bg-[#1A4D38]">
+          {primaryLabel}
+        </Button>
+        {secondaryLabel && onSecondaryClick ? (
+          <Button onClick={onSecondaryClick} variant="outline" className="w-full border-[#DDDCD5]">
+            {secondaryLabel}
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }

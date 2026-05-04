@@ -12,9 +12,8 @@ import {
 import type { AuthError, User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import type { CompanyRow, UserRow } from '@/lib/database.types'
-import { isCompanyProfileComplete } from '@/lib/auth/routing'
+import { isCompanyProfileComplete, isProtectedAppPath } from '@/lib/auth/routing'
 import {
-  AUTH_REDIRECT_REASON_SESSION_EXPIRED,
   clearStoredSessionMetadata,
 } from '@/lib/auth/session-policy'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
@@ -326,9 +325,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Forces a local-device reauthentication when idle or absolute limits are reached.
    */
   const expireSession = useCallback(async () => {
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
+    const search = typeof window !== 'undefined' ? window.location.search : ''
+    const redirectTo = isProtectedAppPath(pathname)
+      ? `/login?redirect=${encodeURIComponent(`${pathname}${search}`)}`
+      : pathname === '/'
+        ? '/'
+        : `${pathname}${search}`
+
     await performSignOut({
-      redirectTo: `/login?reason=${AUTH_REDIRECT_REASON_SESSION_EXPIRED}`,
-      scope: 'local',
+      redirectTo,
+      scope: 'global',
     })
   }, [performSignOut])
 

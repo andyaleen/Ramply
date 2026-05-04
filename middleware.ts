@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/middleware'
+import { isProtectedAppPath } from '@/lib/auth/routing'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -11,13 +12,7 @@ export async function middleware(request: NextRequest) {
 
     const { pathname, search } = request.nextUrl
     const hasAuthCode = request.nextUrl.searchParams.has('code')
-    const isProtectedRoute =
-      pathname.startsWith('/dashboard') ||
-      pathname.startsWith('/admin') ||
-      pathname === '/complete-profile' ||
-      pathname === '/post-login' ||
-      pathname === '/promote' ||
-      pathname === '/signout'
+    const isProtectedRoute = isProtectedAppPath(pathname)
     const isAuthPage = pathname === '/login' || pathname === '/signup'
 
     if (pathname === '/' && hasAuthCode) {

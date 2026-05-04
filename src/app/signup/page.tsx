@@ -19,10 +19,10 @@ export default function SignUpPage() {
 
   if (loading) {
     return (
-      <Layout showAuth={false}>
+      <Layout showAuth={false} showHeader={false} showFooter={false} className="bg-[#F0EFE9]">
         <LoadingFallback
           title="Loading"
-          description="Checking your session…"
+          description="Checking your session..."
           showTimeoutWarning={false}
         />
       </Layout>
@@ -30,11 +30,11 @@ export default function SignUpPage() {
   }
 
   if (user) {
-    return null // Will redirect to dashboard
+    return null
   }
 
   return (
-    <Layout showAuth={false}>
+    <Layout showAuth={false} showHeader={false} showFooter={false} className="bg-[#F0EFE9]">
       <AuthForm defaultTab="signup" />
     </Layout>
   )
