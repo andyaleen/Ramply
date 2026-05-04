@@ -20,7 +20,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string; icon: Rea
 
 type RecipientRequest = Pick<
   ShareRequestRow,
-  'id' | 'token' | 'mandatory_fields' | 'optional_fields' | 'mandatory_documents' | 'optional_documents' | 'status' | 'created_at' | 'completed_at'
+  'id' | 'token' | 'request_type' | 'mandatory_fields' | 'optional_fields' | 'mandatory_documents' | 'optional_documents' | 'status' | 'created_at' | 'completed_at'
 >
 
 export default function RequestsPage() {
@@ -34,7 +34,7 @@ export default function RequestsPage() {
       if (!user?.email) return []
       const { data, error } = await supabase
         .from('share_requests')
-        .select('id, token, mandatory_fields, optional_fields, mandatory_documents, optional_documents, status, created_at, completed_at')
+        .select('id, token, request_type, mandatory_fields, optional_fields, mandatory_documents, optional_documents, status, created_at, completed_at')
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as RecipientRequest[]
@@ -111,6 +111,7 @@ export default function RequestsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Type of Request</TableHead>
                   <TableHead>Fields / Docs</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Received</TableHead>
@@ -123,6 +124,7 @@ export default function RequestsPage() {
                   const badge = STATUS_BADGE[r.status] ?? STATUS_BADGE.pending
                   return (
                     <TableRow key={r.id}>
+                      <TableCell className="font-medium">{r.request_type}</TableCell>
                       <TableCell className="text-sm">
                         {r.mandatory_fields.length} required, {r.optional_fields.length} optional fields<br />
                         {r.mandatory_documents.length} required, {r.optional_documents.length} optional docs

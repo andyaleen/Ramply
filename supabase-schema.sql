@@ -124,7 +124,8 @@ CREATE INDEX IF NOT EXISTS document_extractions_company_document_idx
 CREATE TABLE IF NOT EXISTS share_requests (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   requester_company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  recipient_email TEXT NOT NULL,
+  request_type TEXT NOT NULL,
+  recipient_email TEXT,
   mandatory_fields TEXT[] NOT NULL DEFAULT '{}',    -- e.g. ARRAY['legal_name','ein']
   mandatory_documents TEXT[] NOT NULL DEFAULT '{}', -- e.g. ARRAY['W9','resale_cert']
   optional_fields TEXT[] NOT NULL DEFAULT '{}',
@@ -137,6 +138,28 @@ CREATE TABLE IF NOT EXISTS share_requests (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE share_requests
+  ADD COLUMN IF NOT EXISTS request_type TEXT;
+
+UPDATE share_requests
+SET request_type = CASE
+  WHEN request_type IS NOT NULL AND BTRIM(request_type) <> '' THEN request_type
+  WHEN recipient_email ~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$' THEN 'General Request'
+  ELSE COALESCE(NULLIF(BTRIM(recipient_email), ''), 'General Request')
+END
+WHERE request_type IS NULL OR BTRIM(request_type) = '';
+
+UPDATE share_requests
+SET recipient_email = NULL
+WHERE recipient_email IS NOT NULL
+  AND recipient_email !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$';
+
+ALTER TABLE share_requests
+  ALTER COLUMN request_type SET NOT NULL;
+
+ALTER TABLE share_requests
+  ALTER COLUMN recipient_email DROP NOT NULL;
 
 -- Request templates — reusable field/doc bundles saved by an admin
 CREATE TABLE IF NOT EXISTS request_templates (
@@ -222,9 +245,6 @@ CREATE POLICY "users_select_own" ON users
 CREATE POLICY "users_insert_own" ON users
   FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "users_update_own" ON users
-  FOR UPDATE USING (auth.uid() = id);
-
 -- companies policies
 CREATE POLICY "companies_select_own" ON companies
   FOR SELECT USING (auth.uid() = owner_user_id);
@@ -299,13 +319,15 @@ CREATE POLICY "share_requests_all_requester" ON share_requests
 -- Recipients can read their own requests
 CREATE POLICY "share_requests_select_recipient" ON share_requests
   FOR SELECT USING (
-    recipient_email = (SELECT email FROM users WHERE id = auth.uid())
+    recipient_email IS NOT NULL
+    AND recipient_email = (SELECT email FROM users WHERE id = auth.uid())
   );
 
 -- Recipients can update status to 'completed'
 CREATE POLICY "share_requests_update_recipient" ON share_requests
   FOR UPDATE USING (
-    recipient_email = (SELECT email FROM users WHERE id = auth.uid())
+    recipient_email IS NOT NULL
+    AND recipient_email = (SELECT email FROM users WHERE id = auth.uid())
   );
 
 -- shared_data policies
@@ -417,6 +439,8 @@ CREATE OR REPLACE FUNCTION get_share_request_by_token(p_token TEXT)
 RETURNS TABLE (
   id UUID,
   requester_company_id UUID,
+  request_type TEXT,
+  recipient_email TEXT,
   mandatory_fields TEXT[],
   mandatory_documents TEXT[],
   optional_fields TEXT[],
@@ -434,6 +458,8 @@ BEGIN
     SELECT
       sr.id,
       sr.requester_company_id,
+      sr.request_type,
+      sr.recipient_email,
       sr.mandatory_fields,
       sr.mandatory_documents,
       sr.optional_fields,
@@ -480,6 +506,7 @@ BEGIN
     FROM share_requests sr
     JOIN users u ON u.id = auth.uid()
     WHERE sr.id = p_share_request_id
+      AND sr.recipient_email IS NOT NULL
       AND sr.recipient_email = u.email
       AND sr.status = 'pending'
       AND (sr.expires_at IS NULL OR sr.expires_at > NOW())
@@ -513,6 +540,34 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION fulfill_share_request(UUID, JSONB, UUID[]) TO authenticated;
+
+CREATE OR REPLACE FUNCTION set_user_role(
+  p_user_id UUID,
+  p_role TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+  IF p_role NOT IN ('admin', 'external') THEN
+    RAISE EXCEPTION 'invalid_role';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE id = auth.uid()
+      AND role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'admin_required';
+  END IF;
+
+  UPDATE users
+  SET role = p_role,
+      updated_at = NOW()
+  WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION set_user_role(UUID, TEXT) TO authenticated;
 
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$

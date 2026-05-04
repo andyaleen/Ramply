@@ -266,7 +266,8 @@ export type Database = {
         Row: {
           id: string
           requester_company_id: string
-          recipient_email: string
+          request_type: string
+          recipient_email: string | null
           mandatory_fields: FieldKey[]
           mandatory_documents: DocumentTypeKey[]
           optional_fields: FieldKey[]
@@ -282,7 +283,8 @@ export type Database = {
         Insert: {
           id?: string
           requester_company_id: string
-          recipient_email: string
+          request_type: string
+          recipient_email?: string | null
           mandatory_fields?: FieldKey[]
           mandatory_documents?: DocumentTypeKey[]
           optional_fields?: FieldKey[]
@@ -298,7 +300,8 @@ export type Database = {
         Update: {
           id?: string
           requester_company_id?: string
-          recipient_email?: string
+          request_type?: string
+          recipient_email?: string | null
           mandatory_fields?: FieldKey[]
           mandatory_documents?: DocumentTypeKey[]
           optional_fields?: FieldKey[]

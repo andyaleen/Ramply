@@ -55,6 +55,7 @@ export function SendOnboardingRequestDialog({
   const form = useForm<ShareRequest>({
     resolver: zodResolver(ShareRequestSchema),
     defaultValues: {
+      request_type: '',
       recipient_email: '',
       mandatory_fields: [],
       optional_fields: [],
@@ -194,8 +195,8 @@ export function SendOnboardingRequestDialog({
           <DialogTitle>{generatedLink ? 'Link Generated' : 'New Share Request'}</DialogTitle>
           <DialogDescription>
             {generatedLink
-              ? 'Share this link with your recipient. An invite email has been sent.'
-              : 'Choose what information you need from the recipient.'}
+              ? 'Share this link when you are ready to send the request later in the workflow.'
+              : 'Set the type of request and choose what information you need from the recipient.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -222,11 +223,14 @@ export function SendOnboardingRequestDialog({
                 onDelete={(template) => deleteTemplate(template.id, template.name)}
               />
 
-              <FormField control={form.control} name="recipient_email" render={({ field }) => (
+              <FormField control={form.control} name="request_type" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Recipient Email *</FormLabel>
+                  <FormLabel>Type of Request *</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="vendor@company.com" {...field} />
+                    <Input
+                      placeholder="example: Standard, Insurance, Higher Credit Limit, etc"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -267,7 +271,7 @@ export function SendOnboardingRequestDialog({
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Creating...' : 'Create & Send'}
+                  {createMutation.isPending ? 'Creating...' : 'Create Link'}
                 </Button>
               </DialogFooter>
             </form>

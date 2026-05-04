@@ -4,6 +4,11 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
+import { normalizeRequestedPath } from '@/lib/auth/routing'
+import {
+  AUTH_PASSWORD_MIN_LENGTH,
+  getSessionExpiryMessage,
+} from '@/lib/auth/session-policy'
 import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +25,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const searchParams = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
   const initialTab = tabFromUrl || defaultTab
-  const requestedPath = searchParams.get('redirect') || '/dashboard'
+  const requestedPath = normalizeRequestedPath(searchParams.get('redirect'), '/dashboard')
+  const sessionMessage = getSessionExpiryMessage(searchParams.get('reason'))
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -79,12 +85,6 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      setLoading(false)
-      return
-    }
-
     try {
       const { error } = await signIn(email.trim(), password)
       if (error) {
@@ -117,8 +117,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long')
+    if (password.length < AUTH_PASSWORD_MIN_LENGTH) {
+      setError(`Password must be at least ${AUTH_PASSWORD_MIN_LENGTH} characters long`)
       setLoading(false)
       return
     }
@@ -228,7 +228,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-gray-600 text-center">
-              Click the link in your email to sign in. The link expires in 1 hour.
+              Click the link in your email to sign in. For security, use it as soon as possible.
             </p>
             <div className="flex flex-col space-y-2">
               <Button
@@ -315,6 +315,12 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
         </CardHeader>
 
         <CardContent>
+          {sessionMessage && (
+            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {sessionMessage}
+            </div>
+          )}
+
           {/* Google OAuth */}
           <div className="mb-6">
             <Button
@@ -449,9 +455,12 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-10"
                       required
-                      minLength={6}
+                      minLength={AUTH_PASSWORD_MIN_LENGTH}
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use at least {AUTH_PASSWORD_MIN_LENGTH} characters.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-confirm-password">Confirm Password</Label>
@@ -466,7 +475,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="pl-10"
                       required
-                      minLength={6}
+                      minLength={AUTH_PASSWORD_MIN_LENGTH}
                     />
                   </div>
                 </div>

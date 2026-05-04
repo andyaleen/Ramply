@@ -6,12 +6,13 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { LoadingFallback } from '@/components/LoadingFallback'
+import { normalizeRequestedPath } from '@/lib/auth/routing'
 
 function LoginContent() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectPath = searchParams.get('redirect') || '/dashboard'
+  const redirectPath = normalizeRequestedPath(searchParams.get('redirect'), '/dashboard')
 
   useEffect(() => {
     if (!loading && user) {

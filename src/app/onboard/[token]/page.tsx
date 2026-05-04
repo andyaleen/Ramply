@@ -11,7 +11,7 @@ import { FulfillmentForm } from '@/components/onboarding/FulfillmentForm'
 import type { ShareRequestRow, CompanyDocumentRow } from '@/lib/database.types'
 import { AlertCircle, CheckCircle } from 'lucide-react'
 
-type ShareRequestWithRequester = Omit<ShareRequestRow, 'recipient_email' | 'token'> & {
+type ShareRequestWithRequester = Omit<ShareRequestRow, 'token'> & {
   requester_company_legal_name: string | null
 }
 
@@ -97,7 +97,7 @@ export default function OnboardingPage() {
             <h1 className="text-2xl font-bold">Share Request</h1>
             <p className="text-muted-foreground mt-1">
               {shareRequest.requester_company_legal_name ?? 'A company'} is requesting your
-              company information. Sign in or create an account to continue.
+              company information for a {shareRequest.request_type.toLowerCase()} request. Sign in or create an account to continue.
             </p>
           </div>
           <AuthForm />
@@ -116,7 +116,7 @@ export default function OnboardingPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Share Request</h1>
           <p className="text-muted-foreground mt-1">
-            <strong>{requesterName}</strong> is requesting{' '}
+            <strong>{requesterName}</strong> is requesting a <strong>{shareRequest.request_type}</strong> submission with{' '}
             {totalFields} field{totalFields !== 1 ? 's' : ''}{' '}
             and {totalDocs} document{totalDocs !== 1 ? 's' : ''}.
           </p>

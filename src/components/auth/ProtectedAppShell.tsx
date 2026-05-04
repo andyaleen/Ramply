@@ -51,12 +51,18 @@ export function ProtectedAppShell({ children }: ProtectedAppShellProps) {
     )
   }
 
-  if (profileLoading || !userProfile) {
+  // Only show the full-screen workspace loader on the *first* load when we
+  // genuinely don't have profile data yet. A background refresh (e.g. when
+  // Supabase fires TOKEN_REFRESHED as the tab regains focus) must not swap
+  // out the rendered page — that's what caused this screen to flash every
+  // time the user came back to the Ramply tab.
+  if (!userProfile) {
     return (
       <LoadingFallback
         title="Preparing Your Workspace"
         description="Loading your company profile and account access..."
         onRefresh={() => window.location.reload()}
+        timeoutMs={12000}
       />
     )
   }

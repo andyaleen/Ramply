@@ -53,8 +53,8 @@ test.describe('share request — full flow', () => {
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('New Share Request')).toBeVisible()
 
-    // Fill in recipient email
-    await page.getByPlaceholder(/vendor@company\.com/i).fill(vendorEmail)
+    // Fill in request type
+    await page.getByPlaceholder(/example: standard, insurance, higher credit limit, etc/i).fill('Standard')
 
     // Mark "Legal Business Name" as Required.
     // Radix Checkbox renders as button[role="checkbox"] — must click the button directly.
@@ -64,7 +64,7 @@ test.describe('share request — full flow', () => {
       .first()
       .click()
 
-    await page.getByRole('button', { name: /create & send/i }).click()
+    await page.getByRole('button', { name: /create link/i }).click()
 
     // Dialog switches to "Link Generated" state
     await expect(page.getByText('Link Generated')).toBeVisible({ timeout: 20_000 })
@@ -157,7 +157,7 @@ test.describe('share request — full flow', () => {
     await expect(page.getByRole('heading', { name: /share responses/i })).toBeVisible({ timeout: 20_000 })
 
     await expect(page.getByText('Total Responses').locator('..').locator('..')).toBeVisible()
-    await expect(page.getByText(vendorEmail).first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Standard').first()).toBeVisible({ timeout: 10_000 })
 
     await context.close()
   })

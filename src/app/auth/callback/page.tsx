@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { LoadingFallback } from '@/components/LoadingFallback'
 import { Layout } from '@/components/layout'
 import { useAuth } from '@/contexts/AuthContext'
+import { normalizeRequestedPath } from '@/lib/auth/routing'
 
 function AuthCallbackContent() {
   const router = useRouter()
@@ -14,7 +15,7 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const code = searchParams.get('code')
-    const next = searchParams.get('next') || '/dashboard'
+    const next = normalizeRequestedPath(searchParams.get('next'), '/dashboard')
     const authError = searchParams.get('error_description') || searchParams.get('error')
 
     if (!code) {
@@ -42,7 +43,7 @@ function AuthCallbackContent() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setTimedOut(true)
-    }, 5000)
+    }, 15000)
 
     return () => {
       window.clearTimeout(timer)

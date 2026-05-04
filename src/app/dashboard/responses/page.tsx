@@ -31,7 +31,7 @@ export default function ResponsesPage() {
       const [{ data: all }, { data: monthly }] = await Promise.all([
         supabase
           .from('share_requests')
-          .select('recipient_email')
+          .select('request_type')
           .eq('requester_company_id', company.id)
           .eq('status', 'completed'),
         supabase
@@ -42,7 +42,7 @@ export default function ResponsesPage() {
           .gte('completed_at', firstOfMonth),
       ])
 
-      const uniqueVendors = new Set((all ?? []).map((r) => r.recipient_email)).size
+      const uniqueVendors = new Set((all ?? []).map((r) => r.request_type)).size
       return {
         total: all?.length ?? 0,
         thisMonth: monthly?.length ?? 0,
@@ -110,7 +110,7 @@ export default function ResponsesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unique Vendors</CardTitle>
+            <CardTitle className="text-sm font-medium">Unique Request Types</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -118,7 +118,7 @@ export default function ResponsesPage() {
               ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded" />
               : <div className="text-2xl font-bold">{stats?.uniqueVendors ?? 0}</div>
             }
-            <p className="text-xs text-muted-foreground">Total unique respondents</p>
+            <p className="text-xs text-muted-foreground">Distinct request types with completed responses</p>
           </CardContent>
         </Card>
       </div>

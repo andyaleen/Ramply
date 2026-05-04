@@ -39,7 +39,7 @@ export function OnboardingResponsesList() {
 
       const { data: requests, error: reqError } = await supabase
         .from('share_requests')
-        .select('id, requester_company_id, recipient_email, mandatory_fields, mandatory_documents, optional_fields, optional_documents, expires_at, status, completed_by_company_id, completed_at, created_at, updated_at')
+        .select('id, requester_company_id, request_type, recipient_email, mandatory_fields, mandatory_documents, optional_fields, optional_documents, expires_at, status, completed_by_company_id, completed_at, created_at, updated_at')
         .eq('requester_company_id', company.id)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
@@ -121,7 +121,7 @@ export function OnboardingResponsesList() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Recipient</TableHead>
+            <TableHead>Type of Request</TableHead>
             <TableHead>Company</TableHead>
             <TableHead>Fields / Docs</TableHead>
             <TableHead>Status</TableHead>
@@ -134,7 +134,7 @@ export function OnboardingResponsesList() {
             const badge = STATUS_BADGE[r.status] ?? STATUS_BADGE.pending
             return (
               <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.recipient_email}</TableCell>
+                <TableCell className="font-medium">{r.request_type}</TableCell>
                 <TableCell className="text-sm">
                   {r.recipientCompany?.id ? (
                     <Button
@@ -221,7 +221,7 @@ function ResponseDetailsDialog({
     <Dialog open={!!response} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Share Request - {response.recipient_email}</DialogTitle>
+          <DialogTitle>Share Request - {response.request_type}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">

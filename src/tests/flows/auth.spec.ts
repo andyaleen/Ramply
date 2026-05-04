@@ -39,11 +39,10 @@ test.describe('auth — form validation', () => {
   test('sign-up rejects a short password', async ({ page }) => {
     await page.getByRole('tab', { name: /sign up/i }).click()
     await page.getByLabel(/^email$/i).fill('test@example.com')
-    await page.getByLabel(/^password$/i).fill('abc')
-    await page.getByLabel(/confirm password/i).fill('abc')
+    await page.getByLabel(/^password$/i).fill('shortpass11')
+    await page.getByLabel(/confirm password/i).fill('shortpass11')
     await page.getByRole('button', { name: /create account/i }).click()
-    // minLength={6} on the input triggers browser-native constraint validation
-    // before React's handler runs, so we check validity.tooShort directly
+    // minLength is enforced by the browser before React's handler runs.
     const passwordInput = page.getByLabel(/^password$/i)
     const tooShort = await passwordInput.evaluate((el: HTMLInputElement) => el.validity.tooShort)
     expect(tooShort).toBe(true)

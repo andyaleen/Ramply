@@ -11,7 +11,6 @@ import { LogOut, CheckCircle, ArrowLeft } from 'lucide-react'
 export default function SignOutPage() {
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [isSignedOut, setIsSignedOut] = useState(false)
-  const [showForceSignOut, setShowForceSignOut] = useState(false)
   const { signOut, user } = useAuth()
   const router = useRouter()
 
@@ -22,16 +21,6 @@ export default function SignOutPage() {
     }
   }, [user])
 
-  useEffect(() => {
-    // Show force signout option if process takes too long
-    if (isSigningOut) {
-      const timer = setTimeout(() => {
-        setShowForceSignOut(true)
-      }, 8000) // Show after 8 seconds
-      
-      return () => clearTimeout(timer)
-    }
-  }, [isSigningOut])
   const handleSignOut = async () => {
     setIsSigningOut(true)
     console.log('SignOut page: Starting sign out process...')
@@ -68,16 +57,6 @@ export default function SignOutPage() {
     }
   }
 
-  const handleForceSignOut = () => {
-    console.log('Force signing out - clearing everything and redirecting...')
-    // Clear localStorage/sessionStorage
-    if (typeof window !== 'undefined') {
-      localStorage.clear()
-      sessionStorage.clear()
-    }
-    setIsSignedOut(true)
-    router.push('/')
-  }
   if (isSignedOut) {
     return (
       <Layout showAuth={false}>
@@ -163,16 +142,6 @@ export default function SignOutPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Cancel, Stay Signed In
             </Button>
-            
-            {showForceSignOut && (
-              <Button
-                onClick={handleForceSignOut}
-                variant="destructive"
-                className="w-full mt-4 bg-orange-600 hover:bg-orange-700"
-              >
-                Force Sign Out (If Stuck)
-              </Button>
-            )}
           </div></CardContent>
       </Card>
       </div>

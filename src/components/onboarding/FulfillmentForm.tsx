@@ -15,7 +15,7 @@ import { CheckCircle, FileText, Upload, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
 
-type ShareRequestForFulfillment = Omit<ShareRequestRow, 'recipient_email' | 'token'>
+type ShareRequestForFulfillment = Omit<ShareRequestRow, 'token'>
 
 interface FulfillmentFormProps {
   shareRequest: ShareRequestForFulfillment

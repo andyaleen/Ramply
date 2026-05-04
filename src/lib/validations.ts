@@ -29,7 +29,8 @@ export const CompanyProfileSchema = z.object({
 
 // Share request — what fields/docs are being requested
 export const ShareRequestSchema = z.object({
-  recipient_email: z.string().email('Valid email is required'),
+  request_type: z.string().trim().min(1, 'Type of request is required'),
+  recipient_email: z.string().email('Valid email is required').optional().or(z.literal('')),
   mandatory_fields: z.array(z.enum(fieldKeys)).min(0),
   optional_fields: z.array(z.enum(fieldKeys)).min(0),
   mandatory_documents: z.array(z.enum(docTypeKeys)).min(0),
@@ -125,7 +126,8 @@ export type OnboardingType = z.infer<typeof OnboardingTypeSchema>
 
 // Onboarding request (admin sends to a recipient)
 export const OnboardingRequestSchema = z.object({
-  recipient_email: z.string().email('Valid email is required'),
+  request_type: z.string().trim().min(1, 'Type of request is required'),
+  recipient_email: z.string().email('Valid email is required').optional().or(z.literal('')),
 })
 export type OnboardingRequest = z.infer<typeof OnboardingRequestSchema>
 
