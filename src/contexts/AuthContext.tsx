@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { CompanyRow, UserRow } from '@/lib/database.types'
 import { isCompanyProfileComplete, isProtectedAppPath } from '@/lib/auth/routing'
 import {
+  AUTH_REDIRECT_REASON_SESSION_EXPIRED,
   clearStoredSessionMetadata,
 } from '@/lib/auth/session-policy'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
@@ -327,11 +328,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const expireSession = useCallback(async () => {
     const pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
     const search = typeof window !== 'undefined' ? window.location.search : ''
+    const reason = `reason=${AUTH_REDIRECT_REASON_SESSION_EXPIRED}`
     const redirectTo = isProtectedAppPath(pathname)
-      ? `/login?redirect=${encodeURIComponent(`${pathname}${search}`)}`
+      ? `/login?${reason}&redirect=${encodeURIComponent(`${pathname}${search}`)}`
       : pathname === '/'
         ? '/'
-        : `${pathname}${search}`
+        : `/login?${reason}`
 
     await performSignOut({
       redirectTo,

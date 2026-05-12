@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { AuthScreen } from '@/components/auth/AuthScreen'
 import { normalizeRequestedPath } from '@/lib/auth/routing'
-import { AUTH_PASSWORD_MIN_LENGTH } from '@/lib/auth/session-policy'
+import { AUTH_PASSWORD_MIN_LENGTH, getSessionExpiryMessage } from '@/lib/auth/session-policy'
 import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,6 +27,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
   const initialTab = tabFromUrl || defaultTab
   const requestedPath = normalizeRequestedPath(searchParams.get('redirect'), '/dashboard')
+  const sessionMessage = getSessionExpiryMessage(searchParams.get('reason'))
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -271,6 +272,11 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
         </CardHeader>
 
         <CardContent className="px-8 py-8">
+          {sessionMessage && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {sessionMessage}
+            </div>
+          )}
           <div className="mb-6">
             <Button
               onClick={handleGoogleSignIn}
