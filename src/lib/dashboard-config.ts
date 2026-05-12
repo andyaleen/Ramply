@@ -239,13 +239,8 @@ export const navigationConfig: NavigationGroup[] = [
         icon: Users,
       },
       {
-        title: "Templates",
-        url: "/dashboard/templates",
-        icon: BookTemplate,
-      },
-      {
         title: "Received",
-        url: "/dashboard/requests",
+        url: "/dashboard/received",
         icon: FileText,
       },
       {

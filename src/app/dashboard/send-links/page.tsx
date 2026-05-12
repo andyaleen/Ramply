@@ -5,11 +5,18 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Plus, Send } from 'lucide-react'
+import { SavedRequestTemplatesPanel } from '@/components/dashboard/SavedRequestTemplatesPanel'
 import { SendOnboardingRequestDialog } from '@/components/dashboard/SendOnboardingRequestDialog'
 
 export default function SendLinksPage() {
   const router = useRouter()
   const [showDialog, setShowDialog] = useState(false)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+
+  function openNewRequest(templateId: string | null = null) {
+    setSelectedTemplateId(templateId)
+    setShowDialog(true)
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -25,7 +32,7 @@ export default function SendLinksPage() {
             <p className="text-gray-600">Request company information and documents from vendors and partners</p>
           </div>
         </div>
-        <Button onClick={() => setShowDialog(true)} className="flex items-center gap-2">
+        <Button onClick={() => openNewRequest()} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           New Request
         </Button>
@@ -40,17 +47,29 @@ export default function SendLinksPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={() => setShowDialog(true)} size="lg">
+          <Button onClick={() => openNewRequest()} size="lg">
             <Plus className="h-4 w-4 mr-2" />
             Create Share Request
           </Button>
         </CardContent>
       </Card>
 
+      <SavedRequestTemplatesPanel
+        onCreateNew={() => openNewRequest()}
+        onUseTemplate={(templateId) => openNewRequest(templateId)}
+      />
+
       <SendOnboardingRequestDialog
         open={showDialog}
-        onOpenChange={setShowDialog}
-        onSuccess={() => setShowDialog(false)}
+        initialTemplateId={selectedTemplateId}
+        onOpenChange={(open) => {
+          setShowDialog(open)
+          if (!open) setSelectedTemplateId(null)
+        }}
+        onSuccess={() => {
+          setShowDialog(false)
+          setSelectedTemplateId(null)
+        }}
       />
     </div>
   )

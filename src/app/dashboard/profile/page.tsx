@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,7 +17,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CompanyProfileSchema, type CompanyProfile } from '@/lib/validations'
 import { US_STATES, US_STATE_VALUES } from '@/lib/us-states'
-import { User, Building2, MapPin, Landmark, Shield, Edit3, Phone, Globe, Mail } from 'lucide-react'
+import { User, Building2, MapPin, Landmark, Shield, Edit3, Phone, Globe, Mail, LogOut } from 'lucide-react'
 
 /** Helper: first letter of each word, up to 2 chars */
 function getInitials(name: string) {
@@ -31,6 +32,7 @@ function val(v: string | null | undefined) {
 export default function ProfilePage() {
   const { user, company, updateCompany, loading } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
+  const router = useRouter()
 
   const form = useForm<CompanyProfile>({
     resolver: zodResolver(CompanyProfileSchema),
@@ -133,8 +135,7 @@ export default function ProfilePage() {
             <CardHeader><CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" />Contact</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div><p className="font-medium text-muted-foreground">Name</p><p>{val(company.contact_name)}</p></div>
-              <div className="flex items-center gap-1"><Mail className="h-3 w-3 text-muted-foreground" /><p>{user?.email}</p></div>
-              <div className="flex items-center gap-1"><Mail className="h-3 w-3 text-muted-foreground" /><p>{val(company.contact_email)}</p></div>
+              <div><p className="font-medium text-muted-foreground">Email</p><div className="flex items-center gap-1"><Mail className="h-3 w-3 text-muted-foreground" /><p>{val(company.contact_email || user?.email)}</p></div></div>
               <div className="flex items-center gap-1"><Phone className="h-3 w-3 text-muted-foreground" /><p>{val(company.contact_phone)}</p></div>
             </CardContent>
           </Card>
@@ -285,6 +286,29 @@ export default function ProfilePage() {
           </form>
         </Form>
       )}
+
+      <Card className="border-red-100 bg-red-50/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base text-red-900">
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-red-900/80">
+            Finished updating your profile? Sign out from this device to keep your account secure.
+          </p>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => router.push('/signout')}
+            className="sm:w-auto"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }

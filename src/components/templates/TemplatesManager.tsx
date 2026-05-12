@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { BookTemplate, Plus, Save, Trash2 } from 'lucide-react'
 import { TemplateSchema, type TemplateFormValues } from '@/lib/validations'
 import type { RequestTemplateRow } from '@/lib/database.types'
+import { countTemplateSelections, fetchRequestTemplates, removeRequestTemplate, saveRequestTemplate } from '@/lib/request-templates'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,20 +36,6 @@ function templateToForm(template: RequestTemplateRow): TemplateFormValues {
   }
 }
 
-/** Count selected fields/documents for display. */
-function countSelections(template: RequestTemplateRow): { fields: number; documents: number } {
-  const fields = (template.mandatory_fields?.length ?? 0) + (template.optional_fields?.length ?? 0)
-  const documents = (template.mandatory_documents?.length ?? 0) + (template.optional_documents?.length ?? 0)
-  return { fields, documents }
-}
-
-/** Fetch all templates for the current company. */
-async function fetchTemplates(): Promise<RequestTemplateRow[]> {
-  const res = await fetch('/api/templates')
-  if (!res.ok) return []
-  return res.json() as Promise<RequestTemplateRow[]>
-}
-
 /** Templates manager UI for creating and editing request templates. */
 export function TemplatesManager() {
   const queryClient = useQueryClient()
@@ -57,7 +44,7 @@ export function TemplatesManager() {
 
   const { data: templates = [], isLoading } = useQuery<RequestTemplateRow[]>({
     queryKey: ['request-templates'],
-    queryFn: fetchTemplates,
+    queryFn: fetchRequestTemplates,
   })
 
   const activeTemplate = useMemo(
@@ -104,21 +91,10 @@ export function TemplatesManager() {
 
   const saveMutation = useMutation({
     mutationFn: async (values: TemplateFormValues) => {
-      const url = mode === 'edit' && activeTemplate ? `/api/templates?id=${activeTemplate.id}` : '/api/templates'
-      const method = mode === 'edit' && activeTemplate ? 'PUT' : 'POST'
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string }
-        throw new Error(err.error ?? 'Failed to save template')
-      }
-      return res.json() as Promise<RequestTemplateRow>
+      return saveRequestTemplate(values, mode === 'edit' ? activeTemplate?.id : undefined)
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
       setMode('edit')
       setActiveTemplateId(data.id)
       toast.success('Template saved')
@@ -130,12 +106,11 @@ export function TemplatesManager() {
 
   const deleteMutation = useMutation({
     mutationFn: async (template: RequestTemplateRow) => {
-      const res = await fetch(`/api/templates?id=${template.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete template')
+      await removeRequestTemplate(template.id)
       return template.id
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
       toast.success('Template deleted')
     },
     onError: () => {
@@ -181,7 +156,7 @@ export function TemplatesManager() {
           ) : (
             <div className="space-y-2">
               {templates.map((template) => {
-                const counts = countSelections(template)
+                const counts = countTemplateSelections(template)
                 const isActive = template.id === activeTemplateId && mode === 'edit'
                 return (
                   <button

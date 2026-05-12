@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Dialog,
@@ -20,17 +20,20 @@ import { Copy, Zap, BookTemplate } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { RequestTemplateRow } from '@/lib/database.types'
+import { fetchRequestTemplates, removeRequestTemplate, saveRequestTemplate } from '@/lib/request-templates'
 import { TemplateSelectionsForm } from '@/components/templates/TemplateSelectionsForm'
 import { TemplatePicker } from '@/components/templates/TemplatePicker'
 
 interface SendOnboardingRequestDialogProps {
   open: boolean
+  initialTemplateId?: string | null
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }
 
 export function SendOnboardingRequestDialog({
   open,
+  initialTemplateId,
   onOpenChange,
   onSuccess,
 }: SendOnboardingRequestDialogProps) {
@@ -44,11 +47,7 @@ export function SendOnboardingRequestDialog({
 
   const { data: templates = [] } = useQuery<RequestTemplateRow[]>({
     queryKey: ['request-templates'],
-    queryFn: async () => {
-      const res = await fetch('/api/templates')
-      if (!res.ok) return []
-      return res.json() as Promise<RequestTemplateRow[]>
-    },
+    queryFn: fetchRequestTemplates,
     enabled: open,
   })
 
@@ -112,13 +111,19 @@ export function SendOnboardingRequestDialog({
   }
 
   /** Populate the form with a saved template's fields/docs. */
-  function applyTemplate(template: RequestTemplateRow) {
+  const applyTemplate = useCallback((template: RequestTemplateRow) => {
     form.setValue('mandatory_fields', template.mandatory_fields ?? [])
     form.setValue('optional_fields', template.optional_fields ?? [])
     form.setValue('mandatory_documents', template.mandatory_documents ?? [])
     form.setValue('optional_documents', template.optional_documents ?? [])
     toast.success(`Template "${template.name}" applied`)
-  }
+  }, [form])
+
+  useEffect(() => {
+    if (!open || !initialTemplateId) return
+    const template = templates.find((entry) => entry.id === initialTemplateId)
+    if (template) applyTemplate(template)
+  }, [applyTemplate, open, initialTemplateId, templates])
 
   /** Save the current field/doc selection as a new template. */
   async function saveAsTemplate() {
@@ -132,19 +137,14 @@ export function SendOnboardingRequestDialog({
         mandatory_documents,
         optional_documents,
       } = form.getValues()
-      const res = await fetch('/api/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          mandatory_fields,
-          optional_fields,
-          mandatory_documents,
-          optional_documents,
-        }),
+      await saveRequestTemplate({
+        name,
+        mandatory_fields,
+        optional_fields,
+        mandatory_documents,
+        optional_documents,
       })
-      if (!res.ok) throw new Error('Failed to save template')
-      queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
       toast.success(`Template "${name}" saved`)
       setTemplateName('')
       setShowSaveTemplate(false)
@@ -157,9 +157,13 @@ export function SendOnboardingRequestDialog({
 
   /** Delete a template by ID. */
   async function deleteTemplate(id: string, name: string) {
-    const res = await fetch(`/api/templates?id=${id}`, { method: 'DELETE' })
-    if (!res.ok) { toast.error('Failed to delete template'); return }
-    queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+    try {
+      await removeRequestTemplate(id)
+      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+    } catch {
+      toast.error('Failed to delete template')
+      return
+    }
     toast.success(`Template "${name}" deleted`)
   }
 

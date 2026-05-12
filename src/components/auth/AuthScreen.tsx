@@ -24,7 +24,7 @@ export function AuthScreen({ children }: AuthScreenProps) {
             onClick={() => router.push('/')}
             className="text-[18px] font-semibold text-[#0F1F18]"
           >
-            Ramply<span className="text-[#287253]">OS</span>
+            Ramply
           </button>
           <button
             type="button"
@@ -49,7 +49,7 @@ export function AuthScreen({ children }: AuthScreenProps) {
             and keep onboarding requests moving without the usual email chase.
           </p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <FeaturePill
               stat="1 profile"
               label="Reuse company details across every request."
@@ -57,10 +57,6 @@ export function AuthScreen({ children }: AuthScreenProps) {
             <FeaturePill
               stat="Fast re-share"
               label="Send verified documents without re-uploading."
-            />
-            <FeaturePill
-              stat="Secure by default"
-              label="Re-authentication kicks in after inactivity."
             />
           </div>
         </section>
