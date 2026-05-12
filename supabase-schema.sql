@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
   role TEXT NOT NULL DEFAULT 'external' CHECK (role IN ('admin', 'external')),
+  notification_preferences JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -244,6 +245,10 @@ CREATE POLICY "users_select_own" ON users
 
 CREATE POLICY "users_insert_own" ON users
   FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "users_update_own" ON users
+  FOR UPDATE USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
 -- companies policies
 CREATE POLICY "companies_select_own" ON companies

@@ -1,5 +1,12 @@
 import type { FieldKey, DocumentTypeKey } from './catalog'
 
+export interface NotificationPreferences {
+  email_notifications?: boolean
+  request_updates?: boolean
+  vendor_completions?: boolean
+  system_updates?: boolean
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -8,6 +15,7 @@ export type Database = {
           id: string
           email: string
           role: 'admin' | 'external'
+          notification_preferences: NotificationPreferences
           created_at: string
           updated_at: string
         }
@@ -15,6 +23,7 @@ export type Database = {
           id: string
           email: string
           role?: 'admin' | 'external'
+          notification_preferences?: NotificationPreferences
           created_at?: string
           updated_at?: string
         }
@@ -22,6 +31,7 @@ export type Database = {
           id?: string
           email?: string
           role?: 'admin' | 'external'
+          notification_preferences?: NotificationPreferences
           created_at?: string
           updated_at?: string
         }
