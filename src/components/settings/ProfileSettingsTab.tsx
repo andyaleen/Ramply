@@ -25,7 +25,7 @@ import { toast } from 'sonner'
  * Uses the same CompanyProfileSchema and data source as the Profile page.
  */
 export function ProfileSettingsTab() {
-  const { company, updateCompany } = useAuth()
+  const { company, updateCompany, refreshUserProfile } = useAuth()
 
   const form = useForm<CompanyProfile>({
     resolver: zodResolver(CompanyProfileSchema),
@@ -55,14 +55,19 @@ export function ProfileSettingsTab() {
     mutationFn: async (values: CompanyProfile) => {
       await updateCompany(values)
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Profile updated successfully')
-      form.reset(form.getValues())
+      await refreshUserProfile()
     },
     onError: () => {
       toast.error('Failed to update profile')
     },
   })
+
+  const onSubmit = form.handleSubmit(
+    (values) => mutation.mutate(values),
+    () => toast.error('Please fix the highlighted errors before saving.'),
+  )
 
   return (
     <Card>
@@ -74,7 +79,7 @@ export function ProfileSettingsTab() {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField control={form.control} name="contact_name" render={({ field }) => (
                 <FormItem>
