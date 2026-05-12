@@ -25,7 +25,7 @@ import { toast } from 'sonner'
  * Uses the same CompanyProfileSchema and data source as the Profile page.
  */
 export function ProfileSettingsTab() {
-  const { company, updateCompany, refreshUserProfile } = useAuth()
+  const { user, company, updateCompany } = useAuth()
 
   const form = useForm<CompanyProfile>({
     resolver: zodResolver(CompanyProfileSchema),
@@ -53,14 +53,14 @@ export function ProfileSettingsTab() {
 
   const mutation = useMutation({
     mutationFn: async (values: CompanyProfile) => {
+      if (!user) throw new Error('No user found')
       await updateCompany(values)
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success('Profile updated successfully')
-      await refreshUserProfile()
     },
-    onError: () => {
-      toast.error('Failed to update profile')
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to update profile')
     },
   })
 
