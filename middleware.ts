@@ -1,7 +1,21 @@
 import { createClient } from '@/lib/supabase/middleware'
 import { isProtectedAppPath } from '@/lib/auth/routing'
+import {
+  AUTH_SESSION_ABSOLUTE_TIMEOUT_MS,
+  AUTH_REDIRECT_REASON_SESSION_EXPIRED,
+} from '@/lib/auth/session-policy'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+
+/**
+ * Returns true when the authenticated session has exceeded the absolute
+ * lifetime limit, based on the user's last sign-in timestamp.
+ */
+function isSessionExpired(user: { last_sign_in_at?: string | null }): boolean {
+  const lastSignIn = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : 0
+  if (!lastSignIn) return false
+  return Date.now() - lastSignIn > AUTH_SESSION_ABSOLUTE_TIMEOUT_MS
+}
 
 export async function middleware(request: NextRequest) {
   try {
@@ -24,10 +38,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(callbackUrl)
     }
 
+    if (user && isSessionExpired(user)) {
+      await supabase.auth.signOut()
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      loginUrl.search = ''
+      loginUrl.searchParams.set('reason', AUTH_REDIRECT_REASON_SESSION_EXPIRED)
+      if (isProtectedRoute) {
+        loginUrl.searchParams.set('redirect', `${pathname}${search}`)
+      }
+      return NextResponse.redirect(loginUrl)
+    }
+
     if (pathname === '/' && user) {
-      // Signed-in users skip the landing page and go straight to their
-      // dashboard. Profile completeness / admin routing is handled inside
-      // the dashboard shell, so there's no need to stop at /post-login.
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/dashboard'
       redirectUrl.search = ''

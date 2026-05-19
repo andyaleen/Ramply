@@ -63,7 +63,6 @@ export function useSessionTimeout({
       return
     }
 
-    const now = Date.now()
     const existing = readStoredSessionMetadata()
     const startedAt = getSessionStartTimestamp(lastSignInAt)
 
@@ -76,7 +75,7 @@ export function useSessionTimeout({
         : {
             userId,
             sessionStartedAt: startedAt,
-            lastActivityAt: now,
+            lastActivityAt: startedAt,
           }
 
     metadataRef.current = nextMetadata
