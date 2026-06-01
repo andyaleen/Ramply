@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
+import { getSubscriptionPeriodEnd } from '@/lib/stripe-subscription'
+import { reportServerError } from '@/lib/monitoring'
 
 /**
  * POST /api/webhooks/stripe
@@ -49,20 +51,21 @@ export async function POST(req: NextRequest) {
       const stripe = getStripe()
       const subscription = await stripe.subscriptions.retrieve(subscriptionId)
 
-      await supabase
+      const { error: checkoutUpdateError } = await supabase
         .from('companies')
         .update({
           stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
           subscription_status: subscription.status,
           subscription_price_id: subscription.items.data[0]?.price.id ?? null,
-          subscription_current_period_end: new Date(
-            // In Stripe API 2026+, period end is on the subscription schedule or invoice.
-          // Use ended_at as a best-effort fallback; null is acceptable.
-          (subscription.ended_at ?? 0) * 1000
-          ).toISOString(),
+          subscription_current_period_end: getSubscriptionPeriodEnd(subscription),
         })
         .eq('id', companyId)
+
+      if (checkoutUpdateError) {
+        reportServerError('stripe.checkout.session.completed', checkoutUpdateError, { companyId })
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 })
+      }
       break
     }
 
@@ -71,18 +74,19 @@ export async function POST(req: NextRequest) {
       const companyId = subscription.metadata.company_id
       if (!companyId) break
 
-      await supabase
+      const { error: subscriptionUpdateError } = await supabase
         .from('companies')
         .update({
           subscription_status: subscription.status,
           subscription_price_id: subscription.items.data[0]?.price.id ?? null,
-          subscription_current_period_end: new Date(
-            // In Stripe API 2026+, period end is on the subscription schedule or invoice.
-          // Use ended_at as a best-effort fallback; null is acceptable.
-          (subscription.ended_at ?? 0) * 1000
-          ).toISOString(),
+          subscription_current_period_end: getSubscriptionPeriodEnd(subscription),
         })
         .eq('id', companyId)
+
+      if (subscriptionUpdateError) {
+        console.error('Failed to update subscription:', subscriptionUpdateError)
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 })
+      }
       break
     }
 
@@ -91,17 +95,18 @@ export async function POST(req: NextRequest) {
       const companyId = subscription.metadata.company_id
       if (!companyId) break
 
-      await supabase
+      const { error: cancelUpdateError } = await supabase
         .from('companies')
         .update({
           subscription_status: 'canceled',
-          subscription_current_period_end: new Date(
-            // In Stripe API 2026+, period end is on the subscription schedule or invoice.
-          // Use ended_at as a best-effort fallback; null is acceptable.
-          (subscription.ended_at ?? 0) * 1000
-          ).toISOString(),
+          subscription_current_period_end: getSubscriptionPeriodEnd(subscription),
         })
         .eq('id', companyId)
+
+      if (cancelUpdateError) {
+        console.error('Failed to cancel subscription in database:', cancelUpdateError)
+        return NextResponse.json({ error: 'Database update failed' }, { status: 500 })
+      }
       break
     }
 

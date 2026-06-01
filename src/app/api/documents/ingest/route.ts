@@ -36,7 +36,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await req.json()
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
   const parsed = IngestSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
@@ -99,11 +104,21 @@ export async function POST(req: Request) {
     ])
 
     if (extractedFields) {
-      await supabase
+      const { error: fieldsUpdateError } = await supabase
         .from('company_documents')
         .update({ extracted_fields: extractedFields })
         .eq('id', documentRow.id)
+
+      if (fieldsUpdateError) {
+        console.error('Failed to save extracted fields:', fieldsUpdateError)
+        return NextResponse.json({ error: 'Failed to save extracted fields' }, { status: 500 })
+      }
     }
+
+    const storedRawText =
+      documentRow.document_type === 'W9'
+        ? null
+        : ocrResult.rawText?.slice(0, 50_000) ?? null
 
     const { data: extraction, error: insertError } = await supabase
       .from('document_extractions')
@@ -112,7 +127,7 @@ export async function POST(req: Request) {
         company_document_id: documentRow.id,
         provider: ocrResult.provider,
         status: 'succeeded',
-        raw_text: ocrResult.rawText,
+        raw_text: storedRawText,
         structured_data: ocrResult.documentJson,
         metadata: {
           ...ocrResult.metadata,
@@ -132,7 +147,7 @@ export async function POST(req: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown OCR error'
 
-    await supabase
+    const { error: failedInsertError } = await supabase
       .from('document_extractions')
       .insert({
         company_id: company.id,
@@ -145,6 +160,10 @@ export async function POST(req: Request) {
           mimeType,
         },
       })
+
+    if (failedInsertError) {
+      console.error('Failed to record OCR failure:', failedInsertError)
+    }
 
     console.error('OCR failed:', error)
     return NextResponse.json({ error: 'OCR failed', message }, { status: 500 })

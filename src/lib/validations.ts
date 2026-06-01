@@ -9,7 +9,7 @@ const docTypeKeys = CATALOG_DOCUMENT_TYPES.map(d => d.key) as [DocumentTypeKey, 
 export const CompanyProfileSchema = z.object({
   legal_name: z.string().min(1, 'Legal business name is required'),
   dba_name: z.string().optional(),
-  ein: z.string().optional(),
+  ein: z.string().min(1, 'EIN / Tax ID is required'),
   business_type: z.string().optional(),
   address_line1: z.string().optional(),
   address_line2: z.string().optional(),
@@ -30,7 +30,7 @@ export const CompanyProfileSchema = z.object({
 // Share request — what fields/docs are being requested
 export const ShareRequestSchema = z.object({
   request_type: z.string().trim().min(1, 'Type of request is required'),
-  recipient_email: z.string().email('Valid email is required').optional().or(z.literal('')),
+  recipient_email: z.string().trim().min(1, 'Recipient email is required').email('Valid email is required'),
   mandatory_fields: z.array(z.enum(fieldKeys)).min(0),
   optional_fields: z.array(z.enum(fieldKeys)).min(0),
   mandatory_documents: z.array(z.enum(docTypeKeys)).min(0),
@@ -127,7 +127,7 @@ export type OnboardingType = z.infer<typeof OnboardingTypeSchema>
 // Onboarding request (admin sends to a recipient)
 export const OnboardingRequestSchema = z.object({
   request_type: z.string().trim().min(1, 'Type of request is required'),
-  recipient_email: z.string().email('Valid email is required').optional().or(z.literal('')),
+  recipient_email: z.string().trim().min(1, 'Recipient email is required').email('Valid email is required'),
 })
 export type OnboardingRequest = z.infer<typeof OnboardingRequestSchema>
 

@@ -17,6 +17,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CompanyProfileSchema, type CompanyProfile } from '@/lib/validations'
 import { US_STATES, US_STATE_VALUES } from '@/lib/us-states'
+import { maskEin, maskSensitiveValue } from '@/lib/sensitive-fields'
 import { User, Building2, MapPin, Landmark, Shield, Edit3, Phone, Globe, Mail, LogOut } from 'lucide-react'
 
 /** Helper: first letter of each word, up to 2 chars */
@@ -123,7 +124,7 @@ export default function ProfilePage() {
             <CardContent className="space-y-3 text-sm">
               <div><p className="font-medium text-muted-foreground">Legal Name</p><p>{val(company.legal_name)}</p></div>
               <div><p className="font-medium text-muted-foreground">DBA / Trade Name</p><p>{val(company.dba_name)}</p></div>
-              <div><p className="font-medium text-muted-foreground">EIN / Tax ID</p><p>{val(company.ein)}</p></div>
+              <div><p className="font-medium text-muted-foreground">EIN / Tax ID</p><p>{company.ein ? maskEin(company.ein) : val(company.ein)}</p></div>
               <div><p className="font-medium text-muted-foreground">Business Type</p><p>{val(company.business_type)}</p></div>
               <div><p className="font-medium text-muted-foreground">Year Founded</p><p>{val(company.year_founded)}</p></div>
               <div className="flex items-center gap-1"><Globe className="h-3 w-3 text-muted-foreground" /><p>{val(company.website)}</p></div>
@@ -156,7 +157,7 @@ export default function ProfilePage() {
             <CardContent className="space-y-3 text-sm">
               <div><p className="font-medium text-muted-foreground">Bank Name</p><p>{val(company.bank_name)}</p></div>
               <div><p className="font-medium text-muted-foreground">Account Number</p><p>{company.bank_account_number ? '••••••••' : <span className="text-muted-foreground/50 italic">Not provided</span>}</p></div>
-              <div><p className="font-medium text-muted-foreground">Routing Number</p><p>{val(company.bank_routing_number)}</p></div>
+              <div><p className="font-medium text-muted-foreground">Routing Number</p><p>{company.bank_routing_number ? maskSensitiveValue(company.bank_routing_number) : val(company.bank_routing_number)}</p></div>
             </CardContent>
           </Card>
         </div>
@@ -181,7 +182,13 @@ export default function ProfilePage() {
                   <FormItem><FormLabel>DBA / Trade Name</FormLabel><FormControl><Input placeholder="Acme" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="ein" render={({ field }) => (
-                  <FormItem><FormLabel>EIN / Tax ID</FormLabel><FormControl><Input placeholder="XX-XXXXXXX" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>EIN / Tax ID</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="off" placeholder="XX-XXXXXXX" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="business_type" render={({ field }) => (
                   <FormItem>
@@ -269,10 +276,22 @@ export default function ProfilePage() {
                   <FormItem className="md:col-span-2"><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="First National Bank" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="bank_account_number" render={({ field }) => (
-                  <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Account Number</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="off" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="bank_routing_number" render={({ field }) => (
-                  <FormItem><FormLabel>Routing Number</FormLabel><FormControl><Input placeholder="021000021" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Routing Number</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="off" placeholder="021000021" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
               </CardContent>
             </Card>

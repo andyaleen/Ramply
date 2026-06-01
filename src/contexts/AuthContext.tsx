@@ -352,7 +352,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const updateCompany = useCallback(
     async (data: Partial<CompanyRow>) => {
-      if (!user) return
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
 
       const { data: updated, error } = await supabase
         .from('companies')

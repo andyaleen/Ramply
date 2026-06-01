@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, CheckCircle, Lock, Mail } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -14,36 +14,73 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from 'sonner'
 
 interface AuthFormProps {
   defaultTab?: 'signin' | 'signup'
+  /** When set, overrides the `redirect` search param for post-auth navigation. */
+  redirectPath?: string
+  /** Renders only the card (no full-page AuthScreen shell). */
+  embedded?: boolean
+  /** Pre-fills the email field — used on share-request links. */
+  suggestedEmail?: string
+}
+
+function authCallbackUrl(nextPath: string): string {
+  return `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
+}
+
+function AuthFormShell({
+  embedded,
+  children,
+}: {
+  embedded?: boolean
+  children: React.ReactNode
+}) {
+  if (embedded) return <>{children}</>
+  return <AuthScreen>{children}</AuthScreen>
 }
 
 /**
  * Unified Ramply authentication surface for sign-in, sign-up, and magic-link fallback.
  */
-export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
+export function AuthForm({
+  defaultTab = 'signin',
+  redirectPath,
+  embedded = false,
+  suggestedEmail,
+}: AuthFormProps) {
   const searchParams = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
   const initialTab = tabFromUrl || defaultTab
-  const requestedPath = normalizeRequestedPath(searchParams.get('redirect'), '/dashboard')
+  const requestedPath = normalizeRequestedPath(
+    redirectPath ?? searchParams.get('redirect'),
+    redirectPath ?? '/dashboard'
+  )
   const sessionMessage = getSessionExpiryMessage(searchParams.get('reason'))
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(suggestedEmail ?? '')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
   const [activeTab, setActiveTab] = useState(initialTab)
 
   const { signIn } = useAuth()
   const router = useRouter()
   const supabase = createClient()
 
+  useEffect(() => {
+    if (suggestedEmail) {
+      setEmail(suggestedEmail)
+    }
+  }, [suggestedEmail])
+
   const resetForm = () => {
-    setEmail('')
+    setEmail(suggestedEmail ?? '')
     setPassword('')
     setConfirmPassword('')
     setError('')
@@ -59,7 +96,8 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
   /**
    * Formats common Supabase network errors into user-friendly messages.
    */
-  const formatAuthError = (message: string): string => {
+  const formatAuthError = (message: string | undefined): string => {
+    if (!message) return 'An unexpected error occurred'
     if (message === 'Failed to fetch' || message.includes('fetch') || message.includes('network')) {
       return 'Unable to connect. Please check your internet connection and try again.'
     }
@@ -139,7 +177,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          emailRedirectTo: authCallbackUrl(requestedPath),
         },
       })
 
@@ -157,6 +195,39 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)
+    }
+  }
+
+  /**
+   * Re-sends the signup confirmation email (Supabase Auth).
+   */
+  const handleResendConfirmation = async () => {
+    if (!email.trim()) {
+      toast.error('No email address to resend to.')
+      return
+    }
+
+    setResendLoading(true)
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+        options: {
+          emailRedirectTo: authCallbackUrl(requestedPath),
+        },
+      })
+
+      if (resendError) {
+        toast.error(formatAuthError(resendError.message))
+        return
+      }
+
+      toast.success(`Confirmation email resent to ${email.trim()}`)
+    } catch (err) {
+      console.error('Resend confirmation error:', err)
+      toast.error('Failed to resend confirmation email. Please try again.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -182,7 +253,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
       const { error: magicLinkError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+          emailRedirectTo: authCallbackUrl(requestedPath),
         },
       })
 
@@ -215,48 +286,54 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
 
   if (magicLinkSent) {
     return (
-      <AuthScreen>
+      <AuthFormShell embedded={embedded}>
         <StatusCard
           icon={<Mail className="h-6 w-6 text-white" />}
           title="Check your email"
           description={`We sent a sign-in link to ${email}. For security, use it as soon as possible.`}
-          primaryLabel="Back to Sign In"
-          onPrimaryClick={() => {
+          primaryLabel={resendLoading ? 'Sending…' : 'Resend sign-in link'}
+          onPrimaryClick={() => void handleMagicLink()}
+          primaryDisabled={resendLoading}
+          secondaryLabel="Back to Sign In"
+          onSecondaryClick={() => {
             setMagicLinkSent(false)
             setError('')
           }}
         />
-      </AuthScreen>
+      </AuthFormShell>
     )
   }
 
   if (success) {
     return (
-      <AuthScreen>
+      <AuthFormShell embedded={embedded}>
         <StatusCard
           icon={<CheckCircle className="h-6 w-6 text-white" />}
           title="Confirm your account"
-          description={`We sent a confirmation link to ${email}. Open it to activate your Ramply account.`}
-          primaryLabel="Back to Sign In"
-          onPrimaryClick={() => {
+          description={`We sent a confirmation link to ${email}. Open it to activate your Ramply account, then sign in to continue.`}
+          primaryLabel={resendLoading ? 'Sending…' : 'Resend confirmation email'}
+          onPrimaryClick={() => void handleResendConfirmation()}
+          primaryDisabled={resendLoading}
+          secondaryLabel="Back to Sign In"
+          onSecondaryClick={() => {
             setActiveTab('signin')
             resetForm()
           }}
-          secondaryLabel="Try Different Email"
-          onSecondaryClick={() => {
+          tertiaryLabel="Try different email"
+          onTertiaryClick={() => {
             setSuccess(false)
-            setEmail('')
+            setEmail(suggestedEmail ?? '')
             setPassword('')
             setConfirmPassword('')
           }}
         />
-      </AuthScreen>
+      </AuthFormShell>
     )
   }
 
   return (
-    <AuthScreen>
-      <Card className="w-full rounded-[28px] border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)]">
+    <AuthFormShell embedded={embedded}>
+      <Card className={`w-full border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)] ${embedded ? 'rounded-2xl' : 'rounded-[28px]'}`}>
         <CardHeader className="space-y-2 border-b border-[#EEECE5] px-8 pb-6 pt-8 text-center">
           <div className="mb-3 flex items-center justify-center">
             <div className="rounded-full bg-[#287253] p-3">
@@ -421,7 +498,7 @@ export function AuthForm({ defaultTab = 'signin' }: AuthFormProps) {
           </p>
         </CardFooter>
       </Card>
-    </AuthScreen>
+    </AuthFormShell>
   )
 }
 
@@ -508,8 +585,11 @@ interface StatusCardProps {
   description: string
   primaryLabel: string
   onPrimaryClick: () => void
+  primaryDisabled?: boolean
   secondaryLabel?: string
   onSecondaryClick?: () => void
+  tertiaryLabel?: string
+  onTertiaryClick?: () => void
 }
 
 function StatusCard({
@@ -518,8 +598,11 @@ function StatusCard({
   description,
   primaryLabel,
   onPrimaryClick,
+  primaryDisabled = false,
   secondaryLabel,
   onSecondaryClick,
+  tertiaryLabel,
+  onTertiaryClick,
 }: StatusCardProps) {
   return (
     <Card className="w-full max-w-xl rounded-[28px] border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)]">
@@ -537,12 +620,21 @@ function StatusCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 px-8 pb-8">
-        <Button onClick={onPrimaryClick} className="w-full bg-[#287253] text-white hover:bg-[#1A4D38]">
+        <Button
+          onClick={onPrimaryClick}
+          disabled={primaryDisabled}
+          className="w-full bg-[#287253] text-white hover:bg-[#1A4D38]"
+        >
           {primaryLabel}
         </Button>
         {secondaryLabel && onSecondaryClick ? (
           <Button onClick={onSecondaryClick} variant="outline" className="w-full border-[#DDDCD5]">
             {secondaryLabel}
+          </Button>
+        ) : null}
+        {tertiaryLabel && onTertiaryClick ? (
+          <Button onClick={onTertiaryClick} variant="ghost" className="w-full">
+            {tertiaryLabel}
           </Button>
         ) : null}
       </CardContent>

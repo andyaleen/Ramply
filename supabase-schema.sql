@@ -244,7 +244,7 @@ CREATE POLICY "users_select_own" ON users
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "users_insert_own" ON users
-  FOR INSERT WITH CHECK (auth.uid() = id);
+  FOR INSERT WITH CHECK (auth.uid() = id AND role = 'external');
 
 CREATE POLICY "users_update_own" ON users
   FOR UPDATE USING (auth.uid() = id)
@@ -497,6 +497,11 @@ CREATE OR REPLACE FUNCTION fulfill_share_request(
 RETURNS VOID AS $$
 DECLARE
   v_company_id UUID;
+  v_sr share_requests%ROWTYPE;
+  v_field_key TEXT;
+  v_doc_type TEXT;
+  v_doc_count INT;
+  v_owned_count INT;
 BEGIN
   SELECT id INTO v_company_id
   FROM companies
@@ -506,17 +511,74 @@ BEGIN
     RAISE EXCEPTION 'company_not_found';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM share_requests sr
-    JOIN users u ON u.id = auth.uid()
-    WHERE sr.id = p_share_request_id
-      AND sr.recipient_email IS NOT NULL
-      AND sr.recipient_email = u.email
-      AND sr.status = 'pending'
-      AND (sr.expires_at IS NULL OR sr.expires_at > NOW())
-  ) THEN
+  SELECT sr.* INTO v_sr
+  FROM share_requests sr
+  JOIN users u ON u.id = auth.uid()
+  WHERE sr.id = p_share_request_id
+    AND sr.recipient_email IS NOT NULL
+    AND sr.recipient_email = u.email
+    AND sr.status = 'pending'
+    AND (sr.expires_at IS NULL OR sr.expires_at > NOW());
+
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'share_request_not_allowed';
+  END IF;
+
+  -- Validate field keys are part of the request
+  FOR v_field_key IN SELECT jsonb_object_keys(COALESCE(p_field_data, '{}'::jsonb))
+  LOOP
+    IF NOT (
+      v_field_key = ANY(v_sr.mandatory_fields)
+      OR v_field_key = ANY(v_sr.optional_fields)
+    ) THEN
+      RAISE EXCEPTION 'invalid_field_key';
+    END IF;
+  END LOOP;
+
+  -- Mandatory fields must be present and non-empty
+  FOREACH v_field_key IN ARRAY v_sr.mandatory_fields
+  LOOP
+    IF COALESCE(TRIM(p_field_data ->> v_field_key), '') = '' THEN
+      RAISE EXCEPTION 'missing_mandatory_field';
+    END IF;
+  END LOOP;
+
+  -- Mandatory documents must be provided
+  IF array_length(v_sr.mandatory_documents, 1) > 0 THEN
+    IF p_company_document_ids IS NULL OR array_length(p_company_document_ids, 1) IS NULL THEN
+      RAISE EXCEPTION 'missing_mandatory_documents';
+    END IF;
+
+    FOREACH v_doc_type IN ARRAY v_sr.mandatory_documents
+    LOOP
+      IF NOT EXISTS (
+        SELECT 1
+        FROM company_documents cd
+        WHERE cd.company_id = v_company_id
+          AND cd.document_type = v_doc_type
+          AND cd.id = ANY(p_company_document_ids)
+          AND cd.superseded_by IS NULL
+      ) THEN
+        RAISE EXCEPTION 'missing_mandatory_documents';
+      END IF;
+    END LOOP;
+  END IF;
+
+  -- All document IDs must belong to the fulfiller's company
+  IF p_company_document_ids IS NOT NULL AND array_length(p_company_document_ids, 1) > 0 THEN
+    SELECT COUNT(*) INTO v_doc_count FROM UNNEST(p_company_document_ids) AS doc_id;
+    SELECT COUNT(*) INTO v_owned_count
+    FROM company_documents cd
+    WHERE cd.company_id = v_company_id
+      AND cd.id = ANY(p_company_document_ids)
+      AND cd.superseded_by IS NULL;
+
+    IF v_owned_count <> v_doc_count THEN
+      RAISE EXCEPTION 'invalid_document_ids';
+    END IF;
+
+    INSERT INTO shared_documents (share_request_id, company_document_id)
+    SELECT p_share_request_id, UNNEST(p_company_document_ids);
   END IF;
 
   INSERT INTO shared_data (
@@ -528,11 +590,6 @@ BEGIN
     v_company_id,
     COALESCE(p_field_data, '{}'::jsonb)
   );
-
-  IF p_company_document_ids IS NOT NULL AND array_length(p_company_document_ids, 1) > 0 THEN
-    INSERT INTO shared_documents (share_request_id, company_document_id)
-    SELECT p_share_request_id, UNNEST(p_company_document_ids);
-  END IF;
 
   UPDATE share_requests
   SET status = 'completed',

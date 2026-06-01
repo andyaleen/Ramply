@@ -21,13 +21,22 @@ export function DocumentVault() {
 
   useEffect(() => {
     if (!company) return
+
     /** Fetch only active docs: those not pointed to by any superseded_by reference. */
-    supabase
-      .from('company_documents')
-      .select('*')
-      .eq('company_id', company.id)
-      .is('superseded_by', null)
-      .then(({ data }) => setDocs(data ?? []))
+    void (async () => {
+      const { data, error } = await supabase
+        .from('company_documents')
+        .select('*')
+        .eq('company_id', company.id)
+        .is('superseded_by', null)
+
+      if (error) {
+        console.error('Failed to load documents:', error)
+        toast.error('Failed to load documents. Please refresh.')
+        return
+      }
+      setDocs(data ?? [])
+    })()
   }, [company, supabase])
 
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({

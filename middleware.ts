@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/middleware'
-import { isProtectedAppPath } from '@/lib/auth/routing'
+import { isProtectedAppPath, isSafeRedirectPath, normalizeRequestedPath } from '@/lib/auth/routing'
 import {
   AUTH_SESSION_ABSOLUTE_TIMEOUT_MS,
   AUTH_REDIRECT_REASON_SESSION_EXPIRED,
@@ -72,23 +72,25 @@ export async function middleware(request: NextRequest) {
       // ProtectedAppShell, which covers profile completeness.
       const requestedRedirect = request.nextUrl.searchParams.get('redirect')
       const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname =
-        requestedRedirect && requestedRedirect.startsWith('/')
-          ? requestedRedirect.split('?')[0]
-          : '/dashboard'
+      redirectUrl.pathname = normalizeRequestedPath(
+        requestedRedirect?.split('?')[0] ?? null,
+        '/dashboard'
+      )
       redirectUrl.search = ''
       return NextResponse.redirect(redirectUrl)
     }
 
     return response
-  } catch (e) {
-    // If you are here, a Supabase client could not be created!
-    // This is likely because you have not set up environment variables.
-    return NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
-    })
+  } catch {
+    const { pathname, search } = request.nextUrl
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.search = ''
+    if (isProtectedAppPath(pathname)) {
+      const redirectTarget = isSafeRedirectPath(pathname) ? `${pathname}${search}` : '/dashboard'
+      loginUrl.searchParams.set('redirect', redirectTarget)
+    }
+    return NextResponse.redirect(loginUrl)
   }
 }
 

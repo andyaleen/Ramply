@@ -40,6 +40,7 @@ export function SendOnboardingRequestDialog({
   const queryClient = useQueryClient()
   const router = useRouter()
   const [generatedLink, setGeneratedLink] = useState<string | null>(null)
+  const [createdForEmail, setCreatedForEmail] = useState<string | null>(null)
   const [atLimit, setAtLimit] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
@@ -78,11 +79,12 @@ export function SendOnboardingRequestDialog({
         }
         throw new Error(err.error ?? 'Failed to create share request')
       }
-      return res.json() as Promise<{ link: string }>
+      return res.json() as Promise<{ link: string; recipient_email: string; request_type: string }>
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['share-requests'] })
       setGeneratedLink(data.link)
+      setCreatedForEmail(data.recipient_email)
       toast.success('Share request created!')
     },
     onError: (error) => {
@@ -105,13 +107,17 @@ export function SendOnboardingRequestDialog({
   const handleClose = () => {
     form.reset()
     setGeneratedLink(null)
+    setCreatedForEmail(null)
     setAtLimit(false)
+    setShowSaveTemplate(false)
+    setTemplateName('')
     onOpenChange(false)
     if (generatedLink) onSuccess()
   }
 
-  /** Populate the form with a saved template's fields/docs. */
+  /** Populate the form with a saved template's fields/docs and request type. */
   const applyTemplate = useCallback((template: RequestTemplateRow) => {
+    form.setValue('request_type', template.name?.trim() ?? '', { shouldDirty: true, shouldValidate: true })
     form.setValue('mandatory_fields', template.mandatory_fields ?? [])
     form.setValue('optional_fields', template.optional_fields ?? [])
     form.setValue('mandatory_documents', template.mandatory_documents ?? [])
@@ -122,8 +128,16 @@ export function SendOnboardingRequestDialog({
   useEffect(() => {
     if (!open || !initialTemplateId) return
     const template = templates.find((entry) => entry.id === initialTemplateId)
-    if (template) applyTemplate(template)
-  }, [applyTemplate, open, initialTemplateId, templates])
+    if (!template) return
+    form.reset({
+      request_type: template.name?.trim() ?? '',
+      recipient_email: '',
+      mandatory_fields: template.mandatory_fields ?? [],
+      optional_fields: template.optional_fields ?? [],
+      mandatory_documents: template.mandatory_documents ?? [],
+      optional_documents: template.optional_documents ?? [],
+    })
+  }, [form, open, initialTemplateId, templates])
 
   /** Save the current field/doc selection as a new template. */
   async function saveAsTemplate() {
@@ -212,6 +226,12 @@ export function SendOnboardingRequestDialog({
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
+            {createdForEmail && (
+              <p className="text-sm text-muted-foreground">
+                Recipient: <strong>{createdForEmail}</strong> — they must sign up or sign in with this
+                email to fulfill the request. (Invite email sending is not enabled yet; copy the link manually.)
+              </p>
+            )}
             <p className="text-sm text-muted-foreground">This link expires in 30 days.</p>
             <DialogFooter>
               <Button onClick={handleClose}>Done</Button>
@@ -221,11 +241,13 @@ export function SendOnboardingRequestDialog({
           <Form {...form}>
             <form onSubmit={form.handleSubmit(v => createMutation.mutate(v))} className="space-y-5">
 
-              <TemplatePicker
-                templates={templates}
-                onApply={applyTemplate}
-                onDelete={(template) => deleteTemplate(template.id, template.name)}
-              />
+              {!initialTemplateId && (
+                <TemplatePicker
+                  templates={templates}
+                  onApply={applyTemplate}
+                  onDelete={(template) => deleteTemplate(template.id, template.name)}
+                />
+              )}
 
               <FormField control={form.control} name="request_type" render={({ field }) => (
                 <FormItem>
@@ -240,40 +262,61 @@ export function SendOnboardingRequestDialog({
                 </FormItem>
               )} />
 
+              <FormField control={form.control} name="recipient_email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Recipient Email *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="vendor@company.com"
+                      autoComplete="email"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
               <TemplateSelectionsForm form={form} />
 
-              {/* Save as template */}
-              <div className="border-t pt-3 space-y-2">
-                {showSaveTemplate ? (
-                  <div className="flex gap-2">
-                    <Input
-                      value={templateName}
-                      onChange={e => setTemplateName(e.target.value)}
-                      placeholder="Template name…"
-                      className="flex-1 text-sm"
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveAsTemplate() } }}
-                    />
-                    <Button type="button" size="sm" onClick={saveAsTemplate} disabled={savingTemplate}>
-                      {savingTemplate ? 'Saving…' : 'Save'}
-                    </Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setShowSaveTemplate(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                    onClick={() => setShowSaveTemplate(true)}
-                  >
-                    <BookTemplate className="h-3 w-3" />
-                    Save current selection as template
-                  </button>
-                )}
-              </div>
+              {showSaveTemplate && (
+                <FormItem>
+                  <FormLabel htmlFor="template-name">Template name</FormLabel>
+                  <Input
+                    id="template-name"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="e.g. Standard vendor onboarding"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void saveAsTemplate()
+                      }
+                    }}
+                  />
+                </FormItem>
+              )}
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={savingTemplate}
+                  className="bg-[#287253] text-white hover:bg-[#1A4D38]"
+                  onClick={() => {
+                    if (!showSaveTemplate) {
+                      setShowSaveTemplate(true)
+                      return
+                    }
+                    void saveAsTemplate()
+                  }}
+                >
+                  <BookTemplate className="h-4 w-4 mr-2" />
+                  {savingTemplate ? 'Saving…' : 'Save Template'}
+                </Button>
                 <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Creating...' : 'Create Link'}
                 </Button>

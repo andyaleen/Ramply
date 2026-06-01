@@ -1,9 +1,20 @@
 import type { CompanyRow, UserRow } from '@/lib/database.types'
 
 type MinimalUserProfile = Pick<UserRow, 'role'> | null | undefined
-type MinimalCompany = Pick<CompanyRow, 'legal_name' | 'contact_name'> | null | undefined
+type MinimalCompany = Pick<CompanyRow, 'legal_name' | 'contact_name' | 'ein'> | null | undefined
 
 const INVALID_NEXT_PREFIXES = ['/auth/', '/login', '/signup', '/post-login']
+
+/**
+ * Returns true when path is a same-origin relative path safe for redirects.
+ * Rejects protocol-relative URLs (//), backslashes, and colon-based schemes.
+ */
+export function isSafeRedirectPath(path: string): boolean {
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\') || path.includes(':')) {
+    return false
+  }
+  return true
+}
 const PROTECTED_APP_PREFIXES = ['/dashboard', '/admin']
 const PROTECTED_APP_PATHS = new Set(['/complete-profile', '/post-login', '/promote', '/signout'])
 
@@ -19,7 +30,11 @@ const LEGACY_ADMIN_PATH_MAP: Record<string, string> = {
 }
 
 export function isCompanyProfileComplete(company: MinimalCompany): boolean {
-  return Boolean(company?.legal_name?.trim() && company?.contact_name?.trim())
+  return Boolean(
+    company?.legal_name?.trim()
+    && company?.contact_name?.trim()
+    && company?.ein?.trim()
+  )
 }
 
 export function isProtectedAppPath(pathname: string): boolean {
@@ -57,7 +72,7 @@ function rewriteLegacyAdminPath(path: string): string {
 }
 
 export function normalizeRequestedPath(requestedPath: string | null | undefined, fallbackPath: string): string {
-  if (!requestedPath || !requestedPath.startsWith('/')) {
+  if (!requestedPath || !isSafeRedirectPath(requestedPath)) {
     return fallbackPath
   }
 

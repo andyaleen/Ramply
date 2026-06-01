@@ -46,6 +46,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
     },
   })
 
+  /** Saves the company profile before releasing the user into the app. */
   const onSubmit = async (data: CompanyProfile) => {
     setLoading(true)
     try {
@@ -60,27 +61,25 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-[#F0EFE9] px-4 py-10 text-[#0F1F18]">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <div className="bg-blue-600 p-4 rounded-full">
-              <Building2 className="h-8 w-8 text-white" />
+            <div className="bg-[#287253] p-4 rounded-full shadow-[0_14px_35px_rgba(40,114,83,0.22)]">
+              <Building2 className="h-8 w-8 text-white" aria-hidden />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Complete Your Company Profile</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-semibold text-[#0F1F18]">Complete Your Company Profile</h1>
+          <p className="text-[#4A5C54] mt-2">
             Fill in your company details once — they&apos;ll be reused automatically for every share request.
           </p>
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-
-            {/* Business Information */}
-            <Card>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 [&_input]:border-[#DDDCD5] [&_input]:focus-visible:ring-[#287253]/30">
+            <Card className="border-[#DDDCD5] bg-white shadow-[0_18px_45px_rgba(15,31,24,0.06)]">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-base text-[#0F1F18]">
                   <Building2 className="h-4 w-4" /> Business Information
                 </CardTitle>
               </CardHeader>
@@ -104,7 +103,14 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 <FormField control={form.control} name="ein" render={({ field }) => (
                   <FormItem>
                     <FormLabel>EIN / Tax ID</FormLabel>
-                    <FormControl><Input placeholder="XX-XXXXXXX" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        autoComplete="off"
+                        placeholder="XX-XXXXXXX"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -114,7 +120,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                     <FormLabel>Business Type</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value ?? ''}>
                       <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                        <SelectTrigger className="border-[#DDDCD5] focus:ring-[#287253]/30"><SelectValue placeholder="Select type" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="LLC">LLC</SelectItem>
@@ -146,10 +152,9 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
               </CardContent>
             </Card>
 
-            {/* Contact */}
-            <Card>
+            <Card className="border-[#DDDCD5] bg-white shadow-[0_18px_45px_rgba(15,31,24,0.06)]">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-base text-[#0F1F18]">
                   <User className="h-4 w-4" /> Primary Contact
                 </CardTitle>
               </CardHeader>
@@ -180,10 +185,9 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
               </CardContent>
             </Card>
 
-            {/* Address */}
-            <Card>
+            <Card className="border-[#DDDCD5] bg-white shadow-[0_18px_45px_rgba(15,31,24,0.06)]">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-base text-[#0F1F18]">
                   <MapPin className="h-4 w-4" /> Business Address
                 </CardTitle>
               </CardHeader>
@@ -217,7 +221,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                     <FormLabel>State</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value ?? ''}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="border-[#DDDCD5] focus:ring-[#287253]/30">
                           <SelectValue placeholder="Select state" />
                         </SelectTrigger>
                       </FormControl>
@@ -254,10 +258,9 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
               </CardContent>
             </Card>
 
-            {/* Banking */}
-            <Card>
+            <Card className="border-[#DDDCD5] bg-white shadow-[0_18px_45px_rgba(15,31,24,0.06)]">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="flex items-center gap-2 text-base text-[#0F1F18]">
                   <Landmark className="h-4 w-4" /> Banking Information
                 </CardTitle>
               </CardHeader>
@@ -273,7 +276,14 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 <FormField control={form.control} name="bank_account_number" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Account Number</FormLabel>
-                    <FormControl><Input placeholder="••••••••" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        autoComplete="off"
+                        placeholder="••••••••"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -281,7 +291,14 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 <FormField control={form.control} name="bank_routing_number" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Routing Number</FormLabel>
-                    <FormControl><Input placeholder="021000021" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        autoComplete="off"
+                        placeholder="021000021"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -289,7 +306,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
             </Card>
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={loading} size="lg">
+              <Button type="submit" disabled={loading} size="lg" className="bg-[#287253] text-white hover:bg-[#1A4D38]">
                 {loading ? 'Saving...' : 'Save Profile'}
               </Button>
             </div>

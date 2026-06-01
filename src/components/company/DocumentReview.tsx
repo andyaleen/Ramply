@@ -58,7 +58,7 @@ function applyFields(target: Record<string, string>, source: unknown) {
 }
 
 export function DocumentReview({ documentId }: DocumentReviewProps) {
-  const { company } = useAuth()
+  const { company, updateCompany } = useAuth()
   const supabase = createClient()
   const router = useRouter()
 
@@ -157,6 +157,32 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
       setSaving(false)
     }
   }, [documentId, loadExtraction])
+
+  /** Copies reviewed fields into the company profile. */
+  const handleApplyToProfile = useCallback(async () => {
+    if (!company) return
+
+    setSaving(true)
+    setError(null)
+
+    const payload = FIELD_KEYS.reduce((acc, key) => {
+      const value = fields[key]?.trim()
+      if (value) acc[key] = value
+      return acc
+    }, {} as Record<string, string>)
+
+    try {
+      await updateCompany(payload)
+      toast.success('Company profile updated from document')
+      router.push('/dashboard/profile')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setSaving(false)
+    }
+  }, [company, fields, router, updateCompany])
 
   /** Persists approved fields to the document asset. */
   const handleApprove = useCallback(async () => {
@@ -285,6 +311,13 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
       <div className="flex flex-wrap gap-3">
         <Button onClick={handleApprove} disabled={saving || !hasExtraction || !isW9}>
           {saving ? 'Saving...' : 'Approve and Save'}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleApplyToProfile}
+          disabled={saving || !isW9 || FIELD_KEYS.every((key) => !fields[key]?.trim())}
+        >
+          Apply to company profile
         </Button>
         <Button variant="outline" onClick={handleRetry} disabled={saving}>
           {saving ? 'Working...' : 'Re-run OCR'}

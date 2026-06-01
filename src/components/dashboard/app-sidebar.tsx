@@ -128,6 +128,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Responses', url: '/dashboard/responses', icon: 'chart' },
       { title: 'Received', url: '/dashboard/received', icon: 'list' },
       { title: 'Documents', url: '/dashboard/documents', icon: 'document' },
+      { title: 'Templates', url: '/dashboard/templates', icon: 'template' },
     ],
   },
   {

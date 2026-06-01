@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { documentTypeLabel, fieldLabel } from '@/lib/catalog'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatExpirationHint, isExpiringSoon } from '@/lib/utils'
 import type { ShareRequestRow } from '@/lib/database.types'
 
 type PendingSentRequest = Pick<
@@ -170,8 +170,13 @@ function PendingRequestsContent({
               </Badge>
             </TableCell>
             <TableCell className="text-sm text-muted-foreground">{formatDate(request.created_at)}</TableCell>
-            <TableCell className="text-sm text-muted-foreground">
-              {request.expires_at ? formatDate(request.expires_at) : 'No expiration'}
+            <TableCell className="text-sm">
+              <span className={isExpiringSoon(request.expires_at) ? 'font-medium text-amber-700' : 'text-muted-foreground'}>
+                {formatExpirationHint(request.expires_at)}
+              </span>
+              {request.expires_at && (
+                <span className="block text-xs text-muted-foreground">{formatDate(request.expires_at)}</span>
+              )}
             </TableCell>
           </TableRow>
         ))}

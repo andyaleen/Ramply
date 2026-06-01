@@ -32,7 +32,7 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
   const [fieldValues, setFieldValues] = useState<Partial<Record<FieldKey, string>>>(() => {
     if (!company) return {}
     const vals: Partial<Record<FieldKey, string>> = {}
-    const allFields = [...shareRequest.mandatory_fields, ...shareRequest.optional_fields]
+    const allFields = [...(shareRequest.mandatory_fields ?? []), ...(shareRequest.optional_fields ?? [])]
     for (const key of allFields) {
       const val = company[key as keyof typeof company]
       if (typeof val === 'string') vals[key] = val
@@ -41,16 +41,20 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
   })
 
   const allDocTypes = [
-    ...shareRequest.mandatory_documents,
-    ...shareRequest.optional_documents,
+    ...(shareRequest.mandatory_documents ?? []),
+    ...(shareRequest.optional_documents ?? []),
   ] as DocumentTypeKey[]
 
   const findDoc = (docType: DocumentTypeKey) =>
     vaultDocs.find(d => d.document_type === docType) ?? null
 
-  const missingRequiredDocs = shareRequest.mandatory_documents.filter(
+  const missingRequiredDocs = (shareRequest.mandatory_documents ?? []).filter(
     docType => !vaultDocs.some(d => d.document_type === docType)
   ) as DocumentTypeKey[]
+
+  const missingRequiredFields = (shareRequest.mandatory_fields ?? []).filter(
+    (key) => !fieldValues[key]?.trim()
+  )
 
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
     user,
@@ -86,6 +90,12 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
   const mutation = useMutation({
     mutationFn: async () => {
       if (!company) throw new Error('No company found')
+      if (missingRequiredFields.length > 0) {
+        throw new Error('missing_required_fields')
+      }
+      if (missingRequiredDocs.length > 0) {
+        throw new Error('missing_required_documents')
+      }
 
       const documentIds = allDocTypes
         .map(findDoc)
@@ -103,7 +113,15 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
       toast.success('Information shared successfully!')
       onComplete()
     },
-    onError: () => {
+    onError: (error: Error) => {
+      if (error.message === 'missing_required_fields') {
+        toast.error('Please fill in all required fields.')
+        return
+      }
+      if (error.message === 'missing_required_documents') {
+        toast.error('Please upload all required documents.')
+        return
+      }
       toast.error('Failed to submit. Please try again.')
     },
   })
@@ -111,17 +129,17 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
   return (
     <div className="space-y-6">
       {/* Fields */}
-      {(shareRequest.mandatory_fields.length > 0 || shareRequest.optional_fields.length > 0) && (
+      {(shareRequest.mandatory_fields?.length ?? 0) > 0 || (shareRequest.optional_fields?.length ?? 0) > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Information Requested</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {shareRequest.mandatory_fields.length > 0 && (
+            {(shareRequest.mandatory_fields?.length ?? 0) > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Required</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {shareRequest.mandatory_fields.map((key) => (
+                  {(shareRequest.mandatory_fields ?? []).map((key) => (
                     <div key={key}>
                       <Label>{fieldLabel(key)}</Label>
                       <Input
@@ -134,11 +152,11 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
                 </div>
               </div>
             )}
-            {shareRequest.optional_fields.length > 0 && (
+            {(shareRequest.optional_fields?.length ?? 0) > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Optional</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {shareRequest.optional_fields.map((key) => (
+                  {(shareRequest.optional_fields ?? []).map((key) => (
                     <div key={key}>
                       <Label>{fieldLabel(key)}</Label>
                       <Input
@@ -153,16 +171,16 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
             )}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Documents */}
-      {allDocTypes.length > 0 && (
+      {allDocTypes.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Documents Requested</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {shareRequest.mandatory_documents.map((docType) => (
+            {(shareRequest.mandatory_documents ?? []).map((docType) => (
               <DocRow
                 key={docType}
                 docType={docType as DocumentTypeKey}
@@ -172,7 +190,7 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
                 onUpload={pick}
               />
             ))}
-            {shareRequest.optional_documents.map((docType) => (
+            {(shareRequest.optional_documents ?? []).map((docType) => (
               <DocRow
                 key={docType}
                 docType={docType as DocumentTypeKey}
@@ -184,7 +202,7 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
             ))}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Hidden file input shared across all doc rows */}
       <input
@@ -197,7 +215,12 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
 
       <Button
         onClick={() => mutation.mutate()}
-        disabled={mutation.isPending || missingRequiredDocs.length > 0 || !company}
+        disabled={
+          mutation.isPending
+          || missingRequiredDocs.length > 0
+          || missingRequiredFields.length > 0
+          || !company
+        }
         size="lg"
         className="w-full"
       >

@@ -12,11 +12,8 @@ export const createClient = () => {
   // defensive replacement of known-bad hosts.
   let effectiveUrl = url
 
-  if (typeof window !== 'undefined') {
-    // Allow an optional runtime override for quick debugging: set
-    // `window.__SUPABASE_URL__ = 'https://your.supabase.co'` in the console
-    // and the client will prefer it. This helps when the app was built with
-    // the wrong value but you don't want to rebuild immediately.
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    // Dev-only: optional runtime override for debugging stale builds.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runtimeOverride = (window as any).__SUPABASE_URL__
     if (runtimeOverride) {
@@ -24,20 +21,12 @@ export const createClient = () => {
       console.warn('[supabase] Using runtime override for NEXT_PUBLIC_SUPABASE_URL =', effectiveUrl)
     }
 
-    // Defensive check: if the baked-in url looks wrong (common on NXDOMAIN)
-    // but the current environment variable (build-time) is valid, prefer it.
-    // This covers cases where a stale compiled asset contains an old host.
     if (effectiveUrl && typeof effectiveUrl === 'string' && effectiveUrl.includes('idpqgqbpmblchbakwyul')) {
       if (url && !url.includes('idpqgqbpmblchbakwyul')) {
-        console.warn('[supabase] Detected bad baked-in Supabase host, replacing with NEXT_PUBLIC_SUPABASE_URL from env =', url)
+        console.warn('[supabase] Detected bad baked-in Supabase host, replacing with env URL')
         effectiveUrl = url
-      } else {
-        console.warn('[supabase] Detected bad Supabase host in runtime override or env:', effectiveUrl)
       }
     }
-
-    console.debug('[supabase] Effective NEXT_PUBLIC_SUPABASE_URL =', effectiveUrl)
-    console.debug('[supabase] Supabase public key (first 8 chars) =', key?.slice(0, 8))
   }
 
   return createBrowserClient(effectiveUrl!, key!)

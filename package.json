@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "setup-db": "node setup-database.js",
+    "test": "vitest run --config=src/vitest.config.ts",
+    "test:watch": "vitest --config=src/vitest.config.ts",
     "test:e2e": "playwright test --config=src/playwright.config.ts",
     "test:e2e:ui": "playwright test --config=src/playwright.config.ts --ui"
   },

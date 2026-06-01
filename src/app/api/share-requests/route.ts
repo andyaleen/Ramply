@@ -2,6 +2,8 @@ import { randomBytes } from 'crypto'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { ShareRequestSchema } from '@/lib/validations'
+import { reportServerError } from '@/lib/monitoring'
+import { getShareLinkOrigin } from '@/lib/share-link-origin'
 
 /** Generate a URL-safe 32-byte hex token on the server. */
 function generateToken(): string {
@@ -16,7 +18,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await req.json()
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
   const parsed = ShareRequestSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
@@ -60,12 +67,14 @@ export async function POST(req: Request) {
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 30)
 
+  const recipientEmail = parsed.data.recipient_email.trim().toLowerCase()
+
   const { data: shareRequest, error: insertError } = await supabase
     .from('share_requests')
     .insert({
       requester_company_id: company.id,
       request_type: parsed.data.request_type,
-      recipient_email: parsed.data.recipient_email || null,
+      recipient_email: recipientEmail,
       mandatory_fields: parsed.data.mandatory_fields,
       optional_fields: parsed.data.optional_fields,
       mandatory_documents: parsed.data.mandatory_documents,
@@ -78,12 +87,15 @@ export async function POST(req: Request) {
     .single()
 
   if (insertError || !shareRequest) {
-    console.error('Failed to insert share request:', insertError)
+    reportServerError('share-requests.create', insertError ?? new Error('No row returned'))
     return NextResponse.json({ error: 'Failed to create share request' }, { status: 500 })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const shareUrl = `${appUrl}/onboard/${token}`
+  const shareUrl = `${getShareLinkOrigin(req)}/onboard/${token}`
 
-  return NextResponse.json({ link: shareUrl })
+  return NextResponse.json({
+    link: shareUrl,
+    recipient_email: recipientEmail,
+    request_type: parsed.data.request_type,
+  })
 }

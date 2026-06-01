@@ -3,13 +3,13 @@ import { test, expect } from '@playwright/test'
 test.describe('smoke — public pages', () => {
   test('landing page renders hero heading', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Effortless Onboarding Starts Here')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('One profile.')
   })
 
   test('landing page has sign-up CTA buttons', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('button', { name: /sign up free with email/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /get started free/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /log in/i })).toBeVisible()
   })
 
   test('login page renders auth form with sign-in and sign-up tabs', async ({ page }) => {

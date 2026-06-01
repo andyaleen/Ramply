@@ -49,19 +49,19 @@ This roadmap is based on the strategic pivot to a standardized document sharing 
 
 ## Phase 5: Monetization & Production Readiness ⚠️ IN PROGRESS
 **Goal:** Launch-ready capabilities.
-10. ⚠️ **Billing Integration (Stripe)** — SCAFFOLDED, awaiting credentials
+10. ⚠️ **Billing Integration (Stripe)** — handler ready; **webhook not configured in Stripe Dashboard yet**
     - ✅ Stripe client (`src/lib/stripe.ts`), billing utils (`src/lib/billing.ts`)
     - ✅ Checkout + Customer Portal routes (`/api/billing/checkout`, `/api/billing/portal`)
-    - ✅ Webhook handler (`/api/webhooks/stripe`) — handles subscription created/updated/deleted
-    - ✅ Free-tier enforcement in `POST /api/share-requests` (3-company cap)
-    - ✅ Billing page (`/admin/billing`) with upgrade + manage flows
+    - ✅ Webhook **handler** (`/api/webhooks/stripe`) — subscription created/updated/deleted
+    - ❌ **Stripe Dashboard webhook endpoint** — not created; `STRIPE_WEBHOOK_SECRET` not verified in production
+    - ✅ Free-tier enforcement in `POST /api/share-requests` (3-company cap) — works without webhook
+    - ✅ Billing page (`/dashboard/billing`) with upgrade + manage flows
     - ✅ `companies` table has all Stripe billing columns
-    - ✅ *Stripe keys set — `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`*
+    - ⚠️ Stripe keys may be set in Vercel; subscription sync requires webhook setup (Phase G5 in launch plan)
 11. ⚠️ **Third-Party Service Setup**
-    - **Resend** � ? domain verified, API key set in Vercel.
-    - ? *Resend API key set in Vercel*
-    - **Supabase (production)** — ✅ schema applied, `documents` bucket created, RLS active, env vars set.
-    - **Vercel** � ? connected, env vars set, build passes on main branch.
+    - **Resend** — API key may be in Vercel; ❌ **invite emails not wired** in `POST /api/share-requests` (returns link only)
+    - **Supabase (production)** — ⚠️ re-apply latest security SQL (`fulfill_share_request`, `users_insert_own`)
+    - **Vercel** — connected; env vars set; build passes on main branch
 12. ✅ **Testing & QA**
     - ✅ Playwright config + global setup (storageState auth for admin + vendor)
     - ✅ Smoke tests — public pages, redirects, invalid token (7 passing)
@@ -70,33 +70,30 @@ This roadmap is based on the strategic pivot to a standardized document sharing 
     - ✅ 18/18 tests passing
     - ✅ Fixed recursive RLS policy on `companies_select_as_requester` (caused 500s)
 
-## Phase 6: Document Intelligence & Request Ops ❌ NOT STARTED
-**Goal:** Extract and reuse document data without human review or confidence scoring.
-13. ❌ **Document Ingestion Pipeline**
-    - OCR/text extraction for uploaded documents (start with W-9).
-    - Use AWS Textract for OCR + form/key-value extraction.
-    - Persist raw text + structured JSON output per document.
-    - Capture provenance (doc id, page, source snippet) for each extracted field.
-14. ❌ **Field Extraction & Normalization**
-    - W-9 parser to map company name, EIN, address into catalog fields.
-    - Normalize and format extracted fields (address parsing, EIN formatting, company name normalization).
-15. ❌ **Document Versioning & Deduplication**
-    - Track document versions and supersede older uploads.
-    - Deduplicate identical uploads (hash + metadata).
-16. ❌ **Conflict Resolution Rules**
-    - Define and apply rules when extracted fields conflict with existing profile values.
-    - Allow per-request override of extracted vs. profile data.
-17. ❌ **Request Templates & Partial Fulfillment**
-    - Save reusable field/doc bundles as templates.
-    - Allow partial fulfillment (share fields now, upload missing docs later).
+## Phase 6: Request Ops & Backlog ❌ DEFERRED (OCR deprioritized)
+**Goal:** Operational polish and advanced sharing — **not required for initial launch**.
+
+### Launch blockers (do first — see production readiness plan)
+- ❌ **Resend invite emails** — wire into `POST /api/share-requests`
+- ❌ **Production security SQL** — apply latest `fulfill_share_request` + RLS to live Supabase
+- ❌ **Stripe webhook (Dashboard)** — only when enabling paid billing
+
+### Post-launch features
+17. ⚠️ **Request Templates & Partial Fulfillment**
+    - ✅ Templates API + `/dashboard/templates` + picker in send dialog
+    - ❌ Partial fulfillment (share fields now, upload missing docs later)
 18. ❌ **Reminder & Expiration UX**
-    - Reminders for incomplete requests and expiring links.
-    - Renewal flow for expired requests.
+    - ✅ “Expires in N days” on pending requests UI
+    - ❌ Email reminders + renewal flow for expired links
 19. ❌ **Compliance & Records**
-    - Consent/disclosure tracking per share request.
-    - Audit trail of share events and document access.
-    - Data retention and purge policies (admin-configurable).
+    - Consent/disclosure tracking per share request
+    - Audit trail of share events and document access
+    - Data retention and purge policies (admin-configurable)
 20. ❌ **Delivery Improvements**
-    - Bundle downloads (ZIP + manifest of shared fields and docs).
-    - Admin read-only review dashboard for received data.
+    - Bundle downloads (ZIP + manifest of shared fields and docs)
+
+### Backlog — Document Intelligence (deprioritized)
+13–16. **OCR / Document AI** — scaffold exists (`src/lib/ocr/`, ingest API, DocumentReview) but **not prioritized**:
+    - Auto-run OCR on upload, field normalization, provenance, conflict resolution
+    - Revisit only if product explicitly requires document autofill
 
