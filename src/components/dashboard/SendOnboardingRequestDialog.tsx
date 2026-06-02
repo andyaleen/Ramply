@@ -16,7 +16,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ShareRequestSchema, type ShareRequest } from '@/lib/validations'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Copy, Zap, BookTemplate } from 'lucide-react'
+import { Copy, Zap, BookTemplate, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { RequestTemplateRow } from '@/lib/database.types'
@@ -197,6 +197,9 @@ export function SendOnboardingRequestDialog({
     toast.success(`Template "${name}" deleted`)
   }
 
+  const usingSavedTemplate = Boolean(initialTemplateId)
+  const submitLabel = createMutation.isPending ? 'Sending…' : 'Send Request'
+
   if (atLimit) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
@@ -226,7 +229,15 @@ export function SendOnboardingRequestDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{generatedLink ? 'Link Generated' : 'New Share Request'}</DialogTitle>
+          <DialogTitle>
+            {generatedLink
+              ? inviteEmailSent
+                ? 'Request Sent'
+                : 'Link Generated'
+              : usingSavedTemplate
+                ? 'Send Share Request'
+                : 'New Share Request'}
+          </DialogTitle>
           <DialogDescription>
             {generatedLink
               ? inviteEmailSent
@@ -324,23 +335,31 @@ export function SendOnboardingRequestDialog({
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
+                {!usingSavedTemplate && (
+                  <Button
+                    type="button"
+                    disabled={savingTemplate}
+                    variant="outline"
+                    className="border-[#287253] text-[#287253] hover:bg-[#F7F8F4]"
+                    onClick={() => {
+                      if (!showSaveTemplate) {
+                        setShowSaveTemplate(true)
+                        return
+                      }
+                      void saveAsTemplate()
+                    }}
+                  >
+                    <BookTemplate className="h-4 w-4 mr-2" />
+                    {savingTemplate ? 'Saving…' : 'Save Template'}
+                  </Button>
+                )}
                 <Button
-                  type="button"
-                  disabled={savingTemplate}
-                  className="bg-[#287253] text-white hover:bg-[#1A4D38]"
-                  onClick={() => {
-                    if (!showSaveTemplate) {
-                      setShowSaveTemplate(true)
-                      return
-                    }
-                    void saveAsTemplate()
-                  }}
+                  type="submit"
+                  disabled={createMutation.isPending}
+                  className={usingSavedTemplate ? 'bg-[#287253] text-white hover:bg-[#1A4D38]' : undefined}
                 >
-                  <BookTemplate className="h-4 w-4 mr-2" />
-                  {savingTemplate ? 'Saving…' : 'Save Template'}
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Creating...' : 'Create Link'}
+                  {usingSavedTemplate ? <Send className="h-4 w-4 mr-2" /> : null}
+                  {submitLabel}
                 </Button>
               </DialogFooter>
             </form>

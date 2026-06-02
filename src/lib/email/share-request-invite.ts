@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { readEnv } from '@/lib/env'
 
 export interface ShareRequestInviteParams {
   recipientEmail: string
@@ -89,7 +90,7 @@ export function buildShareRequestInviteHtml({
 }
 
 function getResendFromAddress(): string {
-  return process.env.RESEND_FROM?.trim() || 'Ramply <onboarding@resend.dev>'
+  return readEnv('RESEND_FROM') || 'Ramply <onboarding@resend.dev>'
 }
 
 /**
@@ -98,7 +99,7 @@ function getResendFromAddress(): string {
 export async function sendShareRequestInvite(
   params: ShareRequestInviteParams
 ): Promise<ShareRequestInviteResult> {
-  const apiKey = process.env.RESEND_API_KEY?.trim()
+  const apiKey = readEnv('RESEND_API_KEY')
   if (!apiKey) {
     return { ok: false, reason: 'Email service not configured' }
   }
