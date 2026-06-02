@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { AuthScreen } from '@/components/auth/AuthScreen'
 import { normalizeRequestedPath } from '@/lib/auth/routing'
+import { extractShareRequestToken } from '@/lib/auth/share-recipient-signup'
 import { AUTH_PASSWORD_MIN_LENGTH, getSessionExpiryMessage } from '@/lib/auth/session-policy'
 import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,10 @@ interface AuthFormProps {
   embedded?: boolean
   /** Pre-fills the email field — used on share-request links. */
   suggestedEmail?: string
+  /** When set, invited recipients skip Supabase email confirmation after sign-up. */
+  shareRequestToken?: string
+  /** Overrides the auth card headline for embedded flows. */
+  welcomeTitle?: string
 }
 
 function authCallbackUrl(nextPath: string): string {
@@ -49,6 +54,8 @@ export function AuthForm({
   redirectPath,
   embedded = false,
   suggestedEmail,
+  shareRequestToken,
+  welcomeTitle = 'Welcome back to Ramply',
 }: AuthFormProps) {
   const searchParams = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
@@ -58,6 +65,7 @@ export function AuthForm({
     redirectPath ?? '/dashboard'
   )
   const sessionMessage = getSessionExpiryMessage(searchParams.get('reason'))
+  const inviteToken = shareRequestToken ?? extractShareRequestToken(requestedPath)
 
   const [email, setEmail] = useState(suggestedEmail ?? '')
   const [password, setPassword] = useState('')
@@ -142,6 +150,47 @@ export function AuthForm({
     }
   }
 
+  /**
+   * Share-request recipients were already emailed an invite link — confirm server-side
+   * so they can sign in immediately without a separate Supabase confirmation email.
+   */
+  const confirmShareRecipientSignup = async (userId: string): Promise<boolean> => {
+    if (!inviteToken) return false
+
+    const res = await fetch('/api/auth/confirm-share-recipient', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        token: inviteToken,
+        userId,
+      }),
+    })
+
+    return res.ok
+  }
+
+  const completeSignup = async (userId?: string) => {
+    if (userId && inviteToken) {
+      const confirmed = await confirmShareRecipientSignup(userId)
+      if (!confirmed) {
+        setError('Account created, but automatic confirmation failed. Try signing in or use a different email.')
+        return false
+      }
+
+      const { error: signInError } = await signIn(email.trim(), password)
+      if (signInError) {
+        setError(formatAuthError(signInError.message))
+        return false
+      }
+
+      router.replace(requestedPath)
+      return true
+    }
+
+    return false
+  }
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -184,6 +233,15 @@ export function AuthForm({
       if (authError) {
         setError(formatAuthError(authError.message))
         setLoading(false)
+        return
+      }
+
+      if (authData.session) {
+        router.replace(requestedPath)
+        return
+      }
+
+      if (authData.user && (await completeSignup(authData.user.id))) {
         return
       }
 
@@ -310,12 +368,29 @@ export function AuthForm({
         <StatusCard
           icon={<CheckCircle className="h-6 w-6 text-white" />}
           title="Confirm your account"
-          description={`We sent a confirmation link to ${email}. Open it to activate your Ramply account, then sign in to continue.`}
-          primaryLabel={resendLoading ? 'Sending…' : 'Resend confirmation email'}
-          onPrimaryClick={() => void handleResendConfirmation()}
-          primaryDisabled={resendLoading}
-          secondaryLabel="Back to Sign In"
-          onSecondaryClick={() => {
+          description={
+            inviteToken
+              ? `We could not finish signing you in automatically. Try signing in with ${email}, or contact support if you need help.`
+              : `We sent a confirmation link to ${email}. Open it to activate your Ramply account, then sign in to continue.`
+          }
+          primaryLabel={
+            inviteToken
+              ? 'Back to Sign In'
+              : resendLoading
+                ? 'Sending…'
+                : 'Resend confirmation email'
+          }
+          onPrimaryClick={() => {
+            if (inviteToken) {
+              setActiveTab('signin')
+              resetForm()
+              return
+            }
+            void handleResendConfirmation()
+          }}
+          primaryDisabled={!inviteToken && resendLoading}
+          secondaryLabel={inviteToken ? undefined : 'Back to Sign In'}
+          onSecondaryClick={inviteToken ? undefined : () => {
             setActiveTab('signin')
             resetForm()
           }}
@@ -341,7 +416,7 @@ export function AuthForm({
             </div>
           </div>
           <CardTitle className="text-3xl font-semibold tracking-tight text-[#0F1F18]">
-            Welcome back to Ramply
+            {welcomeTitle}
           </CardTitle>
           <CardDescription className="mx-auto max-w-md text-[15px] leading-relaxed text-[#5D6D66]">
             Sign in to share company information, manage onboarding requests, and keep your verified profile moving.

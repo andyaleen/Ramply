@@ -109,15 +109,14 @@ export default function OnboardingPage() {
   }
 
   if (!user) {
-    const requestLabel = shareRequest.request_type?.trim() || 'General Request'
+    const requesterName = shareRequest.requester_company_legal_name?.trim() || 'A company'
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
             <h1 className="text-2xl font-bold">Share Request</h1>
             <p className="text-muted-foreground mt-1">
-              {shareRequest.requester_company_legal_name ?? 'A company'} is requesting your
-              company information for <strong>{requestLabel}</strong>. Sign in or create an account to continue.
+              {requesterName} is requesting your company information. Sign in or create an account to continue.
             </p>
             {shareRequest.recipient_email && (
               <p className="mt-2 text-sm text-muted-foreground">
@@ -131,6 +130,8 @@ export default function OnboardingPage() {
               defaultTab="signup"
               redirectPath={`/onboard/${token}`}
               suggestedEmail={shareRequest.recipient_email ?? undefined}
+              shareRequestToken={token}
+              welcomeTitle="Welcome to Ramply"
             />
           </Suspense>
         </div>
