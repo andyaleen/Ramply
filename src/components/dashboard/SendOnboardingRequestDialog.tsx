@@ -41,6 +41,8 @@ export function SendOnboardingRequestDialog({
   const router = useRouter()
   const [generatedLink, setGeneratedLink] = useState<string | null>(null)
   const [createdForEmail, setCreatedForEmail] = useState<string | null>(null)
+  const [inviteEmailSent, setInviteEmailSent] = useState<boolean | null>(null)
+  const [inviteEmailError, setInviteEmailError] = useState<string | null>(null)
   const [atLimit, setAtLimit] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
@@ -79,13 +81,25 @@ export function SendOnboardingRequestDialog({
         }
         throw new Error(err.error ?? 'Failed to create share request')
       }
-      return res.json() as Promise<{ link: string; recipient_email: string; request_type: string }>
+      return res.json() as Promise<{
+        link: string
+        recipient_email: string
+        request_type: string
+        email_sent?: boolean
+        email_error?: string
+      }>
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['share-requests'] })
       setGeneratedLink(data.link)
       setCreatedForEmail(data.recipient_email)
-      toast.success('Share request created!')
+      setInviteEmailSent(data.email_sent ?? false)
+      setInviteEmailError(data.email_error ?? null)
+      if (data.email_sent) {
+        toast.success(`Invite email sent to ${data.recipient_email}`)
+      } else {
+        toast.success('Share request created!')
+      }
     },
     onError: (error) => {
       if ((error as Error).message === 'free_tier_limit') return // handled by atLimit state
@@ -108,6 +122,8 @@ export function SendOnboardingRequestDialog({
     form.reset()
     setGeneratedLink(null)
     setCreatedForEmail(null)
+    setInviteEmailSent(null)
+    setInviteEmailError(null)
     setAtLimit(false)
     setShowSaveTemplate(false)
     setTemplateName('')
@@ -213,7 +229,9 @@ export function SendOnboardingRequestDialog({
           <DialogTitle>{generatedLink ? 'Link Generated' : 'New Share Request'}</DialogTitle>
           <DialogDescription>
             {generatedLink
-              ? 'Share this link when you are ready to send the request later in the workflow.'
+              ? inviteEmailSent
+                ? 'We emailed the recipient. You can also copy the link below if needed.'
+                : 'Share this link with the recipient to complete the request.'
               : 'Set the type of request and choose what information you need from the recipient.'}
           </DialogDescription>
         </DialogHeader>
@@ -228,8 +246,12 @@ export function SendOnboardingRequestDialog({
             </div>
             {createdForEmail && (
               <p className="text-sm text-muted-foreground">
-                Recipient: <strong>{createdForEmail}</strong> — they must sign up or sign in with this
-                email to fulfill the request. (Invite email sending is not enabled yet; copy the link manually.)
+                Recipient: <strong>{createdForEmail}</strong>
+                {inviteEmailSent
+                  ? ' — invite email sent. They must sign up or sign in with this address to fulfill the request.'
+                  : inviteEmailError
+                    ? ` — invite email was not sent (${inviteEmailError}). Copy the link below.`
+                    : ' — they must sign up or sign in with this email to fulfill the request.'}
               </p>
             )}
             <p className="text-sm text-muted-foreground">This link expires in 30 days.</p>

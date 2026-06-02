@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ShareRequestSchema } from '@/lib/validations'
 import { reportServerError } from '@/lib/monitoring'
 import { getShareLinkOrigin } from '@/lib/share-link-origin'
+import { sendShareRequestInvite } from '@/lib/email/share-request-invite'
 
 /** Generate a URL-safe 32-byte hex token on the server. */
 function generateToken(): string {
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
 
   const { data: company, error: companyError } = await supabase
     .from('companies')
-    .select('id, subscription_status')
+    .select('id, subscription_status, legal_name')
     .eq('owner_user_id', user.id)
     .single()
 
@@ -93,9 +94,32 @@ export async function POST(req: Request) {
 
   const shareUrl = `${getShareLinkOrigin(req)}/onboard/${token}`
 
+  const fieldCount =
+    parsed.data.mandatory_fields.length + parsed.data.optional_fields.length
+  const documentCount =
+    parsed.data.mandatory_documents.length + parsed.data.optional_documents.length
+
+  const inviteResult = await sendShareRequestInvite({
+    recipientEmail,
+    requesterName: company.legal_name?.trim() || 'A Ramply customer',
+    requestType: parsed.data.request_type,
+    shareLink: shareUrl,
+    fieldCount,
+    documentCount,
+  })
+
+  if (!inviteResult.ok) {
+    reportServerError('share-requests.invite-email', new Error(inviteResult.reason), {
+      recipientEmail,
+      shareRequestId: shareRequest.id,
+    })
+  }
+
   return NextResponse.json({
     link: shareUrl,
     recipient_email: recipientEmail,
     request_type: parsed.data.request_type,
+    email_sent: inviteResult.ok,
+    email_error: inviteResult.ok ? undefined : inviteResult.reason,
   })
 }
