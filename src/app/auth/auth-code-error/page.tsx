@@ -37,16 +37,16 @@ function AuthCodeErrorContent() {
               This may happen if:
             </p>
             <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
-              <li>The confirmation link has expired</li>
-              <li>The link was already used</li>
-              <li>There was a network error</li>
+              <li>The link has expired or was already used</li>
+              <li>The reset was opened in a different browser than where you requested it</li>
+              <li>Request a new reset link from the same browser you use to sign in</li>
             </ul>
           </div>
 
           <div className="flex flex-col space-y-2">
-            <Link href="/signup">
+            <Link href="/login">
               <Button className="w-full">
-                Try Signing Up Again
+                Request a new reset link
               </Button>
             </Link>
             <Link href="/login">

@@ -39,7 +39,7 @@ Copy [`.env.example`](.env.example). Required for core app:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon/public key |
 | `NEXT_PUBLIC_APP_URL` | App origin for share links (e.g. `http://localhost:3000`) |
 
-Optional: `STRIPE_*`, `RESEND_API_KEY`, `GOOGLE_CLOUD_*` / `OCR_PROVIDER`, `SUPABASE_SERVICE_ROLE_KEY` (webhooks only).
+Optional: `STRIPE_*`, `RESEND_API_KEY`, `GOOGLE_CLOUD_*` / `OCR_PROVIDER`. `SUPABASE_SERVICE_ROLE_KEY` is required for password sign-in without email confirmation (also Stripe webhooks).
 
 ## Scripts
 

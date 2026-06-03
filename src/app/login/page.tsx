@@ -7,6 +7,11 @@ import { Layout } from '@/components/layout'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { LoadingFallback } from '@/components/LoadingFallback'
 import { normalizeRequestedPath } from '@/lib/auth/routing'
+import {
+  buildAuthConfirmPath,
+  getAuthCallbackParamsFromLocation,
+  hasAuthCallbackParams,
+} from '@/lib/auth/parse-auth-callback-params'
 
 function LoginContent() {
   const { user, loading } = useAuth()
@@ -15,6 +20,12 @@ function LoginContent() {
   const redirectPath = normalizeRequestedPath(searchParams.get('redirect'), '/dashboard')
 
   useEffect(() => {
+    const params = getAuthCallbackParamsFromLocation()
+    if (hasAuthCallbackParams(params)) {
+      router.replace(buildAuthConfirmPath(params))
+      return
+    }
+
     if (!loading && user) {
       router.replace(redirectPath)
     }

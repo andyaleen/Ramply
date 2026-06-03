@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/middleware'
+import { getAuthConfirmNextPath } from '@/lib/auth/auth-redirect'
 import { isProtectedAppPath, isSafeRedirectPath, normalizeRequestedPath } from '@/lib/auth/routing'
 import {
   AUTH_SESSION_ABSOLUTE_TIMEOUT_MS,
@@ -25,17 +26,21 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     const { pathname, search } = request.nextUrl
-    const hasAuthCode = request.nextUrl.searchParams.has('code')
+    const hasAuthCallback =
+      request.nextUrl.searchParams.has('code')
+      || request.nextUrl.searchParams.has('token_hash')
+      || request.nextUrl.searchParams.has('access_token')
     const isProtectedRoute = isProtectedAppPath(pathname)
     const isAuthPage = pathname === '/login' || pathname === '/signup'
 
-    if (pathname === '/' && hasAuthCode) {
-      const callbackUrl = request.nextUrl.clone()
-      callbackUrl.pathname = '/auth/callback'
-      if (!callbackUrl.searchParams.get('next')) {
-        callbackUrl.searchParams.set('next', '/dashboard')
+    if ((pathname === '/' || pathname === '/login') && hasAuthCallback) {
+      const confirmUrl = request.nextUrl.clone()
+      confirmUrl.pathname = '/auth/confirm'
+      const type = request.nextUrl.searchParams.get('type')
+      if (!confirmUrl.searchParams.get('next')) {
+        confirmUrl.searchParams.set('next', getAuthConfirmNextPath(null, type))
       }
-      return NextResponse.redirect(callbackUrl)
+      return NextResponse.redirect(confirmUrl)
     }
 
     if (user && isSessionExpired(user)) {
@@ -50,7 +55,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    if (pathname === '/' && user) {
+    if (pathname === '/' && user && !hasAuthCallback) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/dashboard'
       redirectUrl.search = ''

@@ -29,5 +29,10 @@ export const createClient = () => {
     }
   }
 
-  return createBrowserClient(effectiveUrl!, key!)
+  return createBrowserClient(effectiveUrl!, key!, {
+    auth: {
+      flowType: 'pkce',
+      detectSessionInUrl: true,
+    },
+  })
 }

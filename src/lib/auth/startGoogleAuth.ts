@@ -1,5 +1,6 @@
 'use client'
 
+import { buildSupabaseAuthRedirectUrl } from '@/lib/auth/auth-redirect'
 import { createClient } from '@/lib/supabase/client'
 
 /**
@@ -8,7 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 export async function startGoogleAuth(next = '/dashboard'): Promise<string | null> {
   try {
     const supabase = createClient()
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+    const redirectTo = buildSupabaseAuthRedirectUrl(next)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },

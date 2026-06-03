@@ -4,6 +4,11 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
+import {
+  buildAuthConfirmPath,
+  getAuthCallbackParamsFromLocation,
+  hasAuthCallbackParams,
+} from '@/lib/auth/parse-auth-callback-params'
 
 const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
 const sansBody = "font-['DM_Sans',sans-serif]"
@@ -45,15 +50,10 @@ export default function Landing() {
   const { user, loading } = useAuth()
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const authCode = params.get('code')
+    const params = getAuthCallbackParamsFromLocation()
 
-    if (authCode) {
-      const callbackParams = new URLSearchParams(params.toString())
-      if (!callbackParams.get('next')) {
-        callbackParams.set('next', '/dashboard')
-      }
-      router.replace(`/auth/callback?${callbackParams.toString()}`)
+    if (hasAuthCallbackParams(params)) {
+      router.replace(buildAuthConfirmPath(params))
       return
     }
 

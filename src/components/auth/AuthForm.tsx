@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, CheckCircle, Lock, Mail } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { AuthScreen } from '@/components/auth/AuthScreen'
+import {
+  buildPasswordRecoveryRedirectUrl,
+  buildSupabaseAuthRedirectUrl,
+} from '@/lib/auth/auth-redirect'
 import { normalizeRequestedPath } from '@/lib/auth/routing'
 import { extractShareRequestToken } from '@/lib/auth/share-recipient-signup'
 import { AUTH_PASSWORD_MIN_LENGTH, getSessionExpiryMessage } from '@/lib/auth/session-policy'
@@ -16,7 +19,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-
 interface AuthFormProps {
   defaultTab?: 'signin' | 'signup'
   /** When set, overrides the `redirect` search param for post-auth navigation. */
@@ -25,14 +27,14 @@ interface AuthFormProps {
   embedded?: boolean
   /** Pre-fills the email field — used on share-request links. */
   suggestedEmail?: string
-  /** When set, invited recipients skip Supabase email confirmation after sign-up. */
+  /** Share-request onboard token; validated server-side during sign-in. */
   shareRequestToken?: string
   /** Overrides the auth card headline for embedded flows. */
   welcomeTitle?: string
 }
 
 function authCallbackUrl(nextPath: string): string {
-  return `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
+  return buildSupabaseAuthRedirectUrl(nextPath)
 }
 
 function AuthFormShell({
@@ -75,9 +77,9 @@ export function AuthForm({
   const [success, setSuccess] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
+  const [signupUserId, setSignupUserId] = useState<string | null>(null)
+  const [forgotLoading, setForgotLoading] = useState(false)
   const [activeTab, setActiveTab] = useState(initialTab)
-
-  const { signIn } = useAuth()
   const router = useRouter()
   const supabase = createClient()
 
@@ -94,6 +96,7 @@ export function AuthForm({
     setError('')
     setSuccess(false)
     setMagicLinkSent(false)
+    setSignupUserId(null)
   }
 
   const handleTabChange = (value: string) => {
@@ -110,10 +113,10 @@ export function AuthForm({
       return 'Unable to connect. Please check your internet connection and try again.'
     }
     if (message.includes('Invalid login credentials')) {
-      return 'Invalid email or password. Please check your credentials and try again.'
+      return 'Incorrect password for this email. Use Forgot password below, or try magic link.'
     }
     if (message.includes('Email not confirmed')) {
-      return 'Please check your email and confirm your account before signing in.'
+      return 'We could not sign you in yet. Try again or contact support if this continues.'
     }
     if (message.includes('User already registered')) {
       return 'An account with this email already exists. Please sign in instead.'
@@ -122,6 +125,49 @@ export function AuthForm({
       return 'The email address format is not accepted. Please try a different email address.'
     }
     return message
+  }
+
+  /**
+   * Server-side password sign-in that sets session cookies and skips email confirmation.
+   */
+  const completePasswordSignIn = async (): Promise<boolean> => {
+    if (!email.trim() || !password) return false
+
+    const res = await fetch('/api/auth/complete-sign-in', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        password,
+        ...(inviteToken ? { shareToken: inviteToken } : {}),
+        ...(signupUserId ? { userId: signupUserId } : {}),
+      }),
+    })
+
+    const payload = (await res.json().catch(() => ({}))) as {
+      error?: string
+      code?: 'incorrect_password' | 'oauth_only' | 'user_not_found'
+    }
+    if (!res.ok) {
+      if (payload.code === 'incorrect_password') {
+        setError(
+          'Incorrect password for this email. If you signed up multiple times, use the password from your first sign-up, or reset it below.'
+        )
+      } else if (payload.code === 'oauth_only') {
+        setError('This email uses Google sign-in. Use Continue with Google instead.')
+      } else if (payload.code === 'user_not_found') {
+        setError('No account found for this email. Create an account on the Sign Up tab.')
+      } else {
+        setError(formatAuthError(payload.error))
+      }
+      return false
+    }
+
+    await supabase.auth.getSession()
+    router.replace(requestedPath)
+    router.refresh()
+    return true
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -136,12 +182,7 @@ export function AuthForm({
     }
 
     try {
-      const { error: signInError } = await signIn(email.trim(), password)
-      if (signInError) {
-        setError(formatAuthError(signInError.message))
-      } else {
-        router.replace(requestedPath)
-      }
+      await completePasswordSignIn()
     } catch (err) {
       console.error('Sign in error:', err)
       setError('An unexpected error occurred')
@@ -150,45 +191,28 @@ export function AuthForm({
     }
   }
 
-  /**
-   * Share-request recipients were already emailed an invite link — confirm server-side
-   * so they can sign in immediately without a separate Supabase confirmation email.
-   */
-  const confirmShareRecipientSignup = async (userId: string): Promise<boolean> => {
-    if (!inviteToken) return false
-
-    const res = await fetch('/api/auth/confirm-share-recipient', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        token: inviteToken,
-        userId,
-      }),
-    })
-
-    return res.ok
-  }
-
-  const completeSignup = async (userId?: string) => {
-    if (userId && inviteToken) {
-      const confirmed = await confirmShareRecipientSignup(userId)
-      if (!confirmed) {
-        setError('Account created, but automatic confirmation failed. Try signing in or use a different email.')
-        return false
-      }
-
-      const { error: signInError } = await signIn(email.trim(), password)
-      if (signInError) {
-        setError(formatAuthError(signInError.message))
-        return false
-      }
-
-      router.replace(requestedPath)
-      return true
+  const handleContinueAfterSignup = async () => {
+    if (!password) {
+      setError('Enter the password you just created to continue.')
+      return
     }
 
-    return false
+    setLoading(true)
+    setError('')
+
+    try {
+      const signedIn = await completePasswordSignIn()
+      if (!signedIn) {
+        setError((current) =>
+          current || 'We could not sign you in yet. Check your password and try again.'
+        )
+      }
+    } catch (err) {
+      console.error('Continue after signup error:', err)
+      setError('An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -241,11 +265,21 @@ export function AuthForm({
         return
       }
 
-      if (authData.user && (await completeSignup(authData.user.id))) {
-        return
-      }
-
       if (authData.user) {
+        const identities = authData.user.identities ?? []
+        if (identities.length === 0) {
+          setError(
+            'An account with this email already exists. Sign in with your original password, or use Forgot password on the Sign In tab.'
+          )
+          setActiveTab('signin')
+          setLoading(false)
+          return
+        }
+
+        setSignupUserId(authData.user.id)
+        if (await completePasswordSignIn()) {
+          return
+        }
         setSuccess(true)
       }
     } catch (err) {
@@ -257,35 +291,33 @@ export function AuthForm({
   }
 
   /**
-   * Re-sends the signup confirmation email (Supabase Auth).
+   * Sends a Supabase password reset email for accounts that already exist.
    */
-  const handleResendConfirmation = async () => {
+  const handleForgotPassword = async () => {
     if (!email.trim()) {
-      toast.error('No email address to resend to.')
+      setError('Enter your email address first, then choose Forgot password.')
       return
     }
 
-    setResendLoading(true)
+    setForgotLoading(true)
+    setError('')
+
     try {
-      const { error: resendError } = await supabase.auth.resend({
-        type: 'signup',
-        email: email.trim(),
-        options: {
-          emailRedirectTo: authCallbackUrl(requestedPath),
-        },
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: buildPasswordRecoveryRedirectUrl(),
       })
 
-      if (resendError) {
-        toast.error(formatAuthError(resendError.message))
+      if (resetError) {
+        setError(formatAuthError(resetError.message))
         return
       }
 
-      toast.success(`Confirmation email resent to ${email.trim()}`)
+      toast.success(`Password reset link sent to ${email.trim()}`)
     } catch (err) {
-      console.error('Resend confirmation error:', err)
-      toast.error('Failed to resend confirmation email. Please try again.')
+      console.error('Forgot password error:', err)
+      setError('Failed to send password reset email. Please try again.')
     } finally {
-      setResendLoading(false)
+      setForgotLoading(false)
     }
   }
 
@@ -367,32 +399,17 @@ export function AuthForm({
       <AuthFormShell embedded={embedded}>
         <StatusCard
           icon={<CheckCircle className="h-6 w-6 text-white" />}
-          title="Confirm your account"
-          description={
-            inviteToken
-              ? `We could not finish signing you in automatically. Try signing in with ${email}, or contact support if you need help.`
-              : `We sent a confirmation link to ${email}. Open it to activate your Ramply account, then sign in to continue.`
-          }
-          primaryLabel={
-            inviteToken
-              ? 'Back to Sign In'
-              : resendLoading
-                ? 'Sending…'
-                : 'Resend confirmation email'
-          }
-          onPrimaryClick={() => {
-            if (inviteToken) {
-              setActiveTab('signin')
-              resetForm()
-              return
-            }
-            void handleResendConfirmation()
-          }}
-          primaryDisabled={!inviteToken && resendLoading}
-          secondaryLabel={inviteToken ? undefined : 'Back to Sign In'}
-          onSecondaryClick={inviteToken ? undefined : () => {
+          title="Account created"
+          description={`Your account is ready. You do not need a confirmation email to continue — use the same password you just created to go to your dashboard.`}
+          error={error}
+          primaryLabel={loading ? 'Signing you in…' : 'Continue to dashboard'}
+          onPrimaryClick={() => void handleContinueAfterSignup()}
+          primaryDisabled={loading}
+          secondaryLabel="Back to Sign In"
+          onSecondaryClick={() => {
             setActiveTab('signin')
-            resetForm()
+            setSuccess(false)
+            setError('')
           }}
           tertiaryLabel="Try different email"
           onTertiaryClick={() => {
@@ -400,6 +417,8 @@ export function AuthForm({
             setEmail(suggestedEmail ?? '')
             setPassword('')
             setConfirmPassword('')
+            setSignupUserId(null)
+            setError('')
           }}
         />
       </AuthFormShell>
@@ -496,15 +515,25 @@ export function AuthForm({
                   {loading ? 'Signing In...' : 'Sign In'}
                 </Button>
 
-                <div className="text-center">
+                <div className="space-y-2 text-center">
                   <button
                     type="button"
-                    onClick={handleMagicLink}
-                    disabled={loading}
+                    onClick={() => void handleForgotPassword()}
+                    disabled={loading || forgotLoading}
                     className="text-sm text-[#287253] hover:text-[#1A4D38] hover:underline disabled:opacity-50"
                   >
-                    Send magic link instead
+                    {forgotLoading ? 'Sending reset link…' : 'Forgot password?'}
                   </button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleMagicLink}
+                      disabled={loading}
+                      className="text-sm text-[#287253] hover:text-[#1A4D38] hover:underline disabled:opacity-50"
+                    >
+                      Send magic link instead
+                    </button>
+                  </div>
                 </div>
               </form>
             </TabsContent>
@@ -658,6 +687,7 @@ interface StatusCardProps {
   icon: React.ReactNode
   title: string
   description: string
+  error?: string
   primaryLabel: string
   onPrimaryClick: () => void
   primaryDisabled?: boolean
@@ -671,6 +701,7 @@ function StatusCard({
   icon,
   title,
   description,
+  error,
   primaryLabel,
   onPrimaryClick,
   primaryDisabled = false,
@@ -695,6 +726,7 @@ function StatusCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 px-8 pb-8">
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <Button
           onClick={onPrimaryClick}
           disabled={primaryDisabled}
