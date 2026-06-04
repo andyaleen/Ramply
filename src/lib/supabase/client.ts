@@ -1,4 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+let browserClient: SupabaseClient | undefined
 
 export const createClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -29,10 +32,14 @@ export const createClient = () => {
     }
   }
 
-  return createBrowserClient(effectiveUrl!, key!, {
-    auth: {
-      flowType: 'pkce',
-      detectSessionInUrl: true,
-    },
-  })
+  if (!browserClient) {
+    browserClient = createBrowserClient(effectiveUrl!, key!, {
+      auth: {
+        flowType: 'pkce',
+        detectSessionInUrl: true,
+      },
+    })
+  }
+
+  return browserClient
 }

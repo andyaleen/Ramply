@@ -304,6 +304,27 @@ export function AuthForm({
     setError('')
 
     try {
+      const apiResponse = await fetch('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+
+      if (apiResponse.ok) {
+        toast.success(`Password reset link sent to ${email.trim()}`)
+        return
+      }
+
+      const payload = (await apiResponse.json().catch(() => null)) as {
+        code?: string
+        error?: string
+      } | null
+
+      if (apiResponse.status !== 503 || payload?.code !== 'USE_CLIENT_FALLBACK') {
+        setError(payload?.error || 'Failed to send password reset email. Please try again.')
+        return
+      }
+
       markPasswordRecoveryPending()
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: buildPasswordRecoveryRedirectUrl(),
