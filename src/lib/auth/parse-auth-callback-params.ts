@@ -1,4 +1,5 @@
 import { getAuthConfirmNextPath } from '@/lib/auth/auth-redirect'
+import { applyPasswordRecoveryRoutingHints } from '@/lib/auth/password-recovery-pending'
 
 /**
  * Merges query-string and hash-fragment auth params (Supabase uses both).
@@ -34,6 +35,7 @@ export function hasAuthCallbackParams(params: URLSearchParams): boolean {
  * Builds `/auth/confirm?...` preserving auth params for the client handler.
  */
 export function buildAuthConfirmPath(params: URLSearchParams): string {
+  applyPasswordRecoveryRoutingHints(params)
   const next = getAuthConfirmNextPath(params.get('next'), params.get('type'))
   const out = new URLSearchParams()
 

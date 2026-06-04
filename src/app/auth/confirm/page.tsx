@@ -4,6 +4,11 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AUTH_UPDATE_PASSWORD_PATH } from '@/lib/auth/auth-redirect'
 import { completeAuthCallback } from '@/lib/auth/complete-auth-callback'
+import {
+  applyPasswordRecoveryRoutingHints,
+  consumePasswordRecoveryPending,
+  waitForPasswordRecoveryEvent,
+} from '@/lib/auth/password-recovery-pending'
 import { createClient } from '@/lib/supabase/client'
 import {
   getAuthCallbackParamsFromLocation,
@@ -24,6 +29,7 @@ function AuthConfirmContent() {
 
     const run = async () => {
       const params = getAuthCallbackParamsFromLocation()
+      applyPasswordRecoveryRoutingHints(params)
 
       if (!hasAuthCallbackParams(params)) {
         setStatus('No sign-in data found in this link.')
@@ -47,18 +53,25 @@ function AuthConfirmContent() {
       })
 
       const result = await completeAuthCallback(supabase, params)
-      subscription.unsubscribe()
 
       if (typeof window !== 'undefined' && window.location.hash) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search)
       }
 
       if (!result.ok) {
+        subscription.unsubscribe()
         router.replace(`/auth/auth-code-error?error=${encodeURIComponent(result.error)}`)
         return
       }
 
-      const destination = recoveryFlow ? AUTH_UPDATE_PASSWORD_PATH : result.nextPath
+      if (!recoveryFlow) {
+        recoveryFlow = await waitForPasswordRecoveryEvent(supabase)
+      }
+      subscription.unsubscribe()
+
+      const pendingRecovery = consumePasswordRecoveryPending()
+      const destination =
+        recoveryFlow || pendingRecovery ? AUTH_UPDATE_PASSWORD_PATH : result.nextPath
       router.replace(destination)
       router.refresh()
     }

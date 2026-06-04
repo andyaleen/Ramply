@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/middleware'
 import { getAuthConfirmNextPath } from '@/lib/auth/auth-redirect'
+import { applyPasswordRecoveryRoutingHints } from '@/lib/auth/password-recovery-pending'
 import { isProtectedAppPath, isSafeRedirectPath, normalizeRequestedPath } from '@/lib/auth/routing'
 import {
   AUTH_SESSION_ABSOLUTE_TIMEOUT_MS,
@@ -36,9 +37,15 @@ export async function middleware(request: NextRequest) {
     if ((pathname === '/' || pathname === '/login') && hasAuthCallback) {
       const confirmUrl = request.nextUrl.clone()
       confirmUrl.pathname = '/auth/confirm'
-      const type = request.nextUrl.searchParams.get('type')
+      request.nextUrl.searchParams.forEach((value, key) => {
+        confirmUrl.searchParams.set(key, value)
+      })
+      applyPasswordRecoveryRoutingHints(confirmUrl.searchParams)
       if (!confirmUrl.searchParams.get('next')) {
-        confirmUrl.searchParams.set('next', getAuthConfirmNextPath(null, type))
+        confirmUrl.searchParams.set(
+          'next',
+          getAuthConfirmNextPath(null, confirmUrl.searchParams.get('type'))
+        )
       }
       return NextResponse.redirect(confirmUrl)
     }

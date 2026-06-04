@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAuthConfirmNextPath } from '@/lib/auth/auth-redirect'
+import { applyPasswordRecoveryRoutingHints } from '@/lib/auth/password-recovery-pending'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
@@ -43,8 +44,12 @@ export async function GET(request: NextRequest) {
     searchParams.forEach((value, key) => {
       confirmUrl.searchParams.set(key, value)
     })
+    applyPasswordRecoveryRoutingHints(confirmUrl.searchParams)
     if (!confirmUrl.searchParams.get('next')) {
-      confirmUrl.searchParams.set('next', next)
+      confirmUrl.searchParams.set(
+        'next',
+        getAuthConfirmNextPath(null, confirmUrl.searchParams.get('type'))
+      )
     }
     return NextResponse.redirect(confirmUrl)
   }
