@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AUTH_UPDATE_PASSWORD_PATH } from '@/lib/auth/auth-redirect'
 import { completeAuthCallback } from '@/lib/auth/complete-auth-callback'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -28,14 +29,25 @@ function AuthConfirmContent() {
         setStatus('No sign-in data found in this link.')
         router.replace(
           `/auth/auth-code-error?error=${encodeURIComponent(
-            'This link is missing sign-in data. Request a new password reset from the same URL you use for the app (check the port matches, e.g. localhost:3003).'
+            'This link is missing sign-in data. Request a new password reset from https://www.ramply.org/login (same browser).'
           )}`
         )
         return
       }
 
       const supabase = createClient()
+      let recoveryFlow = params.get('type') === 'recovery'
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          recoveryFlow = true
+        }
+      })
+
       const result = await completeAuthCallback(supabase, params)
+      subscription.unsubscribe()
 
       if (typeof window !== 'undefined' && window.location.hash) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search)
@@ -46,7 +58,8 @@ function AuthConfirmContent() {
         return
       }
 
-      router.replace(result.nextPath)
+      const destination = recoveryFlow ? AUTH_UPDATE_PASSWORD_PATH : result.nextPath
+      router.replace(destination)
       router.refresh()
     }
 

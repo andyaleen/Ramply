@@ -10,4 +10,10 @@ describe('getAuthConfirmNextPath', () => {
   test('respects explicit next path', () => {
     expect(getAuthConfirmNextPath('/onboard/abc', 'recovery')).toBe('/onboard/abc')
   })
+
+  test('preserves update-password next path from recovery email', () => {
+    expect(getAuthConfirmNextPath('/auth/update-password', 'recovery')).toBe(
+      '/auth/update-password'
+    )
+  })
 })

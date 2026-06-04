@@ -28,6 +28,16 @@ describe('normalizeRequestedPath', () => {
   test('falls back on unsafe paths', () => {
     expect(normalizeRequestedPath('//evil.com', '/dashboard')).toBe('/dashboard')
   })
+
+  test('allows password reset as a redirect target', () => {
+    expect(normalizeRequestedPath('/auth/update-password', '/dashboard')).toBe(
+      '/auth/update-password'
+    )
+  })
+
+  test('still blocks other auth callback paths', () => {
+    expect(normalizeRequestedPath('/auth/confirm', '/dashboard')).toBe('/dashboard')
+  })
 })
 
 describe('isCompanyProfileComplete', () => {

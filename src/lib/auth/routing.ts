@@ -3,7 +3,10 @@ import type { CompanyRow, UserRow } from '@/lib/database.types'
 type MinimalUserProfile = Pick<UserRow, 'role'> | null | undefined
 type MinimalCompany = Pick<CompanyRow, 'legal_name' | 'contact_name' | 'ein'> | null | undefined
 
-const INVALID_NEXT_PREFIXES = ['/auth/', '/login', '/signup', '/post-login']
+const INVALID_NEXT_PREFIXES = ['/login', '/signup', '/post-login']
+
+/** Post-auth paths under /auth/ that are valid redirect targets (e.g. password reset). */
+export const ALLOWED_AUTH_NEXT_PATH = '/auth/update-password'
 
 /**
  * Returns true when path is a same-origin relative path safe for redirects.
@@ -76,9 +79,14 @@ export function normalizeRequestedPath(requestedPath: string | null | undefined,
     return fallbackPath
   }
 
-  const isInvalidNextPath = INVALID_NEXT_PREFIXES.some(
-    (prefix) => requestedPath === prefix || requestedPath.startsWith(`${prefix}/`)
-  )
+  if (requestedPath === ALLOWED_AUTH_NEXT_PATH) {
+    return requestedPath
+  }
+
+  const isInvalidNextPath =
+    INVALID_NEXT_PREFIXES.some(
+      (prefix) => requestedPath === prefix || requestedPath.startsWith(`${prefix}/`)
+    ) || requestedPath.startsWith('/auth/')
 
   if (isInvalidNextPath) return fallbackPath
 

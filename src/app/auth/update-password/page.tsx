@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
+import { getPostLoginDestination } from '@/lib/auth/routing'
 import { AUTH_PASSWORD_MIN_LENGTH } from '@/lib/auth/session-policy'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +16,7 @@ import { Label } from '@/components/ui/label'
  * Lets a user set a new password after following a Supabase recovery link.
  */
 export default function UpdatePasswordPage() {
-  const { user, loading } = useAuth()
+  const { user, userProfile, company, loading } = useAuth()
   const router = useRouter()
   const supabase = createClient()
 
@@ -51,7 +52,7 @@ export default function UpdatePasswordPage() {
         setError(updateError.message)
         return
       }
-      router.replace('/dashboard')
+      router.replace(getPostLoginDestination('/dashboard', userProfile, company))
       router.refresh()
     } catch (err) {
       console.error('Update password error:', err)
