@@ -216,6 +216,7 @@ DROP POLICY IF EXISTS "companies_select_own" ON companies;
 DROP POLICY IF EXISTS "companies_insert_own" ON companies;
 DROP POLICY IF EXISTS "companies_update_own" ON companies;
 DROP POLICY IF EXISTS "companies_select_as_requester" ON companies;
+DROP POLICY IF EXISTS "companies_select_requester_for_recipient" ON companies;
 
 DROP POLICY IF EXISTS "company_documents_all_own" ON company_documents;
 DROP POLICY IF EXISTS "company_documents_select_requester" ON company_documents;
@@ -269,6 +270,18 @@ CREATE POLICY "companies_select_as_requester" ON companies
       JOIN companies requester ON requester.owner_user_id = auth.uid()
       WHERE sr.completed_by_company_id = companies.id
         AND sr.requester_company_id = requester.id
+    )
+  );
+
+-- Recipients can read the requester company name for share requests sent to them.
+CREATE POLICY "companies_select_requester_for_recipient" ON companies
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM share_requests sr
+      JOIN users u ON u.id = auth.uid()
+      WHERE sr.requester_company_id = companies.id
+        AND sr.recipient_email IS NOT NULL
+        AND LOWER(sr.recipient_email) = LOWER(u.email)
     )
   );
 
