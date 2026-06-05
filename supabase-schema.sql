@@ -216,7 +216,6 @@ DROP POLICY IF EXISTS "companies_select_own" ON companies;
 DROP POLICY IF EXISTS "companies_insert_own" ON companies;
 DROP POLICY IF EXISTS "companies_update_own" ON companies;
 DROP POLICY IF EXISTS "companies_select_as_requester" ON companies;
-DROP POLICY IF EXISTS "companies_select_requester_for_recipient" ON companies;
 
 DROP POLICY IF EXISTS "company_documents_all_own" ON company_documents;
 DROP POLICY IF EXISTS "company_documents_select_requester" ON company_documents;
@@ -270,18 +269,6 @@ CREATE POLICY "companies_select_as_requester" ON companies
       JOIN companies requester ON requester.owner_user_id = auth.uid()
       WHERE sr.completed_by_company_id = companies.id
         AND sr.requester_company_id = requester.id
-    )
-  );
-
--- Recipients can read the requester company name for share requests sent to them.
-CREATE POLICY "companies_select_requester_for_recipient" ON companies
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM share_requests sr
-      JOIN users u ON u.id = auth.uid()
-      WHERE sr.requester_company_id = companies.id
-        AND sr.recipient_email IS NOT NULL
-        AND LOWER(sr.recipient_email) = LOWER(u.email)
     )
   );
 
@@ -500,6 +487,40 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION get_share_request_by_token(TEXT) TO anon, authenticated;
+
+-- List pending share requests addressed to the signed-in recipient.
+CREATE OR REPLACE FUNCTION get_pending_received_share_requests()
+RETURNS TABLE (
+  id UUID,
+  token TEXT,
+  request_type TEXT,
+  created_at TIMESTAMPTZ,
+  requester_company_legal_name TEXT,
+  requester_company_dba_name TEXT,
+  requester_company_contact_name TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT
+      sr.id,
+      sr.token,
+      sr.request_type,
+      sr.created_at,
+      rc.legal_name,
+      rc.dba_name,
+      rc.contact_name
+    FROM share_requests sr
+    LEFT JOIN companies rc ON rc.id = sr.requester_company_id
+    JOIN users u ON u.id = auth.uid()
+    WHERE sr.recipient_email IS NOT NULL
+      AND LOWER(sr.recipient_email) = LOWER(u.email)
+      AND sr.status = 'pending'
+      AND (sr.expires_at IS NULL OR sr.expires_at > NOW())
+    ORDER BY sr.created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION get_pending_received_share_requests() TO authenticated;
 
 -- Fulfill a share request atomically
 CREATE OR REPLACE FUNCTION fulfill_share_request(

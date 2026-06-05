@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
 import {
-  PENDING_RECEIVED_REQUEST_COLUMNS,
   RECIPIENT_REQUEST_COLUMNS,
   countPendingReceivedShareRequests,
   fetchPendingReceivedShareRequests,
@@ -92,19 +91,23 @@ describe('recipient request queries', () => {
     expect(client.queries[0].orders).toEqual([{ column: 'created_at', ascending: false }])
   })
 
-  test('loads pending dashboard requests with requester company details', async () => {
-    const client = new FakeReceivedRequestsClient({
-      data: [
-        {
-          id: 'req-1',
-          token: 'token-1',
-          request_type: 'Standard',
-          created_at: '2026-06-01T00:00:00.000Z',
-          requester_company: { legal_name: 'Acme Corp', dba_name: null, contact_name: null },
-        },
-      ],
-      error: null,
-    })
+  test('loads pending dashboard requests via recipient RPC', async () => {
+    const client = {
+      rpc: async () => ({
+        data: [
+          {
+            id: 'req-1',
+            token: 'token-1',
+            request_type: 'Standard',
+            created_at: '2026-06-01T00:00:00.000Z',
+            requester_company_legal_name: 'Acme Corp',
+            requester_company_dba_name: null,
+            requester_company_contact_name: null,
+          },
+        ],
+        error: null,
+      }),
+    }
 
     const requests = await fetchPendingReceivedShareRequests(
       client as unknown as ReceivedRequestsClient,
@@ -120,12 +123,6 @@ describe('recipient request queries', () => {
         requesterName: 'Acme Corp',
       },
     ])
-    expect(client.selections[0].columns).toBe(PENDING_RECEIVED_REQUEST_COLUMNS)
-    expect(client.queries[0].filters).toEqual([
-      { column: 'recipient_email', value: 'vendor@example.com' },
-      { column: 'status', value: 'pending' },
-    ])
-    expect(client.queries[0].orders).toEqual([{ column: 'created_at', ascending: false }])
   })
 })
 

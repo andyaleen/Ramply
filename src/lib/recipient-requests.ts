@@ -35,8 +35,15 @@ export type PendingReceivedShareRequest = {
 export const RECIPIENT_REQUEST_COLUMNS =
   'id, token, request_type, mandatory_fields, optional_fields, mandatory_documents, optional_documents, status, created_at, completed_at'
 
-export const PENDING_RECEIVED_REQUEST_COLUMNS =
-  'id, token, request_type, created_at, requester_company:companies!requester_company_id(legal_name, dba_name, contact_name)'
+type PendingReceivedShareRequestRow = {
+  id: string
+  token: string
+  request_type: string
+  created_at: string
+  requester_company_legal_name: string | null
+  requester_company_dba_name: string | null
+  requester_company_contact_name: string | null
+}
 
 /** Prefer legal name, then DBA, then contact name for requester display. */
 export function formatRequesterDisplayName(
@@ -91,36 +98,24 @@ export async function fetchPendingReceivedShareRequests(
   supabase: ReceivedRequestsClient,
   userEmail: string | null | undefined
 ): Promise<PendingReceivedShareRequest[]> {
-  const recipientEmail = safeLowerCase(userEmail)
-  if (!recipientEmail) return []
+  if (!safeLowerCase(userEmail)) return []
 
-  const { data, error } = await supabase
-    .from('share_requests')
-    .select(PENDING_RECEIVED_REQUEST_COLUMNS)
-    .eq('recipient_email', recipientEmail)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-
+  const { data, error } = await supabase.rpc('get_pending_received_share_requests')
   if (error) throw error
 
   return (data ?? []).map((row) => {
-    const request = row as {
-      id: string
-      token: string
-      request_type: string
-      created_at: string
-      requester_company: RequesterCompanySummary | RequesterCompanySummary[] | null
-    }
-    const requesterCompany = Array.isArray(request.requester_company)
-      ? request.requester_company[0] ?? null
-      : request.requester_company
+    const request = row as PendingReceivedShareRequestRow
 
     return {
       id: request.id,
       token: request.token,
       request_type: request.request_type?.trim() || 'General Request',
       created_at: request.created_at,
-      requesterName: formatRequesterDisplayName(requesterCompany),
+      requesterName: formatRequesterDisplayName({
+        legal_name: request.requester_company_legal_name,
+        dba_name: request.requester_company_dba_name,
+        contact_name: request.requester_company_contact_name,
+      }),
     }
   })
 }
