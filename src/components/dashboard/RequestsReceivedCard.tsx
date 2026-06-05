@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { DocumentIcon } from '@/components/dashboard/DashboardStatCard'
+import { countPendingReceivedShareRequests } from '@/lib/recipient-requests'
 
 /**
  * "Requests sent to you" card with a centered empty state and received route link.
@@ -17,13 +18,7 @@ export function RequestsReceivedCard() {
   const { data: pendingReceived = 0, isLoading } = useQuery<number>({
     queryKey: ['pending-received', user?.email],
     queryFn: async () => {
-      if (!user?.email) return 0
-      const { data, error } = await supabase
-        .from('share_requests')
-        .select('id')
-        .eq('status', 'pending')
-      if (error) throw error
-      return (data ?? []).length
+      return countPendingReceivedShareRequests(supabase, user?.email)
     },
     enabled: !!user?.email,
   })

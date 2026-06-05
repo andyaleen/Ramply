@@ -10,18 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ArrowRight, CheckCircle, Clock, FileText, XCircle } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import type { ShareRequestRow } from '@/lib/database.types'
+import { fetchReceivedShareRequests, type RecipientRequest } from '@/lib/recipient-requests'
 
 const STATUS_BADGE: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
   pending:   { label: 'Pending',   className: 'bg-yellow-100 text-yellow-800', icon: <Clock className="h-3 w-3" /> },
   completed: { label: 'Completed', className: 'bg-green-100 text-green-800',  icon: <CheckCircle className="h-3 w-3" /> },
   expired:   { label: 'Expired',   className: 'bg-red-100 text-red-800',      icon: <XCircle className="h-3 w-3" /> },
 }
-
-type RecipientRequest = Pick<
-  ShareRequestRow,
-  'id' | 'token' | 'request_type' | 'mandatory_fields' | 'optional_fields' | 'mandatory_documents' | 'optional_documents' | 'status' | 'created_at' | 'completed_at'
->
 
 export default function RequestsPage() {
   const { user } = useAuth()
@@ -31,13 +26,7 @@ export default function RequestsPage() {
   const { data: requests = [], isLoading, error, refetch } = useQuery<RecipientRequest[]>({
     queryKey: ['recipient-requests-page', user?.email],
     queryFn: async () => {
-      if (!user?.email) return []
-      const { data, error } = await supabase
-        .from('share_requests')
-        .select('id, token, request_type, mandatory_fields, optional_fields, mandatory_documents, optional_documents, status, created_at, completed_at')
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      return (data ?? []) as RecipientRequest[]
+      return fetchReceivedShareRequests(supabase, user?.email)
     },
     enabled: !!user?.email,
   })
