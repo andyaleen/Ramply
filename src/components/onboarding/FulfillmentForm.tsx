@@ -33,7 +33,9 @@ export function FulfillmentForm({ shareRequest, onComplete }: FulfillmentFormPro
   const { user, company } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const { data: vaultDocs = [], isLoading: vaultLoading } = useVaultDocuments(company?.id)
+  const { data: vaultDocs = [], isFetching: vaultFetching, isFetched: vaultFetched } =
+    useVaultDocuments(company?.id)
+  const vaultChecking = !!company?.id && !vaultFetched && vaultFetching
 
   /** Pre-fill field values from the authenticated user's company profile */
   const [fieldValues, setFieldValues] = useState<Partial<Record<FieldKey, string>>>(() => {
@@ -193,36 +195,28 @@ export function FulfillmentForm({ shareRequest, onComplete }: FulfillmentFormPro
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {vaultLoading ? (
-              <div className="space-y-2">
-                {[...Array(2)].map((_, index) => (
-                  <div key={index} className="h-14 rounded-md bg-muted animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <>
-                {mandatoryDocTypes.map((docType) => (
-                  <DocRow
-                    key={docType}
-                    docType={docType}
-                    required
-                    doc={getVaultDocument(vaultDocs, docType)}
-                    uploading={uploading === docType}
-                    onUpload={pick}
-                  />
-                ))}
-                {optionalDocTypes.map((docType) => (
-                  <DocRow
-                    key={docType}
-                    docType={docType}
-                    required={false}
-                    doc={getVaultDocument(vaultDocs, docType)}
-                    uploading={uploading === docType}
-                    onUpload={pick}
-                  />
-                ))}
-              </>
-            )}
+            {mandatoryDocTypes.map((docType) => (
+              <DocRow
+                key={docType}
+                docType={docType}
+                required
+                doc={getVaultDocument(vaultDocs, docType)}
+                vaultChecking={vaultChecking}
+                uploading={uploading === docType}
+                onUpload={pick}
+              />
+            ))}
+            {optionalDocTypes.map((docType) => (
+              <DocRow
+                key={docType}
+                docType={docType}
+                required={false}
+                doc={getVaultDocument(vaultDocs, docType)}
+                vaultChecking={vaultChecking}
+                uploading={uploading === docType}
+                onUpload={pick}
+              />
+            ))}
           </CardContent>
         </Card>
       ) : null}
@@ -240,7 +234,7 @@ export function FulfillmentForm({ shareRequest, onComplete }: FulfillmentFormPro
         onClick={() => mutation.mutate()}
         disabled={
           mutation.isPending
-          || vaultLoading
+          || vaultChecking
           || missingRequiredDocs.length > 0
           || missingRequiredFields.length > 0
           || !company
@@ -258,11 +252,12 @@ interface DocRowProps {
   docType: DocumentTypeKey
   required: boolean
   doc: CompanyDocumentRow | null
+  vaultChecking: boolean
   uploading: boolean
   onUpload: (docType: DocumentTypeKey) => void
 }
 
-function DocRow({ docType, required, doc, uploading, onUpload }: DocRowProps) {
+function DocRow({ docType, required, doc, vaultChecking, uploading, onUpload }: DocRowProps) {
   return (
     <div className="flex items-center justify-between p-3 border rounded-md">
       <div className="flex items-center gap-2 min-w-0">
@@ -285,6 +280,11 @@ function DocRow({ docType, required, doc, uploading, onUpload }: DocRowProps) {
             <p className="text-xs text-muted-foreground truncate">
               {doc.file_name}
               {doc.version > 1 ? ` · v${doc.version}` : ''}
+            </p>
+          ) : vaultChecking ? (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Checking vault…
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Not in your vault yet</p>

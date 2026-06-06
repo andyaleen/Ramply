@@ -16,5 +16,7 @@ export function useVaultDocuments(companyId: string | undefined) {
       return fetchActiveVaultDocuments(supabase, companyId)
     },
     enabled: !!companyId,
+    placeholderData: [],
+    staleTime: 1000 * 60 * 5,
   })
 }

@@ -10,8 +10,10 @@ import {
   useState,
 } from 'react'
 import type { AuthError, User } from '@supabase/supabase-js'
+import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { CompanyRow, UserRow } from '@/lib/database.types'
+import { fetchActiveVaultDocuments, vaultDocsQueryKey } from '@/lib/vault-documents'
 import { isCompanyProfileComplete, isProtectedAppPath } from '@/lib/auth/routing'
 import {
   AUTH_REDIRECT_REASON_SESSION_EXPIRED,
@@ -57,6 +59,7 @@ const BOOTSTRAP_TIMEOUT_MS = 12_000
  * Supabase session without blocking basic authentication on profile creation.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserRow | null>(null)
   const [company, setCompany] = useState<CompanyRow | null>(null)
@@ -159,6 +162,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCompany(resolvedCompany)
           bootstrappedUserIdRef.current = authUser.id
 
+          if (resolvedCompany?.id) {
+            void queryClient.prefetchQuery({
+              queryKey: vaultDocsQueryKey(resolvedCompany.id),
+              queryFn: () => fetchActiveVaultDocuments(supabase, resolvedCompany.id),
+            })
+          }
+
           return {
             userProfile: resolvedUser,
             company: resolvedCompany,
@@ -197,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return racedPromise
     },
-    [supabase]
+    [queryClient, supabase]
   )
 
   useEffect(() => {

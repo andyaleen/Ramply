@@ -658,6 +658,30 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION fulfill_share_request(UUID, JSONB, UUID[]) TO authenticated;
 
+CREATE OR REPLACE FUNCTION get_my_active_vault_documents()
+RETURNS SETOF company_documents AS $$
+DECLARE
+  v_company_id UUID;
+BEGIN
+  SELECT id INTO v_company_id
+  FROM companies
+  WHERE owner_user_id = auth.uid();
+
+  IF v_company_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT cd.*
+  FROM company_documents cd
+  WHERE cd.company_id = v_company_id
+    AND cd.superseded_by IS NULL
+  ORDER BY cd.document_type;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+GRANT EXECUTE ON FUNCTION get_my_active_vault_documents() TO authenticated;
+
 CREATE OR REPLACE FUNCTION set_user_role(
   p_user_id UUID,
   p_role TEXT

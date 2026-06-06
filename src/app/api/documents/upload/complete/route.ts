@@ -7,7 +7,6 @@ import {
   isUserOwnedDocumentPath,
 } from '@/lib/document-upload'
 import type { CompanyDocumentRow } from '@/lib/database.types'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 const docTypeKeys = CATALOG_DOCUMENT_TYPES.map((doc) => doc.key) as [
@@ -64,27 +63,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Company not found' }, { status: 400 })
     }
 
-    const admin = createAdminClient()
     const docType = upload.document_type
 
-    const { data: existingRows, error: existingError } = await admin
+    const { data: existing, error: existingError } = await supabase
       .from('company_documents')
       .select('*')
       .eq('company_id', company.id)
       .eq('document_type', docType)
       .is('superseded_by', null)
-      .order('version', { ascending: false })
-      .limit(1)
+      .maybeSingle()
 
     if (existingError) throw existingError
 
-    const existingDoc = (existingRows?.[0] ?? null) as CompanyDocumentRow | null
+    const existingDoc = existing as CompanyDocumentRow | null
     if (existingDoc?.file_hash === upload.file_hash) {
       return NextResponse.json({ doc: existingDoc, duplicate: true })
     }
 
     const nextVersion = (existingDoc?.version ?? 0) + 1
-    const { data: newRow, error: insertError } = await admin
+    const { data: newRow, error: insertError } = await supabase
       .from('company_documents')
       .insert({
         company_id: company.id,
@@ -101,12 +98,12 @@ export async function POST(req: Request) {
       .single()
 
     if (insertError) {
-      await admin.storage.from('documents').remove([upload.file_path])
+      await supabase.storage.from('documents').remove([upload.file_path])
       throw insertError
     }
 
     if (existingDoc) {
-      const { error: supersedeError } = await admin
+      const { error: supersedeError } = await supabase
         .from('company_documents')
         .update({ superseded_by: newRow.id })
         .eq('id', existingDoc.id)

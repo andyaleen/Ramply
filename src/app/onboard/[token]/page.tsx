@@ -35,7 +35,7 @@ function normalizeShareRequest(data: unknown): ShareRequestWithRequester | null 
 export default function OnboardingPage() {
   const params = useParams()
   const token = params.token as string
-  const { user, company, loading: authLoading, profileLoading, signOut } = useAuth()
+  const { user, company, loading: authLoading, signOut } = useAuth()
   const supabase = createClient()
   const [completed, setCompleted] = useState(false)
 
@@ -53,7 +53,7 @@ export default function OnboardingPage() {
     enabled: !!token,
   })
 
-  if (authLoading || profileLoading || isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600" />

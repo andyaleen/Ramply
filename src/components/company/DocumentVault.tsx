@@ -15,7 +15,8 @@ import { getVaultDocument } from '@/lib/vault-documents'
 export function DocumentVault() {
   const { user, company } = useAuth()
   const router = useRouter()
-  const { data: docs = [], isLoading, refetch } = useVaultDocuments(company?.id)
+  const { data: docs = [], isFetching, isFetched, refetch } = useVaultDocuments(company?.id)
+  const vaultChecking = !!company?.id && !isFetched && isFetching
 
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
     user,
@@ -59,70 +60,65 @@ export function DocumentVault() {
         onChange={handleFileChange}
       />
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[...Array(4)].map((_, index) => (
-            <Card key={index}>
-              <CardContent className="h-20 animate-pulse bg-muted" />
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {CATALOG_DOCUMENT_TYPES.map(({ key, label }) => {
-            const existing = getVaultDocument(docs, key)
-            const isUploading = uploading === key
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {CATALOG_DOCUMENT_TYPES.map(({ key, label }) => {
+          const existing = getVaultDocument(docs, key)
+          const isUploading = uploading === key
 
-            return (
-              <Card key={key} className={existing ? 'border-green-200 bg-green-50' : ''}>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {existing
-                      ? <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                      : <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                    }
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{label}</p>
-                      {existing && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {existing.file_name}
-                          {existing.version > 1 && (
-                            <span className="ml-1 text-blue-500">v{existing.version}</span>
-                          )}
-                        </p>
-                      )}
-                    </div>
+          return (
+            <Card key={key} className={existing ? 'border-green-200 bg-green-50' : ''}>
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  {existing
+                    ? <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+                    : <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                  }
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{label}</p>
+                    {existing ? (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {existing.file_name}
+                        {existing.version > 1 && (
+                          <span className="ml-1 text-blue-500">v{existing.version}</span>
+                        )}
+                      </p>
+                    ) : vaultChecking ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Checking vault…
+                      </p>
+                    ) : null}
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2 ml-3 shrink-0">
-                    {existing && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => router.push(`/dashboard/documents/review/${existing.id}`)}
-                        disabled={isUploading}
-                      >
-                        Review
-                      </Button>
-                    )}
+                <div className="flex items-center gap-2 ml-3 shrink-0">
+                  {existing && (
                     <Button
                       size="sm"
-                      variant={existing ? 'outline' : 'default'}
-                      onClick={() => pick(key)}
+                      variant="ghost"
+                      onClick={() => router.push(`/dashboard/documents/review/${existing.id}`)}
                       disabled={isUploading}
                     >
-                      {isUploading
-                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                        : <><Upload className="h-4 w-4 mr-1" />{existing ? 'Replace' : 'Upload'}</>
-                      }
+                      Review
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                  )}
+                  <Button
+                    size="sm"
+                    variant={existing ? 'outline' : 'default'}
+                    onClick={() => pick(key)}
+                    disabled={isUploading || !company}
+                  >
+                    {isUploading
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <><Upload className="h-4 w-4 mr-1" />{existing ? 'Replace' : 'Upload'}</>
+                    }
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
     </div>
   )
 }

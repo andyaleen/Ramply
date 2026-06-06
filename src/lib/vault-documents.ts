@@ -14,16 +14,23 @@ export function vaultDocsQueryKey(companyId: string | undefined) {
 /** Load active vault documents (latest version per type, not superseded). */
 export async function fetchActiveVaultDocuments(
   supabase: VaultDocumentsClient,
-  companyId: string
+  _companyId: string
 ): Promise<CompanyDocumentRow[]> {
-  const { data, error } = await supabase
-    .from('company_documents')
-    .select('*')
-    .eq('company_id', companyId)
-    .is('superseded_by', null)
-    .order('document_type', { ascending: true })
+  const { data, error } = await supabase.rpc('get_my_active_vault_documents')
 
-  if (error) throw error
+  if (error) {
+    // Fallback for environments that have not applied the RPC migration yet.
+    const { data: rows, error: tableError } = await supabase
+      .from('company_documents')
+      .select('*')
+      .eq('company_id', _companyId)
+      .is('superseded_by', null)
+      .order('document_type', { ascending: true })
+
+    if (tableError) throw tableError
+    return rows ?? []
+  }
+
   return data ?? []
 }
 
