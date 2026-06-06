@@ -26,7 +26,8 @@ export function consumePasswordRecoveryPending(): boolean {
 
 /**
  * Supabase falls back to Site URL (`/?code=…`) when redirect_to is not allowlisted.
- * Treat bare PKCE codes as password recovery so we reach update-password, not dashboard.
+ * Only bare PKCE codes (no `next`) are treated as password recovery — OAuth callbacks
+ * include `next=/dashboard` (or similar) and must not be routed to update-password.
  */
 export function applySupabaseSiteUrlRecoveryRouting(params: URLSearchParams): void {
   if (!params.get('code')) return
@@ -36,6 +37,14 @@ export function applySupabaseSiteUrlRecoveryRouting(params: URLSearchParams): vo
 
   if (type === 'recovery') {
     if (!params.get('next')) params.set('next', AUTH_UPDATE_PASSWORD_PATH)
+    return
+  }
+
+  const next = params.get('next')
+  if (next) {
+    if (next === AUTH_UPDATE_PASSWORD_PATH) {
+      params.set('type', 'recovery')
+    }
     return
   }
 

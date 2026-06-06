@@ -28,6 +28,13 @@ describe('buildAuthConfirmPath', () => {
     expect(buildAuthConfirmPath(params)).toContain('next=%2Fauth%2Fupdate-password')
     expect(buildAuthConfirmPath(params)).toContain('type=recovery')
   })
+
+  test('preserves OAuth callback with next dashboard', () => {
+    const params = new URLSearchParams('code=xyz&next=%2Fdashboard')
+    const path = buildAuthConfirmPath(params)
+    expect(path).toContain('next=%2Fdashboard')
+    expect(path).not.toContain('type=recovery')
+  })
 })
 
 describe('hasAuthCallbackParams', () => {

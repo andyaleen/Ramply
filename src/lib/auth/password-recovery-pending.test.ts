@@ -13,8 +13,15 @@ describe('applySupabaseSiteUrlRecoveryRouting', () => {
     expect(params.get('next')).toBe('/auth/update-password')
   })
 
-  test('overrides dashboard fallback when type is missing', () => {
+  test('preserves OAuth callback when next is present', () => {
     const params = new URLSearchParams('code=abc&next=%2Fdashboard')
+    applySupabaseSiteUrlRecoveryRouting(params)
+    expect(params.get('type')).toBeNull()
+    expect(params.get('next')).toBe('/dashboard')
+  })
+
+  test('marks update-password next as recovery when type is missing', () => {
+    const params = new URLSearchParams(`code=abc&next=${encodeURIComponent('/auth/update-password')}`)
     applySupabaseSiteUrlRecoveryRouting(params)
     expect(params.get('type')).toBe('recovery')
     expect(params.get('next')).toBe('/auth/update-password')
