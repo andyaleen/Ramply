@@ -13,9 +13,32 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Building2, MapPin, User, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { US_STATES, US_STATE_VALUES } from '@/lib/us-states'
+import { cn } from '@/lib/utils'
 
 interface ProfileSetupProps {
   onComplete: () => void
+}
+
+/** Marks a profile field as required in the setup form. */
+function RequiredAsterisk() {
+  return <span className="text-red-600" aria-hidden="true"> *</span>
+}
+
+/** Wraps a field label with a red required asterisk. */
+function RequiredLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <FormLabel>
+      {children}
+      <RequiredAsterisk />
+    </FormLabel>
+  )
+}
+
+/** Highlights invalid fields after a failed submit attempt. */
+function invalidFieldClass(hasError: boolean) {
+  return hasError
+    ? 'rounded-md border border-red-300 bg-red-50/70 p-3 -m-1'
+    : undefined
 }
 
 export function ProfileSetup({ onComplete }: ProfileSetupProps) {
@@ -24,6 +47,8 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
 
   const form = useForm<CompanyProfile>({
     resolver: zodResolver(CompanyProfileSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: {
       legal_name: company?.legal_name ?? '',
       dba_name: company?.dba_name ?? '',
@@ -47,7 +72,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
   })
 
   /** Saves the company profile before releasing the user into the app. */
-  const onSubmit = async (data: CompanyProfile) => {
+  const saveProfile = async (data: CompanyProfile) => {
     setLoading(true)
     try {
       await updateCompany(data)
@@ -59,6 +84,17 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
       setLoading(false)
     }
   }
+
+  const handleSubmit = form.handleSubmit(
+    saveProfile,
+    (errors) => {
+      toast.error('Please fill in the required fields highlighted below.')
+      const firstInvalidField = Object.keys(errors)[0] as keyof CompanyProfile | undefined
+      if (firstInvalidField) {
+        form.setFocus(firstInvalidField)
+      }
+    }
+  )
 
   return (
     <div className="min-h-screen bg-[#F0EFE9] px-4 py-10 text-[#0F1F18]">
@@ -76,7 +112,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 [&_input]:border-[#DDDCD5] [&_input]:focus-visible:ring-[#287253]/30">
+          <form onSubmit={handleSubmit} className="space-y-6 [&_input]:border-[#DDDCD5] [&_input]:focus-visible:ring-[#287253]/30">
             <Card className="border-[#DDDCD5] bg-white shadow-[0_18px_45px_rgba(15,31,24,0.06)]">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base text-[#0F1F18]">
@@ -84,9 +120,9 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="legal_name" render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Legal Business Name *</FormLabel>
+                <FormField control={form.control} name="legal_name" render={({ field, fieldState }) => (
+                  <FormItem className={cn('md:col-span-2', invalidFieldClass(!!fieldState.error))}>
+                    <RequiredLabel>Legal Business Name</RequiredLabel>
                     <FormControl><Input placeholder="Acme Corporation" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -100,9 +136,9 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                   </FormItem>
                 )} />
 
-                <FormField control={form.control} name="ein" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>EIN / Tax ID</FormLabel>
+                <FormField control={form.control} name="ein" render={({ field, fieldState }) => (
+                  <FormItem className={invalidFieldClass(!!fieldState.error)}>
+                    <RequiredLabel>EIN / Tax ID</RequiredLabel>
                     <FormControl>
                       <Input
                         type="password"
@@ -159,9 +195,9 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="contact_name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Name</FormLabel>
+                <FormField control={form.control} name="contact_name" render={({ field, fieldState }) => (
+                  <FormItem className={invalidFieldClass(!!fieldState.error)}>
+                    <RequiredLabel>Contact Name</RequiredLabel>
                     <FormControl><Input placeholder="Jane Smith" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>

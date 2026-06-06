@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Upload, CheckCircle, FileText, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
+import { getUploadErrorMessage } from '@/lib/document-upload'
 
 export function DocumentVault() {
   const { user, company } = useAuth()
@@ -42,7 +43,6 @@ export function DocumentVault() {
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
     user,
     company,
-    existingDocs: docs,
     onSuccess: ({ doc, duplicate }, docType) => {
       if (duplicate) {
         toast.info('This file is identical to the current version — no update needed.')
@@ -61,8 +61,8 @@ export function DocumentVault() {
       })
       router.push(`/dashboard/documents/review/${doc.id}`)
     },
-    onError: () => {
-      toast.error('Upload failed. Please try again.')
+    onError: (err) => {
+      toast.error(getUploadErrorMessage(err))
     },
   })
 

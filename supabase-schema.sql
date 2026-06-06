@@ -237,6 +237,7 @@ DROP POLICY IF EXISTS "shared_documents_insert_sharer" ON shared_documents;
 
 DROP POLICY IF EXISTS "storage_insert_own" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_own" ON storage.objects;
+DROP POLICY IF EXISTS "storage_delete_own" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_requester" ON storage.objects;
 
 -- users policies
@@ -407,6 +408,7 @@ ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "storage_insert_own" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_own" ON storage.objects;
+DROP POLICY IF EXISTS "storage_delete_own" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_requester" ON storage.objects;
 
 CREATE POLICY "storage_insert_own" ON storage.objects
@@ -417,6 +419,12 @@ CREATE POLICY "storage_insert_own" ON storage.objects
 
 CREATE POLICY "storage_select_own" ON storage.objects
   FOR SELECT USING (
+    bucket_id = 'documents'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "storage_delete_own" ON storage.objects
+  FOR DELETE USING (
     bucket_id = 'documents'
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
@@ -489,28 +497,29 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION get_share_request_by_token(TEXT) TO anon, authenticated;
 
 -- List pending share requests addressed to the signed-in recipient.
+DROP FUNCTION IF EXISTS get_pending_received_share_requests();
+
 CREATE OR REPLACE FUNCTION get_pending_received_share_requests()
 RETURNS TABLE (
   id UUID,
   token TEXT,
-  request_type TEXT,
   created_at TIMESTAMPTZ,
   requester_company_legal_name TEXT,
   requester_company_dba_name TEXT,
-  requester_company_contact_name TEXT
+  requester_email TEXT
 ) AS $$
 BEGIN
   RETURN QUERY
     SELECT
       sr.id,
       sr.token,
-      sr.request_type,
       sr.created_at,
       rc.legal_name,
       rc.dba_name,
-      rc.contact_name
+      ru.email
     FROM share_requests sr
     LEFT JOIN companies rc ON rc.id = sr.requester_company_id
+    LEFT JOIN users ru ON ru.id = rc.owner_user_id
     JOIN users u ON u.id = auth.uid()
     WHERE sr.recipient_email IS NOT NULL
       AND LOWER(sr.recipient_email) = LOWER(u.email)

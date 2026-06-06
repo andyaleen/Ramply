@@ -7,9 +7,9 @@ const docTypeKeys = CATALOG_DOCUMENT_TYPES.map(d => d.key) as [DocumentTypeKey, 
 
 // Company profile — all standardized fields, all optional except legal_name
 export const CompanyProfileSchema = z.object({
-  legal_name: z.string().min(1, 'Legal business name is required'),
+  legal_name: z.string().trim().min(1, 'Legal business name is required'),
   dba_name: z.string().optional(),
-  ein: z.string().min(1, 'EIN / Tax ID is required'),
+  ein: z.string().trim().min(1, 'EIN / Tax ID is required'),
   business_type: z.string().optional(),
   address_line1: z.string().optional(),
   address_line2: z.string().optional(),
@@ -17,7 +17,7 @@ export const CompanyProfileSchema = z.object({
   state: z.string().optional(),
   postal_code: z.string().optional(),
   country: z.string().optional(),
-  contact_name: z.string().optional(),
+  contact_name: z.string().trim().min(1, 'Contact name is required'),
   contact_email: z.string().email('Valid email required').optional().or(z.literal('')),
   contact_phone: z.string().optional(),
   bank_name: z.string().optional(),

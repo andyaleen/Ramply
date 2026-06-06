@@ -2,10 +2,10 @@ import { describe, expect, test } from 'vitest'
 
 import {
   RECIPIENT_REQUEST_COLUMNS,
+  buildPendingReceivedRequestDisplay,
   countPendingReceivedShareRequests,
   fetchPendingReceivedShareRequests,
   fetchReceivedShareRequests,
-  formatRequesterDisplayName,
   type ReceivedRequestsClient,
 } from './recipient-requests'
 
@@ -98,11 +98,10 @@ describe('recipient request queries', () => {
           {
             id: 'req-1',
             token: 'token-1',
-            request_type: 'Standard',
             created_at: '2026-06-01T00:00:00.000Z',
             requester_company_legal_name: 'Acme Corp',
             requester_company_dba_name: null,
-            requester_company_contact_name: null,
+            requester_email: 'sender@example.com',
           },
         ],
         error: null,
@@ -118,19 +117,41 @@ describe('recipient request queries', () => {
       {
         id: 'req-1',
         token: 'token-1',
-        request_type: 'Standard',
         created_at: '2026-06-01T00:00:00.000Z',
-        requesterName: 'Acme Corp',
+        companyName: 'Acme Corp',
+        requesterEmail: 'sender@example.com',
+        showEmailInSubtitle: true,
       },
     ])
   })
 })
 
-describe('formatRequesterDisplayName', () => {
-  test('prefers legal name, then DBA, then contact name', () => {
-    expect(formatRequesterDisplayName({ legal_name: 'Acme LLC', dba_name: 'Acme', contact_name: 'Pat' })).toBe('Acme LLC')
-    expect(formatRequesterDisplayName({ legal_name: null, dba_name: 'Acme', contact_name: 'Pat' })).toBe('Acme')
-    expect(formatRequesterDisplayName({ legal_name: null, dba_name: null, contact_name: 'Pat' })).toBe('Pat')
-    expect(formatRequesterDisplayName(null)).toBe('A company')
+describe('buildPendingReceivedRequestDisplay', () => {
+  test('shows company and email when profile data exists', () => {
+    expect(
+      buildPendingReceivedRequestDisplay({
+        requester_company_legal_name: 'Acme LLC',
+        requester_company_dba_name: 'Acme',
+        requester_email: 'sender@example.com',
+      })
+    ).toEqual({
+      companyName: 'Acme LLC',
+      requesterEmail: 'sender@example.com',
+      showEmailInSubtitle: true,
+    })
+  })
+
+  test('falls back to requester email when company name is missing', () => {
+    expect(
+      buildPendingReceivedRequestDisplay({
+        requester_company_legal_name: null,
+        requester_company_dba_name: null,
+        requester_email: 'sender@example.com',
+      })
+    ).toEqual({
+      companyName: 'sender@example.com',
+      requesterEmail: 'sender@example.com',
+      showEmailInSubtitle: false,
+    })
   })
 })

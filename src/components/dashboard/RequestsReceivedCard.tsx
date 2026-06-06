@@ -62,10 +62,11 @@ export function RequestsReceivedCard() {
                     className="min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
                   >
                     <p className="text-[14px] font-medium text-[#0F1F18] truncate">
-                      {request.requesterName}
+                      {request.companyName}
                     </p>
                     <p className="mt-1 text-[13px] font-light text-[#7A8C84] truncate">
-                      {request.request_type} · Received {formatDate(request.created_at)}
+                      {request.showEmailInSubtitle ? `${request.requesterEmail} · ` : ''}
+                      Received {formatDate(request.created_at)}
                     </p>
                   </button>
                   <button

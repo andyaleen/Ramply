@@ -18,18 +18,13 @@ export type RecipientRequest = Pick<
 
 export type ReceivedRequestsClient = ReturnType<typeof createClient>
 
-type RequesterCompanySummary = {
-  legal_name: string | null
-  dba_name: string | null
-  contact_name: string | null
-}
-
 export type PendingReceivedShareRequest = {
   id: string
   token: string
-  request_type: string
   created_at: string
-  requesterName: string
+  companyName: string
+  requesterEmail: string
+  showEmailInSubtitle: boolean
 }
 
 export const RECIPIENT_REQUEST_COLUMNS =
@@ -38,23 +33,37 @@ export const RECIPIENT_REQUEST_COLUMNS =
 type PendingReceivedShareRequestRow = {
   id: string
   token: string
-  request_type: string
   created_at: string
   requester_company_legal_name: string | null
   requester_company_dba_name: string | null
-  requester_company_contact_name: string | null
+  requester_email: string | null
 }
 
-/** Prefer legal name, then DBA, then contact name for requester display. */
-export function formatRequesterDisplayName(
-  company: RequesterCompanySummary | null | undefined
-): string {
-  return (
-    company?.legal_name?.trim()
-    || company?.dba_name?.trim()
-    || company?.contact_name?.trim()
-    || 'A company'
-  )
+/** Build dashboard labels for a pending request from the requester company and account email. */
+export function buildPendingReceivedRequestDisplay(row: {
+  requester_company_legal_name: string | null
+  requester_company_dba_name: string | null
+  requester_email: string | null
+}): Pick<PendingReceivedShareRequest, 'companyName' | 'requesterEmail' | 'showEmailInSubtitle'> {
+  const email = row.requester_email?.trim() ?? ''
+  const companyName =
+    row.requester_company_legal_name?.trim()
+    || row.requester_company_dba_name?.trim()
+    || ''
+
+  if (companyName) {
+    return {
+      companyName,
+      requesterEmail: email,
+      showEmailInSubtitle: Boolean(email),
+    }
+  }
+
+  return {
+    companyName: email || 'Unknown sender',
+    requesterEmail: email,
+    showEmailInSubtitle: false,
+  }
 }
 
 /** Count pending share requests addressed to the signed-in user's email. */
@@ -103,19 +112,15 @@ export async function fetchPendingReceivedShareRequests(
   const { data, error } = await supabase.rpc('get_pending_received_share_requests')
   if (error) throw error
 
-  return (data ?? []).map((row) => {
-    const request = row as PendingReceivedShareRequestRow
+  return (data ?? []).map((row: PendingReceivedShareRequestRow) => {
+    const request = row
+    const display = buildPendingReceivedRequestDisplay(request)
 
     return {
       id: request.id,
       token: request.token,
-      request_type: request.request_type?.trim() || 'General Request',
       created_at: request.created_at,
-      requesterName: formatRequesterDisplayName({
-        legal_name: request.requester_company_legal_name,
-        dba_name: request.requester_company_dba_name,
-        contact_name: request.requester_company_contact_name,
-      }),
+      ...display,
     }
   })
 }

@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { CheckCircle, FileText, Upload, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
+import { getUploadErrorMessage } from '@/lib/document-upload'
 
 type ShareRequestForFulfillment = Omit<ShareRequestRow, 'token'>
 
@@ -59,7 +60,6 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
     user,
     company,
-    existingDocs: vaultDocs,
     onSuccess: ({ doc, duplicate }, docType) => {
       if (duplicate) {
         toast.info('This file is identical to the current version — no update needed.')
@@ -75,8 +75,8 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
       )
       queryClient.invalidateQueries({ queryKey: ['vault-docs', company?.id] })
     },
-    onError: () => {
-      toast.error('Upload failed. Please try again.')
+    onError: (err) => {
+      toast.error(getUploadErrorMessage(err))
     },
     onClassified: (slotType, detectedType) => {
       if (!detectedType || detectedType === slotType) return

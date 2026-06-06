@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '15mb',
+    },
+  },
   turbopack: {
     root: process.cwd(),
   },
