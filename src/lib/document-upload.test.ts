@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import {
   buildDocumentStoragePath,
   getUploadErrorMessage,
+  isUserOwnedDocumentPath,
   sanitizeStorageFileName,
 } from './document-upload'
 
@@ -18,6 +19,13 @@ describe('buildDocumentStoragePath', () => {
     const path = buildDocumentStoragePath('user-123', 'W9', 'tax form.pdf')
     expect(path.startsWith('user-123/W9/')).toBe(true)
     expect(path.endsWith('_tax_form.pdf')).toBe(true)
+  })
+})
+
+describe('isUserOwnedDocumentPath', () => {
+  test('accepts only paths in the signed-in user folder', () => {
+    expect(isUserOwnedDocumentPath('user-123/W9/123_file.pdf', 'user-123')).toBe(true)
+    expect(isUserOwnedDocumentPath('other-user/W9/123_file.pdf', 'user-123')).toBe(false)
   })
 })
 

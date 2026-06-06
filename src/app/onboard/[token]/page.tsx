@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { FulfillmentForm } from '@/components/onboarding/FulfillmentForm'
-import type { ShareRequestRow, CompanyDocumentRow } from '@/lib/database.types'
+import type { ShareRequestRow } from '@/lib/database.types'
 import { safeLowerCase } from '@/lib/utils'
 import { AlertCircle, CheckCircle, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -51,20 +51,6 @@ export default function OnboardingPage() {
       return normalized
     },
     enabled: !!token,
-  })
-
-  const { data: vaultDocs = [] } = useQuery<CompanyDocumentRow[]>({
-    queryKey: ['vault-docs', company?.id],
-    queryFn: async () => {
-      if (!company) return []
-      const { data } = await supabase
-        .from('company_documents')
-        .select('*')
-        .eq('company_id', company.id)
-        .is('superseded_by', null)
-      return data ?? []
-    },
-    enabled: !!company,
   })
 
   if (authLoading || profileLoading || isLoading) {
@@ -202,7 +188,6 @@ export default function OnboardingPage() {
 
         <FulfillmentForm
           shareRequest={shareRequest}
-          vaultDocs={vaultDocs}
           onComplete={() => setCompleted(true)}
         />
       </div>

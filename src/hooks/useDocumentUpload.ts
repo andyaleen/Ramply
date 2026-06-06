@@ -1,9 +1,14 @@
 import { useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 
+import { createClient } from '@/lib/supabase/client'
 import type { CompanyRow, CompanyDocumentRow } from '@/lib/database.types'
 import type { DocumentTypeKey } from '@/lib/catalog'
-import { getUploadErrorMessage } from '@/lib/document-upload'
+import {
+  buildDocumentStoragePath,
+  getUploadErrorMessage,
+  hashFileBytes,
+} from '@/lib/document-upload'
 
 interface UploadResult {
   doc: CompanyDocumentRow
@@ -14,6 +19,8 @@ interface UploadResult {
 interface UseDocumentUploadOptions {
   user: User | null
   company: Pick<CompanyRow, 'id'> | null
+  /** Existing docs used for quick duplicate detection before upload. */
+  existingDocs: CompanyDocumentRow[]
   onSuccess: (result: UploadResult, docType: DocumentTypeKey) => void
   onError?: (err: unknown, docType: DocumentTypeKey) => void
   /**
@@ -55,15 +62,17 @@ function triggerDocumentIngest(
 }
 
 /**
- * Manages document upload through the server upload route, then triggers OCR.
+ * Uploads files directly to Supabase storage, then persists vault metadata server-side.
  */
 export function useDocumentUpload({
   user,
   company,
+  existingDocs,
   onSuccess,
   onError,
   onClassified,
 }: UseDocumentUploadOptions): UseDocumentUploadReturn {
+  const supabase = createClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const pendingType = useRef<DocumentTypeKey | null>(null)
   const [uploading, setUploading] = useState<DocumentTypeKey | null>(null)
@@ -86,14 +95,40 @@ export function useDocumentUpload({
     e.target.value = ''
 
     setUploading(docType)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('document_type', docType)
+    let uploadedPath: string | null = null
 
-      const response = await fetch('/api/documents/upload', {
+    try {
+      const fileBuffer = await file.arrayBuffer()
+      const hash = await hashFileBytes(fileBuffer)
+      const existing = existingDocs.find((doc) => doc.document_type === docType) ?? null
+
+      if (existing?.file_hash === hash) {
+        onSuccess({ doc: existing, duplicate: true }, docType)
+        return
+      }
+
+      const filePath = buildDocumentStoragePath(user.id, docType, file.name)
+      uploadedPath = filePath
+      const contentType = file.type || 'application/octet-stream'
+
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file, { upsert: false, contentType })
+
+      if (storageError) throw storageError
+
+      const response = await fetch('/api/documents/upload/complete', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          document_type: docType,
+          file_path: filePath,
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: contentType,
+          file_hash: hash,
+        }),
       })
 
       const payload = (await response.json().catch(() => null)) as
@@ -111,6 +146,9 @@ export function useDocumentUpload({
       triggerDocumentIngest(payload.doc.id, onClassified, docType)
       onSuccess({ doc: payload.doc, duplicate: payload.duplicate }, docType)
     } catch (err) {
+      if (uploadedPath) {
+        await supabase.storage.from('documents').remove([uploadedPath]).catch(() => undefined)
+      }
       onError?.(err, docType)
       console.error('Document upload failed:', getUploadErrorMessage(err), err)
     } finally {

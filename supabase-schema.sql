@@ -218,6 +218,8 @@ DROP POLICY IF EXISTS "companies_update_own" ON companies;
 DROP POLICY IF EXISTS "companies_select_as_requester" ON companies;
 
 DROP POLICY IF EXISTS "company_documents_all_own" ON company_documents;
+DROP POLICY IF EXISTS "company_documents_insert_own" ON company_documents;
+DROP POLICY IF EXISTS "company_documents_update_own" ON company_documents;
 DROP POLICY IF EXISTS "company_documents_select_requester" ON company_documents;
 
 DROP POLICY IF EXISTS "document_extractions_all_own" ON document_extractions;
@@ -280,6 +282,16 @@ CREATE POLICY "company_documents_all_own" ON company_documents
       SELECT 1 FROM companies WHERE companies.id = company_documents.company_id
         AND companies.owner_user_id = auth.uid()
     )
+  );
+
+CREATE POLICY "company_documents_insert_own" ON company_documents
+  FOR INSERT WITH CHECK (
+    company_id IN (SELECT id FROM companies WHERE owner_user_id = auth.uid())
+  );
+
+CREATE POLICY "company_documents_update_own" ON company_documents
+  FOR UPDATE USING (
+    company_id IN (SELECT id FROM companies WHERE owner_user_id = auth.uid())
   );
 
 -- Requesters can read documents that were shared with them

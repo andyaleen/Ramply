@@ -28,9 +28,23 @@ export function buildDocumentStoragePath(
   return `${userId}/${docType}/${Date.now()}_${safeName}`
 }
 
-/** Hash file bytes for vault deduplication. */
+/** Hash file bytes for vault deduplication (Node.js). */
 export function hashFileBuffer(buffer: ArrayBuffer): string {
   return createHash('sha256').update(Buffer.from(buffer)).digest('hex')
+}
+
+/** Hash file bytes in the browser via Web Crypto. */
+export async function hashFileBytes(buffer: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', buffer)
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/** Ensure a storage object key belongs to the signed-in user. */
+export function isUserOwnedDocumentPath(filePath: string, userId: string): boolean {
+  const [ownerId] = filePath.split('/')
+  return ownerId === userId
 }
 
 /** Convert upload failures into user-facing messages. */
@@ -51,6 +65,12 @@ export function getUploadErrorMessage(err: unknown): string {
     }
     if (message.includes('file_too_large')) {
       return `Max file size is ${MAX_DOCUMENT_UPLOAD_BYTES / (1024 * 1024)}MB.`
+    }
+    if (message.includes('admin credentials')) {
+      return 'Document upload is not configured on the server. Contact support.'
+    }
+    if (message.includes('Unauthorized')) {
+      return 'Your session expired. Sign in again and retry the upload.'
     }
     return message
   }

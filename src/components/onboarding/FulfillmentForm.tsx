@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ShareRequestRow, CompanyDocumentRow } from '@/lib/database.types'
 import { fieldLabel, documentTypeLabel, type FieldKey, type DocumentTypeKey } from '@/lib/catalog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,20 +14,26 @@ import { Badge } from '@/components/ui/badge'
 import { CheckCircle, FileText, Upload, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
+import { useVaultDocuments } from '@/hooks/useVaultDocuments'
 import { getUploadErrorMessage } from '@/lib/document-upload'
+import {
+  getVaultDocument,
+  missingVaultDocumentTypes,
+  vaultDocsQueryKey,
+} from '@/lib/vault-documents'
 
 type ShareRequestForFulfillment = Omit<ShareRequestRow, 'token'>
 
 interface FulfillmentFormProps {
   shareRequest: ShareRequestForFulfillment
-  vaultDocs: CompanyDocumentRow[]
   onComplete: () => void
 }
 
-export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: FulfillmentFormProps) {
+export function FulfillmentForm({ shareRequest, onComplete }: FulfillmentFormProps) {
   const { user, company } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
+  const { data: vaultDocs = [], isLoading: vaultLoading } = useVaultDocuments(company?.id)
 
   /** Pre-fill field values from the authenticated user's company profile */
   const [fieldValues, setFieldValues] = useState<Partial<Record<FieldKey, string>>>(() => {
@@ -41,17 +47,14 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
     return vals
   })
 
-  const allDocTypes = [
-    ...(shareRequest.mandatory_documents ?? []),
-    ...(shareRequest.optional_documents ?? []),
-  ] as DocumentTypeKey[]
+  const mandatoryDocTypes = (shareRequest.mandatory_documents ?? []) as DocumentTypeKey[]
+  const optionalDocTypes = (shareRequest.optional_documents ?? []) as DocumentTypeKey[]
+  const allDocTypes = [...mandatoryDocTypes, ...optionalDocTypes]
 
-  const findDoc = (docType: DocumentTypeKey) =>
-    vaultDocs.find(d => d.document_type === docType) ?? null
-
-  const missingRequiredDocs = (shareRequest.mandatory_documents ?? []).filter(
-    docType => !vaultDocs.some(d => d.document_type === docType)
-  ) as DocumentTypeKey[]
+  const missingRequiredDocs = useMemo(
+    () => missingVaultDocumentTypes(vaultDocs, mandatoryDocTypes),
+    [vaultDocs, mandatoryDocTypes]
+  )
 
   const missingRequiredFields = (shareRequest.mandatory_fields ?? []).filter(
     (key) => !fieldValues[key]?.trim()
@@ -60,20 +63,21 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
     user,
     company,
+    existingDocs: vaultDocs,
     onSuccess: ({ doc, duplicate }, docType) => {
       if (duplicate) {
-        toast.info('This file is identical to the current version — no update needed.')
+        toast.info(`${documentTypeLabel(docType)} is already in your Document Vault.`)
         return
       }
-      toast.success(`${documentTypeLabel(docType)} uploaded`)
+      toast.success(`${documentTypeLabel(docType)} saved to your Document Vault`)
       queryClient.setQueryData<CompanyDocumentRow[]>(
-        ['vault-docs', company?.id],
+        vaultDocsQueryKey(company?.id),
         (current = []) => {
-          const filtered = current.filter(existing => existing.document_type !== docType)
+          const filtered = current.filter((existing) => existing.document_type !== docType)
           return [...filtered, doc]
         }
       )
-      queryClient.invalidateQueries({ queryKey: ['vault-docs', company?.id] })
+      queryClient.invalidateQueries({ queryKey: vaultDocsQueryKey(company?.id) })
     },
     onError: (err) => {
       toast.error(getUploadErrorMessage(err))
@@ -93,12 +97,17 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
       if (missingRequiredFields.length > 0) {
         throw new Error('missing_required_fields')
       }
-      if (missingRequiredDocs.length > 0) {
+
+      const latestVaultDocs =
+        queryClient.getQueryData<CompanyDocumentRow[]>(vaultDocsQueryKey(company.id)) ?? vaultDocs
+
+      const stillMissing = missingVaultDocumentTypes(latestVaultDocs, mandatoryDocTypes)
+      if (stillMissing.length > 0) {
         throw new Error('missing_required_documents')
       }
 
       const documentIds = allDocTypes
-        .map(findDoc)
+        .map((docType) => getVaultDocument(latestVaultDocs, docType))
         .filter((doc): doc is CompanyDocumentRow => !!doc)
         .map((doc) => doc.id)
 
@@ -178,28 +187,42 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Documents Requested</CardTitle>
+            <CardDescription>
+              Documents are saved to your Document Vault and reused automatically the next time someone
+              asks for them. Upload only what you do not already have on file.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {(shareRequest.mandatory_documents ?? []).map((docType) => (
-              <DocRow
-                key={docType}
-                docType={docType as DocumentTypeKey}
-                required
-                doc={findDoc(docType as DocumentTypeKey)}
-                uploading={uploading === docType}
-                onUpload={pick}
-              />
-            ))}
-            {(shareRequest.optional_documents ?? []).map((docType) => (
-              <DocRow
-                key={docType}
-                docType={docType as DocumentTypeKey}
-                required={false}
-                doc={findDoc(docType as DocumentTypeKey)}
-                uploading={uploading === docType}
-                onUpload={pick}
-              />
-            ))}
+            {vaultLoading ? (
+              <div className="space-y-2">
+                {[...Array(2)].map((_, index) => (
+                  <div key={index} className="h-14 rounded-md bg-muted animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <>
+                {mandatoryDocTypes.map((docType) => (
+                  <DocRow
+                    key={docType}
+                    docType={docType}
+                    required
+                    doc={getVaultDocument(vaultDocs, docType)}
+                    uploading={uploading === docType}
+                    onUpload={pick}
+                  />
+                ))}
+                {optionalDocTypes.map((docType) => (
+                  <DocRow
+                    key={docType}
+                    docType={docType}
+                    required={false}
+                    doc={getVaultDocument(vaultDocs, docType)}
+                    uploading={uploading === docType}
+                    onUpload={pick}
+                  />
+                ))}
+              </>
+            )}
           </CardContent>
         </Card>
       ) : null}
@@ -217,6 +240,7 @@ export function FulfillmentForm({ shareRequest, vaultDocs, onComplete }: Fulfill
         onClick={() => mutation.mutate()}
         disabled={
           mutation.isPending
+          || vaultLoading
           || missingRequiredDocs.length > 0
           || missingRequiredFields.length > 0
           || !company
@@ -245,17 +269,29 @@ function DocRow({ docType, required, doc, uploading, onUpload }: DocRowProps) {
         {doc
           ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
           : <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
-        <span className="text-sm font-medium truncate">{documentTypeLabel(docType)}</span>
-        <Badge variant="outline" className="text-[10px] uppercase tracking-wide shrink-0">
-          {required ? 'Required' : 'Optional'}
-        </Badge>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium truncate">{documentTypeLabel(docType)}</span>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wide shrink-0">
+              {required ? 'Required' : 'Optional'}
+            </Badge>
+            {doc ? (
+              <Badge variant="secondary" className="text-[10px] shrink-0">
+                From vault
+              </Badge>
+            ) : null}
+          </div>
+          {doc ? (
+            <p className="text-xs text-muted-foreground truncate">
+              {doc.file_name}
+              {doc.version > 1 ? ` · v${doc.version}` : ''}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Not in your vault yet</p>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-2 ml-3 shrink-0">
-        {doc && (
-          <span className="text-xs text-muted-foreground max-w-32 truncate hidden sm:block">
-            {doc.file_name}
-          </span>
-        )}
         <Button
           size="sm"
           variant={doc ? 'outline' : 'default'}
