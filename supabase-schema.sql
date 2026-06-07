@@ -749,8 +749,7 @@ BEGIN
     file_size,
     mime_type,
     file_hash,
-    version,
-    extracted_fields
+    version
   ) VALUES (
     v_company_id,
     p_document_type,
@@ -759,8 +758,7 @@ BEGIN
     p_file_size,
     COALESCE(NULLIF(p_mime_type, ''), 'application/octet-stream'),
     p_file_hash,
-    COALESCE(v_existing.version, 0) + 1,
-    '{}'::jsonb
+    COALESCE(v_existing.version, 0) + 1
   )
   RETURNING * INTO v_new;
 

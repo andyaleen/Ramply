@@ -71,7 +71,6 @@ export async function persistVaultUploadRow(
     mime_type: upload.mime_type || 'application/octet-stream',
     file_hash: upload.file_hash,
     version: nextVersion,
-    extracted_fields: {},
   })
 
   if (insertError) throw insertError
