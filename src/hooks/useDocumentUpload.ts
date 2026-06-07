@@ -130,9 +130,6 @@ export function useDocumentUpload({
       triggerDocumentIngest(payload.doc.id, onClassified, docType)
       onSuccess({ doc: payload.doc, duplicate: payload.duplicate }, docType)
     } catch (err) {
-      if (uploadedPath) {
-        await supabase.storage.from('documents').remove([uploadedPath]).catch(() => undefined)
-      }
       onError?.(err, docType)
       console.error('Document upload failed:', getUploadErrorMessage(err), err)
     } finally {

@@ -81,6 +81,9 @@ export function getUploadErrorMessage(err: unknown): string {
     if (message.includes('invalid_document_type')) {
       return 'That document type is not supported.'
     }
+    if (message.includes('rpc_invalid_response')) {
+      return 'Upload saved to storage but vault metadata failed. Please try again.'
+    }
     return message
   }
 

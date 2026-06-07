@@ -7,9 +7,19 @@ import {
   isUserOwnedDocumentPath,
 } from '@/lib/document-upload'
 import type { CompanyDocumentRow } from '@/lib/database.types'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createBearerClient } from '@/lib/supabase/bearer'
 import { createClient } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
+
+/** Prefer service-role writes after auth checks so vault inserts are reliable. */
+function getPersistenceClient(fallback: SupabaseClient): SupabaseClient {
+  try {
+    return createAdminClient()
+  } catch {
+    return fallback
+  }
+}
 
 const docTypeKeys = CATALOG_DOCUMENT_TYPES.map((doc) => doc.key) as [
   DocumentTypeKey,
@@ -62,7 +72,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { supabase, userId } = authed
+    const { supabase: authedClient, userId } = authed
+    const supabase = getPersistenceClient(authedClient)
 
     let body: unknown
     try {
@@ -126,7 +137,7 @@ export async function POST(req: Request) {
       .single()
 
     if (insertError) {
-      await supabase.storage.from('documents').remove([upload.file_path])
+      await authedClient.storage.from('documents').remove([upload.file_path])
       throw insertError
     }
 

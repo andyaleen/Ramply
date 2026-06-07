@@ -682,6 +682,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 GRANT EXECUTE ON FUNCTION get_my_active_vault_documents() TO authenticated;
 
+DROP FUNCTION IF EXISTS complete_vault_document_upload(TEXT, TEXT, TEXT, BIGINT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION complete_vault_document_upload(
   p_document_type TEXT,
   p_file_path TEXT,
@@ -690,7 +692,7 @@ CREATE OR REPLACE FUNCTION complete_vault_document_upload(
   p_mime_type TEXT,
   p_file_hash TEXT
 )
-RETURNS JSONB AS $$
+RETURNS company_documents AS $$
 DECLARE
   v_user_id UUID := auth.uid();
   v_company_id UUID;
@@ -736,7 +738,7 @@ BEGIN
   v_had_existing := FOUND;
 
   IF v_had_existing AND v_existing.file_hash IS NOT DISTINCT FROM p_file_hash THEN
-    RETURN jsonb_build_object('doc', to_jsonb(v_existing), 'duplicate', true);
+    RETURN v_existing;
   END IF;
 
   INSERT INTO company_documents (
@@ -768,7 +770,7 @@ BEGIN
     WHERE id = v_existing.id;
   END IF;
 
-  RETURN jsonb_build_object('doc', to_jsonb(v_new), 'duplicate', false);
+  RETURN v_new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
