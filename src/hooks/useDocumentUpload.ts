@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import type { CompanyRow, CompanyDocumentRow } from '@/lib/database.types'
 import type { DocumentTypeKey } from '@/lib/catalog'
+import { persistVaultUpload } from '@/lib/complete-vault-upload'
 import {
   buildDocumentStoragePath,
   getUploadErrorMessage,
@@ -117,31 +118,14 @@ export function useDocumentUpload({
 
       if (storageError) throw storageError
 
-      const response = await fetch('/api/documents/upload/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          document_type: docType,
-          file_path: filePath,
-          file_name: file.name,
-          file_size: file.size,
-          mime_type: contentType,
-          file_hash: hash,
-        }),
+      const payload = await persistVaultUpload(supabase, {
+        document_type: docType,
+        file_path: filePath,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: contentType,
+        file_hash: hash,
       })
-
-      const payload = (await response.json().catch(() => null)) as
-        | { doc: CompanyDocumentRow; duplicate: boolean; error?: string; message?: string }
-        | null
-
-      if (!response.ok) {
-        throw new Error(payload?.error ?? payload?.message ?? 'Upload failed')
-      }
-
-      if (!payload?.doc) {
-        throw new Error('Upload failed')
-      }
 
       triggerDocumentIngest(payload.doc.id, onClassified, docType)
       onSuccess({ doc: payload.doc, duplicate: payload.duplicate }, docType)

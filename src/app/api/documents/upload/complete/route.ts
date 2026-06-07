@@ -7,7 +7,9 @@ import {
   isUserOwnedDocumentPath,
 } from '@/lib/document-upload'
 import type { CompanyDocumentRow } from '@/lib/database.types'
+import { createBearerClient } from '@/lib/supabase/bearer'
 import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 const docTypeKeys = CATALOG_DOCUMENT_TYPES.map((doc) => doc.key) as [
   DocumentTypeKey,
@@ -23,18 +25,44 @@ const CompleteUploadSchema = z.object({
   file_hash: z.string().min(1),
 })
 
+/** Resolve the signed-in user from cookies or an Authorization bearer token. */
+async function resolveAuthedClient(req: Request): Promise<{
+  supabase: SupabaseClient
+  userId: string
+} | null> {
+  const cookieClient = await createClient()
+  const {
+    data: { user: cookieUser },
+    error: cookieError,
+  } = await cookieClient.auth.getUser()
+
+  if (!cookieError && cookieUser) {
+    return { supabase: cookieClient, userId: cookieUser.id }
+  }
+
+  const authHeader = req.headers.get('authorization')
+  const accessToken = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]
+  if (!accessToken) return null
+
+  const bearerClient = createBearerClient(accessToken)
+  const {
+    data: { user: bearerUser },
+    error: bearerError,
+  } = await bearerClient.auth.getUser(accessToken)
+
+  if (bearerError || !bearerUser) return null
+  return { supabase: bearerClient, userId: bearerUser.id }
+}
+
 /** Persist a Document Vault row after the browser uploaded bytes to storage. */
 export async function POST(req: Request) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
+    const authed = await resolveAuthedClient(req)
+    if (!authed) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { supabase, userId } = authed
 
     let body: unknown
     try {
@@ -49,14 +77,14 @@ export async function POST(req: Request) {
     }
 
     const upload = parsed.data
-    if (!isUserOwnedDocumentPath(upload.file_path, user.id)) {
+    if (!isUserOwnedDocumentPath(upload.file_path, userId)) {
       return NextResponse.json({ error: 'Invalid file path' }, { status: 400 })
     }
 
     const { data: company, error: companyError } = await supabase
       .from('companies')
       .select('id')
-      .eq('owner_user_id', user.id)
+      .eq('owner_user_id', userId)
       .single()
 
     if (companyError || !company) {

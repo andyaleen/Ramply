@@ -1,6 +1,7 @@
 'use client'
 
 import { buildSupabaseAuthRedirectUrl } from '@/lib/auth/auth-redirect'
+import { clearPasswordRecoveryPending } from '@/lib/auth/password-recovery-pending'
 import { createClient } from '@/lib/supabase/client'
 
 /**
@@ -8,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
  */
 export async function startGoogleAuth(next = '/dashboard'): Promise<string | null> {
   try {
+    clearPasswordRecoveryPending()
     const supabase = createClient()
     const redirectTo = buildSupabaseAuthRedirectUrl(next)
     const { error } = await supabase.auth.signInWithOAuth({

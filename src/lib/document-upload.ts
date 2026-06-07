@@ -69,8 +69,17 @@ export function getUploadErrorMessage(err: unknown): string {
     if (message.includes('admin credentials')) {
       return 'Document upload is not configured on the server. Contact support.'
     }
-    if (message.includes('Unauthorized')) {
+    if (message.includes('Unauthorized') || message.includes('unauthorized')) {
       return 'Your session expired. Sign in again and retry the upload.'
+    }
+    if (message.includes('company_not_found') || message.includes('Company not found')) {
+      return 'Your company profile is still loading. Refresh the page and try again.'
+    }
+    if (message.includes('invalid_file_path') || message.includes('Invalid file path')) {
+      return 'Upload path was rejected. Please try again.'
+    }
+    if (message.includes('invalid_document_type')) {
+      return 'That document type is not supported.'
     }
     return message
   }

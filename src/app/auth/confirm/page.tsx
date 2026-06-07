@@ -4,9 +4,11 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AUTH_UPDATE_PASSWORD_PATH } from '@/lib/auth/auth-redirect'
 import { completeAuthCallback } from '@/lib/auth/complete-auth-callback'
+import { normalizeRequestedPath } from '@/lib/auth/routing'
 import {
   applyPasswordRecoveryRoutingHints,
   consumePasswordRecoveryPending,
+  resolvePostAuthDestination,
   waitForPasswordRecoveryEvent,
 } from '@/lib/auth/password-recovery-pending'
 import { createClient } from '@/lib/supabase/client'
@@ -64,14 +66,24 @@ function AuthConfirmContent() {
         return
       }
 
-      if (!recoveryFlow) {
-        recoveryFlow = await waitForPasswordRecoveryEvent(supabase)
-      }
       subscription.unsubscribe()
 
+      const preliminaryNext = normalizeRequestedPath(
+        params.get('next') ?? result.nextPath,
+        '/dashboard'
+      )
+
+      if (preliminaryNext === AUTH_UPDATE_PASSWORD_PATH && !recoveryFlow) {
+        recoveryFlow = await waitForPasswordRecoveryEvent(supabase)
+      }
+
       const pendingRecovery = consumePasswordRecoveryPending()
-      const destination =
-        recoveryFlow || pendingRecovery ? AUTH_UPDATE_PASSWORD_PATH : result.nextPath
+      const destination = resolvePostAuthDestination({
+        params,
+        resultNextPath: result.nextPath,
+        recoveryFlow,
+        pendingRecovery,
+      })
       router.replace(destination)
       router.refresh()
     }

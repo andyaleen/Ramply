@@ -1,27 +1,71 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AUTH_UPDATE_PASSWORD_PATH } from '@/lib/auth/auth-redirect'
+import { normalizeRequestedPath } from '@/lib/auth/routing'
 
 const RECOVERY_PENDING_KEY = 'ramply_password_recovery_pending'
 const PASSWORD_RECOVERY_EVENT_WAIT_MS = 2500
+
+function canUseSessionStorage(): boolean {
+  return typeof sessionStorage !== 'undefined'
+}
+
 /** Marks that the user started a password reset in this browser (same-tab email link). */
 export function markPasswordRecoveryPending(): void {
-  if (typeof window === 'undefined') return
+  if (!canUseSessionStorage()) return
   sessionStorage.setItem(RECOVERY_PENDING_KEY, '1')
 }
 
+export function clearPasswordRecoveryPending(): void {
+  if (!canUseSessionStorage()) return
+  sessionStorage.removeItem(RECOVERY_PENDING_KEY)
+}
+
 export function isPasswordRecoveryPending(): boolean {
-  return (
-    typeof window !== 'undefined'
-    && sessionStorage.getItem(RECOVERY_PENDING_KEY) === '1'
-  )
+  return canUseSessionStorage() && sessionStorage.getItem(RECOVERY_PENDING_KEY) === '1'
 }
 
 /** Returns true if a pending recovery was consumed. */
 export function consumePasswordRecoveryPending(): boolean {
-  if (typeof window === 'undefined') return false
+  if (!canUseSessionStorage()) return false
   const pending = sessionStorage.getItem(RECOVERY_PENDING_KEY) === '1'
   sessionStorage.removeItem(RECOVERY_PENDING_KEY)
   return pending
+}
+
+/** True when the callback is returning to a normal app route, not password reset. */
+export function isNormalSignInReturn(next: string | null): boolean {
+  if (!next) return false
+  return normalizeRequestedPath(next, '/dashboard') !== AUTH_UPDATE_PASSWORD_PATH
+}
+
+/**
+ * Chooses the post-auth destination. An explicit non-recovery `next` always wins so
+ * OAuth sign-in is not hijacked by a stale forgot-password flag in sessionStorage.
+ */
+export function resolvePostAuthDestination(options: {
+  params: URLSearchParams
+  resultNextPath: string
+  recoveryFlow: boolean
+  pendingRecovery: boolean
+}): string {
+  const next = normalizeRequestedPath(
+    options.params.get('next') ?? options.resultNextPath,
+    '/dashboard'
+  )
+
+  if (isNormalSignInReturn(next)) {
+    return next
+  }
+
+  if (
+    options.recoveryFlow
+    || options.pendingRecovery
+    || options.params.get('type') === 'recovery'
+  ) {
+    return AUTH_UPDATE_PASSWORD_PATH
+  }
+
+  return next
 }
 
 /**
@@ -57,8 +101,12 @@ export function applySupabaseSiteUrlRecoveryRouting(params: URLSearchParams): vo
  */
 export function applyPasswordRecoveryRoutingHints(params: URLSearchParams): void {
   if (isPasswordRecoveryPending()) {
-    if (!params.get('type')) params.set('type', 'recovery')
-    if (!params.get('next')) params.set('next', AUTH_UPDATE_PASSWORD_PATH)
+    if (isNormalSignInReturn(params.get('next'))) {
+      clearPasswordRecoveryPending()
+    } else {
+      if (!params.get('type')) params.set('type', 'recovery')
+      if (!params.get('next')) params.set('next', AUTH_UPDATE_PASSWORD_PATH)
+    }
   }
   applySupabaseSiteUrlRecoveryRouting(params)
 }

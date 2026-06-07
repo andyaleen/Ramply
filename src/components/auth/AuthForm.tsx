@@ -9,7 +9,10 @@ import {
   buildPasswordRecoveryRedirectUrl,
   buildSupabaseAuthRedirectUrl,
 } from '@/lib/auth/auth-redirect'
-import { markPasswordRecoveryPending } from '@/lib/auth/password-recovery-pending'
+import {
+  clearPasswordRecoveryPending,
+  markPasswordRecoveryPending,
+} from '@/lib/auth/password-recovery-pending'
 import { normalizeRequestedPath } from '@/lib/auth/routing'
 import { extractShareRequestToken } from '@/lib/auth/share-recipient-signup'
 import { AUTH_PASSWORD_MIN_LENGTH, getSessionExpiryMessage } from '@/lib/auth/session-policy'
@@ -133,6 +136,8 @@ export function AuthForm({
    */
   const completePasswordSignIn = async (): Promise<boolean> => {
     if (!email.trim() || !password) return false
+
+    clearPasswordRecoveryPending()
 
     const res = await fetch('/api/auth/complete-sign-in', {
       method: 'POST',

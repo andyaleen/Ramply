@@ -1,8 +1,9 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
 import {
   applyPasswordRecoveryRoutingHints,
   applySupabaseSiteUrlRecoveryRouting,
+  resolvePostAuthDestination,
 } from './password-recovery-pending'
 
 describe('applySupabaseSiteUrlRecoveryRouting', () => {
@@ -32,6 +33,56 @@ describe('applySupabaseSiteUrlRecoveryRouting', () => {
     applySupabaseSiteUrlRecoveryRouting(params)
     expect(params.get('type')).toBe('signup')
     expect(params.get('next')).toBeNull()
+  })
+})
+
+describe('applyPasswordRecoveryRoutingHints', () => {
+  test('clears stale recovery flag when OAuth returns to dashboard', () => {
+    const store = new Map<string, string>()
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value)
+      },
+      removeItem: (key: string) => {
+        store.delete(key)
+      },
+    })
+    store.set('ramply_password_recovery_pending', '1')
+
+    const params = new URLSearchParams('code=abc&next=%2Fdashboard')
+    applyPasswordRecoveryRoutingHints(params)
+
+    expect(params.get('type')).toBeNull()
+    expect(params.get('next')).toBe('/dashboard')
+    expect(store.has('ramply_password_recovery_pending')).toBe(false)
+    vi.unstubAllGlobals()
+  })
+})
+
+describe('resolvePostAuthDestination', () => {
+  test('honors dashboard next even when recovery type was set incorrectly', () => {
+    const params = new URLSearchParams('code=abc&next=%2Fdashboard&type=recovery')
+    expect(
+      resolvePostAuthDestination({
+        params,
+        resultNextPath: '/dashboard',
+        recoveryFlow: true,
+        pendingRecovery: true,
+      })
+    ).toBe('/dashboard')
+  })
+
+  test('routes recovery email links to update-password', () => {
+    const params = new URLSearchParams('code=abc&type=recovery&next=%2Fauth%2Fupdate-password')
+    expect(
+      resolvePostAuthDestination({
+        params,
+        resultNextPath: '/auth/update-password',
+        recoveryFlow: false,
+        pendingRecovery: false,
+      })
+    ).toBe('/auth/update-password')
   })
 })
 
