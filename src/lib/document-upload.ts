@@ -47,10 +47,23 @@ export function isUserOwnedDocumentPath(filePath: string, userId: string): boole
   return ownerId === userId
 }
 
+function extractErrorMessage(err: unknown): string | null {
+  if (err instanceof Error && err.message) return err.message
+  if (typeof err === 'object' && err !== null) {
+    const record = err as { message?: unknown; details?: unknown; hint?: unknown }
+    if (typeof record.message === 'string' && record.message) {
+      const details = typeof record.details === 'string' ? ` (${record.details})` : ''
+      const hint = typeof record.hint === 'string' ? ` ${record.hint}` : ''
+      return `${record.message}${details}${hint}`.trim()
+    }
+  }
+  return null
+}
+
 /** Convert upload failures into user-facing messages. */
 export function getUploadErrorMessage(err: unknown): string {
-  if (err instanceof Error && err.message) {
-    const message = err.message
+  const message = extractErrorMessage(err)
+  if (message) {
     if (message.includes('row-level security') || message.includes('permission')) {
       return 'Upload blocked by permissions. Please sign in again and retry.'
     }
@@ -81,8 +94,15 @@ export function getUploadErrorMessage(err: unknown): string {
     if (message.includes('invalid_document_type')) {
       return 'That document type is not supported.'
     }
+    if (message.startsWith('storage:')) {
+      return message.replace(/^storage:\s*/, 'Storage upload failed: ')
+    }
     if (message.includes('rpc_invalid_response')) {
       return 'Upload saved to storage but vault metadata failed. Please try again.'
+    }
+    if (message.includes('api:') || message.includes('rpc:') || message.includes('direct:')) {
+      const lastAttempt = message.split(' | ').pop() ?? message
+      return lastAttempt.replace(/^(api|rpc|direct):\s*/, 'Vault save failed: ')
     }
     return message
   }

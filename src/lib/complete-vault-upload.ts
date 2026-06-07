@@ -208,19 +208,37 @@ export async function completeVaultDocumentUploadDirect(
   return { doc, duplicate: false }
 }
 
-/** Fallback for environments without the RPC — uses the API route with a bearer token. */
+/** Resolve a fresh access token for server-side vault completion. */
+export async function getVaultUploadAccessToken(
+  supabase: SupabaseClient
+): Promise<string> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    throw new Error('Unauthorized')
+  }
+
+  const refreshed = await supabase.auth.refreshSession()
+  const accessToken =
+    refreshed.data.session?.access_token
+    ?? (await supabase.auth.getSession()).data.session?.access_token
+
+  if (!accessToken) {
+    throw new Error('Unauthorized')
+  }
+
+  return accessToken
+}
+
+/** Complete vault metadata through the server API with a bearer token. */
 export async function completeVaultDocumentUploadViaApi(
   supabase: SupabaseClient,
   upload: CompleteVaultUploadInput
 ): Promise<CompleteVaultUploadResult> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  const accessToken = session?.access_token
-  if (!accessToken) {
-    throw new Error('Unauthorized')
-  }
+  const accessToken = await getVaultUploadAccessToken(supabase)
 
   const response = await fetch('/api/documents/upload/complete', {
     method: 'POST',
@@ -247,7 +265,7 @@ export async function completeVaultDocumentUploadViaApi(
   return { doc: payload.doc, duplicate: payload.duplicate }
 }
 
-/** Complete a storage upload using RPC, API, then direct insert fallbacks. */
+/** Complete a storage upload — API first (RPC + admin fallback server-side), then client fallbacks. */
 export async function persistVaultUpload(
   supabase: SupabaseClient,
   upload: CompleteVaultUploadInput
@@ -256,21 +274,30 @@ export async function persistVaultUpload(
     name: string
     run: () => Promise<CompleteVaultUploadResult>
   }> = [
-    { name: 'rpc', run: () => completeVaultDocumentUpload(supabase, upload) },
     { name: 'api', run: () => completeVaultDocumentUploadViaApi(supabase, upload) },
+    { name: 'rpc', run: () => completeVaultDocumentUpload(supabase, upload) },
     { name: 'direct', run: () => completeVaultDocumentUploadDirect(supabase, upload) },
   ]
 
-  let lastError: unknown = new Error('Upload failed')
+  const errors: string[] = []
 
   for (const attempt of attempts) {
     try {
       return await attempt.run()
     } catch (err) {
-      lastError = err
+      const message = getVaultUploadAttemptError(err)
+      errors.push(`${attempt.name}: ${message}`)
       console.error(`Vault upload via ${attempt.name} failed:`, err)
     }
   }
 
-  throw lastError
+  throw new Error(errors.join(' | ') || 'Upload failed')
+}
+
+function getVaultUploadAttemptError(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    return String((err as { message: unknown }).message)
+  }
+  return 'Upload failed'
 }

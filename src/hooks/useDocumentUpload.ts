@@ -116,7 +116,9 @@ export function useDocumentUpload({
         .from('documents')
         .upload(filePath, file, { upsert: false, contentType })
 
-      if (storageError) throw storageError
+      if (storageError) {
+        throw new Error(`storage: ${storageError.message}`)
+      }
 
       const payload = await persistVaultUpload(supabase, {
         document_type: docType,
