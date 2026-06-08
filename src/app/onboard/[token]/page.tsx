@@ -84,6 +84,17 @@ export default function OnboardingPage() {
     )
   }
 
+  if (shareRequest.status === 'denied') {
+    return (
+      <StatusScreen
+        color="red"
+        icon={<AlertCircle className="h-6 w-6 text-white" />}
+        title="Request Declined"
+        message="You declined this share request. The sender has been notified."
+      />
+    )
+  }
+
   if (shareRequest.status === 'completed' || completed) {
     return <ShareRequestCompleteScreen />
   }

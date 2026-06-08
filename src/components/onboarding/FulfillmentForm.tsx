@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,6 +17,7 @@ import { toast } from 'sonner'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
 import { useVaultDocuments } from '@/hooks/useVaultDocuments'
 import { getUploadErrorMessage } from '@/lib/document-upload'
+import { DenyShareRequestDialog } from '@/components/onboarding/DenyShareRequestDialog'
 import {
   getVaultDocument,
   missingVaultDocumentTypes,
@@ -27,12 +29,15 @@ type ShareRequestForFulfillment = Omit<ShareRequestRow, 'token'>
 interface FulfillmentFormProps {
   shareRequest: ShareRequestForFulfillment
   onComplete: () => void
+  onDenied?: () => void
 }
 
-export function FulfillmentForm({ shareRequest, onComplete }: FulfillmentFormProps) {
+export function FulfillmentForm({ shareRequest, onComplete, onDenied }: FulfillmentFormProps) {
   const { user, company } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const [denyDialogOpen, setDenyDialogOpen] = useState(false)
   const { data: vaultDocs = [], isFetching: vaultFetching, isFetched: vaultFetched } =
     useVaultDocuments(company?.id)
   const vaultChecking = !!company?.id && !vaultFetched && vaultFetching
@@ -136,6 +141,32 @@ export function FulfillmentForm({ shareRequest, onComplete }: FulfillmentFormPro
       toast.error('Failed to submit. Please try again.')
     },
   })
+
+  const handleDenyRequest = async () => {
+    const response = await fetch('/api/share-requests/deny', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ share_request_id: shareRequest.id }),
+    })
+
+    const payload = (await response.json().catch(() => ({}))) as { error?: string }
+    if (!response.ok) {
+      const message = payload.error ?? 'Failed to deny request'
+      toast.error(message)
+      throw new Error(message)
+    }
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['pending-received-requests'] }),
+      queryClient.invalidateQueries({ queryKey: ['recipient-requests-page'] }),
+      queryClient.invalidateQueries({ queryKey: ['share-responses'] }),
+    ])
+
+    toast.success('Request denied. The sender has been notified.')
+    onDenied?.()
+    router.push('/dashboard/received')
+  }
 
   return (
     <div className="space-y-6">
@@ -244,6 +275,22 @@ export function FulfillmentForm({ shareRequest, onComplete }: FulfillmentFormPro
       >
         {mutation.isPending ? 'Submitting…' : 'Share Information'}
       </Button>
+
+      <Button
+        type="button"
+        variant="ghost"
+        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+        onClick={() => setDenyDialogOpen(true)}
+        disabled={mutation.isPending}
+      >
+        Deny Request
+      </Button>
+
+      <DenyShareRequestDialog
+        open={denyDialogOpen}
+        onOpenChange={setDenyDialogOpen}
+        onConfirm={handleDenyRequest}
+      />
     </div>
   )
 }

@@ -9,7 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, ExternalLink } from 'lucide-react'
 import { documentTypeLabel } from '@/lib/catalog'
-import type { CompanyDocumentRow, CompanyRow } from '@/lib/database.types'
+import type { CompanyDocumentRow, CompanyRow, SharedDataRow } from '@/lib/database.types'
+import {
+  fetchSharedDocumentsForRequester,
+  fetchSharedRecipientCompanies,
+  resolveRecipientCompanyLabel,
+} from '@/lib/requester-share-responses'
 
 interface CompanyAssetsProps {
   companyId: string
@@ -28,30 +33,29 @@ export function CompanyAssets({ companyId }: CompanyAssetsProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [companyRow, setCompanyRow] = useState<CompanyRow | null>(null)
+  const [sharedSnapshot, setSharedSnapshot] = useState<Pick<SharedDataRow, 'field_data'> | null>(null)
   const [assets, setAssets] = useState<AssetItem[]>([])
 
   const companyName = useMemo(() => {
-    return companyRow?.legal_name || companyRow?.dba_name || 'Unknown company'
-  }, [companyRow])
+    return resolveRecipientCompanyLabel(companyRow, sharedSnapshot)
+  }, [companyRow, sharedSnapshot])
 
   const loadAssets = useCallback(async () => {
     if (!company) return
     setLoading(true)
     setError(null)
 
-    const { data: targetCompany, error: companyError } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', companyId)
-      .maybeSingle()
-
-    if (companyError) {
+    let targetCompany: CompanyRow | null = null
+    try {
+      const companies = await fetchSharedRecipientCompanies(supabase, [companyId])
+      targetCompany = companies[0] ?? null
+    } catch {
       setError('Failed to load company details')
       setLoading(false)
       return
     }
 
-    setCompanyRow(targetCompany ?? null)
+    setCompanyRow(targetCompany)
 
     const { data: requests, error: requestError } = await supabase
       .from('share_requests')
@@ -73,23 +77,38 @@ export function CompanyAssets({ companyId }: CompanyAssetsProps) {
       return
     }
 
-    const { data: sharedDocs, error: docsError } = await supabase
-      .from('shared_documents')
-      .select('share_request_id, company_documents(*)')
+    const { data: sharedDataRows, error: sharedDataError } = await supabase
+      .from('shared_data')
+      .select('field_data')
       .in('share_request_id', requestIds)
+      .order('shared_at', { ascending: false })
+      .limit(1)
 
-    if (docsError) {
+    if (sharedDataError) {
+      setError('Failed to load shared company details')
+      setLoading(false)
+      return
+    }
+
+    setSharedSnapshot(
+      sharedDataRows?.[0]?.field_data
+        ? { field_data: sharedDataRows[0].field_data as SharedDataRow['field_data'] }
+        : null
+    )
+
+    let sharedDocLinks
+    try {
+      sharedDocLinks = await fetchSharedDocumentsForRequester(supabase, requestIds)
+    } catch {
       setError('Failed to load shared documents')
       setLoading(false)
       return
     }
 
-    const items = (sharedDocs ?? [])
-      .map((row) => ({
-        shareRequestId: row.share_request_id as string,
-        document: row.company_documents as unknown as CompanyDocumentRow,
-      }))
-      .filter((row) => Boolean(row.document?.id))
+    const items = sharedDocLinks.map((row) => ({
+      shareRequestId: row.share_request_id,
+      document: row.document,
+    }))
 
     setAssets(items)
     setLoading(false)

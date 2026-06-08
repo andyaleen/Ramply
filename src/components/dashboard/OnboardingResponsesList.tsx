@@ -13,6 +13,11 @@ import { CheckCircle, Clock, Download, Eye, FileText } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { downloadDocument } from '@/lib/file-utils'
 import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
+import {
+  fetchSharedDocumentsForRequester,
+  fetchSharedRecipientCompanies,
+  resolveRecipientCompanyLabel,
+} from '@/lib/requester-share-responses'
 import type { ShareRequestRow, SharedDataRow, CompanyDocumentRow, CompanyRow } from '@/lib/database.types'
 
 type ShareResponse = Omit<ShareRequestRow, 'token'> & {
@@ -25,6 +30,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800' },
   completed: { label: 'Completed', className: 'bg-green-100 text-green-800' },
   expired: { label: 'Expired', className: 'bg-red-100 text-red-800' },
+  denied: { label: 'Declined', className: 'bg-red-100 text-red-800' },
 }
 
 export function OnboardingResponsesList() {
@@ -39,42 +45,43 @@ export function OnboardingResponsesList() {
 
       const { data: requests, error: reqError } = await supabase
         .from('share_requests')
-        .select('id, requester_company_id, request_type, recipient_email, mandatory_fields, mandatory_documents, optional_fields, optional_documents, expires_at, status, completed_by_company_id, completed_at, created_at, updated_at')
+        .select('id, requester_company_id, request_type, recipient_email, mandatory_fields, mandatory_documents, optional_fields, optional_documents, expires_at, status, completed_by_company_id, completed_at, denied_at, denied_by_company_id, created_at, updated_at')
         .eq('requester_company_id', company.id)
-        .eq('status', 'completed')
-        .order('completed_at', { ascending: false })
+        .in('status', ['completed', 'denied'])
+        .order('updated_at', { ascending: false })
 
       if (reqError) throw reqError
       if (!requests?.length) return []
 
       const ids = requests.map((r) => r.id)
       const companyIds = requests
-        .map((r) => r.completed_by_company_id)
+        .map((r) => r.completed_by_company_id ?? r.denied_by_company_id)
         .filter((id): id is string => Boolean(id))
 
-      const [{ data: sharedDataRows }, { data: sharedDocRows }, { data: companyRows }] = await Promise.all([
+      const [{ data: sharedDataRows }, sharedDocLinks, companyRows] = await Promise.all([
         supabase.from('shared_data').select('*').in('share_request_id', ids),
-        supabase.from('shared_documents').select('share_request_id, company_documents(*)').in('share_request_id', ids),
-        companyIds.length
-          ? supabase.from('companies').select('*').in('id', companyIds)
-          : Promise.resolve({ data: [] }),
+        fetchSharedDocumentsForRequester(supabase, ids),
+        fetchSharedRecipientCompanies(supabase, companyIds),
       ])
 
       return requests.map((req) => ({
         ...req,
         sharedData: sharedDataRows?.find((d) => d.share_request_id === req.id) ?? null,
-        sharedDocs: (sharedDocRows ?? [])
-          .filter((sd) => sd.share_request_id === req.id)
-          .map((sd) => sd.company_documents as unknown as CompanyDocumentRow)
-          .filter(Boolean),
-        recipientCompany: (companyRows ?? []).find((row) => row.id === req.completed_by_company_id) ?? null,
+        sharedDocs: sharedDocLinks
+          .filter((link) => link.share_request_id === req.id)
+          .map((link) => link.document),
+        recipientCompany:
+          companyRows.find(
+            (row) => row.id === (req.completed_by_company_id ?? req.denied_by_company_id)
+          ) ?? null,
       }))
     },
     enabled: !!company,
   })
 
   const companyLabel = useMemo(() => {
-    return (row: CompanyRow | null) => row?.legal_name || row?.dba_name || 'Unknown company'
+    return (row: ShareResponse) =>
+      resolveRecipientCompanyLabel(row.recipientCompany, row.sharedData, row.recipient_email)
   }, [])
 
   if (isLoading) {
@@ -110,7 +117,9 @@ export function OnboardingResponsesList() {
         <CardContent className="flex flex-col items-center justify-center py-12">
           <CheckCircle className="h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium mb-2">No Responses Yet</h3>
-          <p className="text-gray-600">Completed share requests will appear here once vendors submit their information.</p>
+          <p className="text-gray-600">
+            Completed and declined share requests will appear here once recipients respond.
+          </p>
         </CardContent>
       </Card>
     )
@@ -144,10 +153,10 @@ export function OnboardingResponsesList() {
                         window.location.href = `/dashboard/responses/${r.recipientCompany?.id}`
                       }}
                     >
-                      {companyLabel(r.recipientCompany)}
+                      {companyLabel(r)}
                     </Button>
                   ) : (
-                    <span className="text-gray-500">Unknown</span>
+                    <span className="text-gray-500">{r.recipient_email ?? 'Unknown'}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-gray-600">
@@ -159,7 +168,11 @@ export function OnboardingResponsesList() {
                   <Badge className={badge.className}>{badge.label}</Badge>
                 </TableCell>
                 <TableCell className="text-sm text-gray-500">
-                  {r.completed_at ? formatDate(r.completed_at) : formatDate(r.created_at)}
+                  {r.denied_at
+                    ? formatDate(r.denied_at)
+                    : r.completed_at
+                      ? formatDate(r.completed_at)
+                      : formatDate(r.created_at)}
                 </TableCell>
                 <TableCell>
                   <Button
@@ -193,9 +206,11 @@ function ResponseDetailsDialog({
 }) {
   if (!response) return null
 
-  const companyName = response.recipientCompany?.legal_name
-    || response.recipientCompany?.dba_name
-    || 'Unknown company'
+  const companyName = resolveRecipientCompanyLabel(
+    response.recipientCompany,
+    response.sharedData,
+    response.recipient_email
+  )
 
   const requiredFieldEntries = response.sharedData
     ? response.mandatory_fields.map((key) => ({
@@ -246,7 +261,20 @@ function ResponseDetailsDialog({
           </Card>
 
           {/* Pending / expired state */}
-          {response.status !== 'completed' && (
+          {response.status === 'denied' && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="py-6 flex items-center gap-3 text-red-700">
+                <Clock className="h-5 w-5 shrink-0" />
+                <p className="text-sm">
+                  {companyName} declined this request
+                  {response.recipient_email ? ` (${response.recipient_email})` : ''}.
+                  No information was shared.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {response.status !== 'completed' && response.status !== 'denied' && (
             <Card>
               <CardContent className="py-6 flex items-center gap-3 text-gray-500">
                 <Clock className="h-5 w-5 shrink-0" />

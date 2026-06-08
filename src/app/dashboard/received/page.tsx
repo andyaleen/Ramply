@@ -16,6 +16,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string; icon: Rea
   pending:   { label: 'Pending',   className: 'bg-yellow-100 text-yellow-800', icon: <Clock className="h-3 w-3" /> },
   completed: { label: 'Completed', className: 'bg-green-100 text-green-800',  icon: <CheckCircle className="h-3 w-3" /> },
   expired:   { label: 'Expired',   className: 'bg-red-100 text-red-800',      icon: <XCircle className="h-3 w-3" /> },
+  denied:    { label: 'Declined',  className: 'bg-red-100 text-red-800',      icon: <XCircle className="h-3 w-3" /> },
 }
 
 export default function RequestsPage() {

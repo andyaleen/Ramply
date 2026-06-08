@@ -133,9 +133,11 @@ CREATE TABLE IF NOT EXISTS share_requests (
   optional_documents TEXT[] NOT NULL DEFAULT '{}',
   token TEXT UNIQUE NOT NULL,
   expires_at TIMESTAMPTZ,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'expired')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'expired', 'denied')),
   completed_by_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   completed_at TIMESTAMPTZ,
+  denied_at TIMESTAMPTZ,
+  denied_by_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -657,6 +659,102 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION fulfill_share_request(UUID, JSONB, UUID[]) TO authenticated;
+
+CREATE OR REPLACE FUNCTION deny_share_request(p_share_request_id UUID)
+RETURNS VOID AS $$
+DECLARE
+  v_company_id UUID;
+BEGIN
+  SELECT id INTO v_company_id
+  FROM companies
+  WHERE owner_user_id = auth.uid();
+
+  IF v_company_id IS NULL THEN
+    RAISE EXCEPTION 'company_not_found';
+  END IF;
+
+  UPDATE share_requests
+  SET status = 'denied',
+      denied_at = NOW(),
+      denied_by_company_id = v_company_id,
+      updated_at = NOW()
+  WHERE id = p_share_request_id
+    AND recipient_email IS NOT NULL
+    AND LOWER(recipient_email) = LOWER((SELECT email FROM users WHERE id = auth.uid()))
+    AND status = 'pending'
+    AND (expires_at IS NULL OR expires_at > NOW());
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'share_request_not_allowed';
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION deny_share_request(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION get_requester_shared_documents(p_share_request_ids UUID[])
+RETURNS TABLE (
+  share_request_id UUID,
+  id UUID,
+  company_id UUID,
+  document_type TEXT,
+  file_path TEXT,
+  file_name TEXT,
+  file_size BIGINT,
+  mime_type TEXT,
+  file_hash TEXT,
+  version INT,
+  superseded_by UUID,
+  uploaded_at TIMESTAMPTZ
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    sd.share_request_id,
+    cd.id,
+    cd.company_id,
+    cd.document_type,
+    cd.file_path,
+    cd.file_name,
+    cd.file_size,
+    cd.mime_type,
+    cd.file_hash,
+    cd.version,
+    cd.superseded_by,
+    cd.uploaded_at
+  FROM shared_documents sd
+  JOIN company_documents cd ON cd.id = sd.company_document_id
+  JOIN share_requests sr ON sr.id = sd.share_request_id
+  JOIN companies requester ON sr.requester_company_id = requester.id
+  WHERE requester.owner_user_id = auth.uid()
+    AND sd.share_request_id = ANY(p_share_request_ids);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION get_requester_shared_documents(UUID[]) TO authenticated;
+
+CREATE OR REPLACE FUNCTION get_requester_shared_companies(p_company_ids UUID[])
+RETURNS TABLE (
+  id UUID,
+  legal_name TEXT,
+  dba_name TEXT,
+  owner_user_id UUID
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT c.id, c.legal_name, c.dba_name, c.owner_user_id
+  FROM companies c
+  JOIN share_requests sr ON (
+    sr.completed_by_company_id = c.id
+    OR sr.denied_by_company_id = c.id
+  )
+  JOIN companies requester ON sr.requester_company_id = requester.id
+  WHERE requester.owner_user_id = auth.uid()
+    AND c.id = ANY(p_company_ids);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION get_requester_shared_companies(UUID[]) TO authenticated;
 
 CREATE OR REPLACE FUNCTION get_my_active_vault_documents()
 RETURNS SETOF company_documents AS $$

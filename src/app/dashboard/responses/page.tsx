@@ -74,7 +74,7 @@ export default function ResponsesPage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Share Responses</h1>
-          <p className="text-gray-600">View completed share requests and submitted vendor data</p>
+          <p className="text-gray-600">View completed and declined share requests from recipients</p>
         </div>
       </div>
 
@@ -127,7 +127,7 @@ export default function ResponsesPage() {
         <CardHeader>
           <CardTitle>All Share Requests</CardTitle>
           <CardDescription>
-            View submitted field data and download shared documents from vendors
+            View submitted field data, declined requests, and download shared documents
           </CardDescription>
         </CardHeader>
         <CardContent>
