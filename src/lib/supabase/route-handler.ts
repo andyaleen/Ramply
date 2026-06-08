@@ -7,7 +7,11 @@ import type { NextRequest } from 'next/server'
  * sign-in can persist session cookies on the HTTP response.
  */
 export function createRouteHandlerClient(request: NextRequest) {
-  let cookieResponse = NextResponse.next({ request })
+  let cookieResponse = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
   const supabaseKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -17,17 +21,26 @@ export function createRouteHandlerClient(request: NextRequest) {
     supabaseKey!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
+        get(name: string) {
+          return request.cookies.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value)
+        set(name: string, value: string, options: Record<string, unknown>) {
+          request.cookies.set({ name, value, ...options })
+          cookieResponse = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
           })
-          cookieResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieResponse.cookies.set(name, value, options)
+          cookieResponse.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: Record<string, unknown>) {
+          request.cookies.set({ name, value: '', ...options })
+          cookieResponse = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
           })
+          cookieResponse.cookies.set({ name, value: '', ...options })
         },
       },
     }

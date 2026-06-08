@@ -46,21 +46,25 @@ function invalidCredentialsMessage(signInError: AuthError): CompletePasswordSign
   }
 }
 
+type CompletePasswordSignInFailure = Extract<CompletePasswordSignInResult, { ok: false }>
+
 /**
  * Confirms email when possible before the first sign-in attempt.
  */
 async function ensureAccountCanSignIn(
   admin: SupabaseClient,
   params: CompletePasswordSignInParams
-): Promise<CompletePasswordSignInResult | null> {
+): Promise<CompletePasswordSignInFailure | null> {
   const email = params.email.trim()
 
   if (params.shareToken) {
-    return confirmShareRecipientAccount(admin, {
+    const shareResult = await confirmShareRecipientAccount(admin, {
       email,
       token: params.shareToken,
       userId: params.userId,
     })
+    if (!shareResult.ok) return shareResult
+    return null
   }
 
   const confirmResult = await adminConfirmAuthUserEmail(admin, email, params.userId)
