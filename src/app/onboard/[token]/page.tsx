@@ -8,9 +8,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { FulfillmentForm } from '@/components/onboarding/FulfillmentForm'
+import { ShareRequestCompleteScreen } from '@/components/onboarding/ShareRequestCompleteScreen'
 import type { ShareRequestRow } from '@/lib/database.types'
 import { safeLowerCase } from '@/lib/utils'
-import { AlertCircle, CheckCircle, Mail } from 'lucide-react'
+import { AlertCircle, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type ShareRequestWithRequester = Omit<ShareRequestRow, 'token'> & {
@@ -84,14 +85,7 @@ export default function OnboardingPage() {
   }
 
   if (shareRequest.status === 'completed' || completed) {
-    return (
-      <StatusScreen
-        color="green"
-        icon={<CheckCircle className="h-6 w-6 text-white" />}
-        title="All Done!"
-        message="Your information has been shared successfully."
-      />
-    )
+    return <ShareRequestCompleteScreen />
   }
 
   if (!user) {

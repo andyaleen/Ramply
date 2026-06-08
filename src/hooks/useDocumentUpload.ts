@@ -4,12 +4,8 @@ import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import type { CompanyRow, CompanyDocumentRow } from '@/lib/database.types'
 import type { DocumentTypeKey } from '@/lib/catalog'
-import { persistVaultUpload } from '@/lib/complete-vault-upload'
-import {
-  buildDocumentStoragePath,
-  getUploadErrorMessage,
-  hashFileBytes,
-} from '@/lib/document-upload'
+import { getUploadErrorMessage } from '@/lib/document-upload'
+import { uploadVaultDocument } from '@/lib/upload-vault-document'
 
 interface UploadResult {
   doc: CompanyDocumentRow
@@ -40,6 +36,8 @@ interface UseDocumentUploadReturn {
   pick: (docType: DocumentTypeKey) => void
   /** Attach to the hidden input's onChange. */
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>
+  /** Upload a chosen file for a specific document type (e.g. from Add a File dialog). */
+  uploadFile: (file: File, docType: DocumentTypeKey) => Promise<void>
 }
 
 /** Trigger OCR asynchronously after a successful vault upload. */
@@ -78,6 +76,38 @@ export function useDocumentUpload({
   const pendingType = useRef<DocumentTypeKey | null>(null)
   const [uploading, setUploading] = useState<DocumentTypeKey | null>(null)
 
+  const uploadFile = async (file: File, docType: DocumentTypeKey) => {
+    if (!user || !company) {
+      onError?.(new Error('Your company profile is still loading. Please try again.'), docType)
+      return
+    }
+
+    setUploading(docType)
+
+    try {
+      const result = await uploadVaultDocument({
+        supabase,
+        user,
+        company,
+        existingDocs,
+        file,
+        docType,
+      })
+
+      if (!result.duplicate) {
+        triggerDocumentIngest(result.doc.id, onClassified, docType)
+      }
+
+      onSuccess(result, docType)
+    } catch (err) {
+      onError?.(err, docType)
+      console.error('Document upload failed:', getUploadErrorMessage(err), err)
+      throw err
+    } finally {
+      setUploading(null)
+    }
+  }
+
   const pick = (docType: DocumentTypeKey) => {
     if (!user || !company) {
       onError?.(new Error('Your company profile is still loading. Please try again.'), docType)
@@ -91,53 +121,11 @@ export function useDocumentUpload({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     const docType = pendingType.current
-    if (!file || !docType || !user || !company) return
+    if (!file || !docType) return
 
     e.target.value = ''
-
-    setUploading(docType)
-    let uploadedPath: string | null = null
-
-    try {
-      const fileBuffer = await file.arrayBuffer()
-      const hash = await hashFileBytes(fileBuffer)
-      const existing = existingDocs.find((doc) => doc.document_type === docType) ?? null
-
-      if (existing?.file_hash === hash) {
-        onSuccess({ doc: existing, duplicate: true }, docType)
-        return
-      }
-
-      const filePath = buildDocumentStoragePath(user.id, docType, file.name)
-      uploadedPath = filePath
-      const contentType = file.type || 'application/octet-stream'
-
-      const { error: storageError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, file, { upsert: false, contentType })
-
-      if (storageError) {
-        throw new Error(`storage: ${storageError.message}`)
-      }
-
-      const payload = await persistVaultUpload(supabase, {
-        document_type: docType,
-        file_path: filePath,
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: contentType,
-        file_hash: hash,
-      })
-
-      triggerDocumentIngest(payload.doc.id, onClassified, docType)
-      onSuccess({ doc: payload.doc, duplicate: payload.duplicate }, docType)
-    } catch (err) {
-      onError?.(err, docType)
-      console.error('Document upload failed:', getUploadErrorMessage(err), err)
-    } finally {
-      setUploading(null)
-    }
+    await uploadFile(file, docType)
   }
 
-  return { inputRef, uploading, pick, handleFileChange }
+  return { inputRef, uploading, pick, handleFileChange, uploadFile }
 }

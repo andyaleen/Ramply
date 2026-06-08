@@ -3,6 +3,10 @@ import type { CompanyDocumentRow } from '@/lib/database.types'
 import type { createClient } from '@/lib/supabase/client'
 
 export const VAULT_DOCS_QUERY_KEY = 'vault-docs'
+export const DOCUMENTS_STORAGE_BUCKET = 'documents'
+
+const VAULT_DOCUMENT_CORE_COLUMNS =
+  'id, company_id, document_type, file_path, file_name, file_size, mime_type, file_hash, version, superseded_by, uploaded_at'
 
 export type VaultDocumentsClient = ReturnType<typeof createClient>
 
@@ -32,6 +36,58 @@ export async function fetchActiveVaultDocuments(
   }
 
   return data ?? []
+}
+
+/** Load one vault document by id (uses RPC list first for production schema compatibility). */
+export async function fetchVaultDocumentById(
+  supabase: VaultDocumentsClient,
+  companyId: string,
+  documentId: string
+): Promise<CompanyDocumentRow | null> {
+  const docs = await fetchActiveVaultDocuments(supabase, companyId)
+  const fromVault = docs.find((doc) => doc.id === documentId)
+  if (fromVault) return fromVault
+
+  const { data, error } = await supabase
+    .from('company_documents')
+    .select(VAULT_DOCUMENT_CORE_COLUMNS)
+    .eq('id', documentId)
+    .eq('company_id', companyId)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as CompanyDocumentRow
+}
+
+/** Optional approval/extraction columns — absent on some production schemas. */
+export async function fetchVaultDocumentFieldOverrides(
+  supabase: VaultDocumentsClient,
+  companyId: string,
+  documentId: string
+): Promise<Pick<CompanyDocumentRow, 'extracted_fields' | 'approved_fields'> | null> {
+  const { data, error } = await supabase
+    .from('company_documents')
+    .select('extracted_fields, approved_fields')
+    .eq('id', documentId)
+    .eq('company_id', companyId)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as Pick<CompanyDocumentRow, 'extracted_fields' | 'approved_fields'>
+}
+
+/** Signed URL for viewing a vault file in the browser. */
+export async function createVaultDocumentSignedUrl(
+  supabase: VaultDocumentsClient,
+  filePath: string,
+  expiresInSeconds = 3600
+): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from(DOCUMENTS_STORAGE_BUCKET)
+    .createSignedUrl(filePath, expiresInSeconds)
+
+  if (error || !data?.signedUrl) return null
+  return data.signedUrl
 }
 
 /** Return the active vault document for a catalog type, if present. */

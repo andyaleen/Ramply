@@ -3,13 +3,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { CompanyDocumentRow, CompanyRow, DocumentExtractionRow } from '@/lib/database.types'
+import type { DocumentTypeKey } from '@/lib/catalog'
+import { DocumentPreview } from '@/components/company/DocumentPreview'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useDocumentUpload } from '@/hooks/useDocumentUpload'
+import { useVaultDocuments } from '@/hooks/useVaultDocuments'
+import { getUploadErrorMessage } from '@/lib/document-upload'
+import {
+  createVaultDocumentSignedUrl,
+  fetchVaultDocumentById,
+  fetchVaultDocumentFieldOverrides,
+} from '@/lib/vault-documents'
 
 const FIELD_LABELS: Record<keyof Pick<CompanyRow,
   | 'legal_name'
@@ -58,41 +69,55 @@ function applyFields(target: Record<string, string>, source: unknown) {
 }
 
 export function DocumentReview({ documentId }: DocumentReviewProps) {
-  const { company, updateCompany } = useAuth()
+  const { user, company } = useAuth()
   const supabase = createClient()
   const router = useRouter()
+  const { data: vaultDocs = [], refetch: refetchVaultDocs } = useVaultDocuments(company?.id)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [docLabel, setDocLabel] = useState('')
-  const [docType, setDocType] = useState('')
+  const [docType, setDocType] = useState<DocumentTypeKey | ''>('')
   const [documentRow, setDocumentRow] = useState<CompanyDocumentRow | null>(null)
   const [extraction, setExtraction] = useState<ExtractionPayload | null>(null)
   const [fields, setFields] = useState<Record<string, string>>(emptyFields)
   const [error, setError] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
-  /** Loads the latest extraction for the given document. */
-  const loadExtraction = useCallback(async () => {
+  /** Loads the vault document, preview URL, and any saved field values. */
+  const loadDocument = useCallback(async () => {
     if (!company) return
     setLoading(true)
     setError(null)
+    setPreviewError(null)
+    setPreviewUrl(null)
 
-    const { data: docData, error: docError } = await supabase
-      .from('company_documents')
-      .select('id, document_type, file_name, extracted_fields, approved_fields')
-      .eq('id', documentId)
-      .eq('company_id', company.id)
-      .single()
+    const docData = await fetchVaultDocumentById(supabase, company.id, documentId)
 
-    if (docError || !docData) {
+    if (!docData) {
       setError('Document not found')
       setLoading(false)
       return
     }
 
-    setDocumentRow(docData as CompanyDocumentRow)
+    setDocumentRow(docData)
     setDocLabel(`${docData.file_name} (${docData.document_type})`)
     setDocType(docData.document_type)
+
+    if (docData.file_path) {
+      setPreviewLoading(true)
+      const signedUrl = await createVaultDocumentSignedUrl(supabase, docData.file_path)
+      if (signedUrl) {
+        setPreviewUrl(signedUrl)
+      } else {
+        setPreviewError('Could not load a preview for this file.')
+      }
+      setPreviewLoading(false)
+    }
+
+    const fieldOverrides = await fetchVaultDocumentFieldOverrides(supabase, company.id, documentId)
 
     const { data, error: extractionError } = await supabase
       .from('document_extractions')
@@ -104,18 +129,16 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
       .maybeSingle()
 
     if (extractionError) {
-      setError('Failed to load OCR results')
-      setLoading(false)
-      return
+      console.error('Failed to load saved field values:', extractionError)
     }
 
     setExtraction((data ?? null) as ExtractionPayload | null)
 
     const nextFields = emptyFields()
-    if (docData.approved_fields) {
-      applyFields(nextFields, docData.approved_fields)
-    } else if (docData.extracted_fields) {
-      applyFields(nextFields, docData.extracted_fields)
+    if (fieldOverrides?.approved_fields) {
+      applyFields(nextFields, fieldOverrides.approved_fields)
+    } else if (fieldOverrides?.extracted_fields) {
+      applyFields(nextFields, fieldOverrides.extracted_fields)
     } else if (data?.metadata && typeof data.metadata === 'object') {
       const metadata = data.metadata as Record<string, unknown>
       applyFields(nextFields, metadata.extracted_fields)
@@ -127,62 +150,33 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
 
   useEffect(() => {
     if (!company) return
-    loadExtraction()
-  }, [company, loadExtraction])
+    loadDocument()
+  }, [company, loadDocument])
 
-  /** Runs OCR again for the current document. */
-  const handleRetry = useCallback(async () => {
-    setSaving(true)
-    setError(null)
-
-    try {
-      const response = await fetch('/api/documents/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company_document_id: documentId }),
-      })
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}))
-        throw new Error(body?.error ?? 'OCR request failed')
+  const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
+    user,
+    company,
+    existingDocs: vaultDocs,
+    onSuccess: ({ doc, duplicate }) => {
+      if (duplicate) {
+        toast.info('This file is identical to the current version — no update needed.')
+        return
       }
 
-      toast.success('OCR re-run started')
-      await loadExtraction()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'OCR request failed'
-      setError(message)
-      toast.error(message)
-    } finally {
-      setSaving(false)
-    }
-  }, [documentId, loadExtraction])
+      toast.success('Document replaced')
+      void refetchVaultDocs()
 
-  /** Copies reviewed fields into the company profile. */
-  const handleApplyToProfile = useCallback(async () => {
-    if (!company) return
+      if (doc.id !== documentId) {
+        router.replace(`/dashboard/documents/review/${doc.id}`)
+        return
+      }
 
-    setSaving(true)
-    setError(null)
-
-    const payload = FIELD_KEYS.reduce((acc, key) => {
-      const value = fields[key]?.trim()
-      if (value) acc[key] = value
-      return acc
-    }, {} as Record<string, string>)
-
-    try {
-      await updateCompany(payload)
-      toast.success('Company profile updated from document')
-      router.push('/dashboard/profile')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile'
-      setError(message)
-      toast.error(message)
-    } finally {
-      setSaving(false)
-    }
-  }, [company, fields, router, updateCompany])
+      void loadDocument()
+    },
+    onError: (err) => {
+      toast.error(getUploadErrorMessage(err))
+    },
+  })
 
   /** Persists approved fields to the document asset. */
   const handleApprove = useCallback(async () => {
@@ -234,22 +228,47 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
 
   const hasExtraction = Boolean(extraction)
   const isW9 = docType === 'W9'
+  const isReplacing = Boolean(docType && uploading === docType)
 
   return (
     <div className="space-y-6">
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+        onChange={handleFileChange}
+      />
+
       <div>
-        <h2 className="text-lg font-semibold">Review extracted fields</h2>
+        <h2 className="text-lg font-semibold">Review document</h2>
         <p className="text-sm text-muted-foreground">
-          Review and edit the fields detected from your document, then approve to save them.
+          Preview your uploaded file and confirm the details look correct.
         </p>
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
           <CardTitle className="text-base">Document</CardTitle>
+          {previewUrl ? (
+            <Button asChild size="sm" variant="outline">
+              <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                Open file
+              </a>
+            </Button>
+          ) : null}
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          {docLabel || 'Loading document details...'}
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {docLabel || (loading ? 'Loading document details…' : 'Document details unavailable')}
+          </p>
+          <DocumentPreview
+            url={previewUrl}
+            mimeType={documentRow?.mime_type ?? null}
+            fileName={documentRow?.file_name ?? 'Document'}
+            loading={loading || previewLoading}
+            error={previewError}
+          />
         </CardContent>
       </Card>
 
@@ -261,13 +280,7 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
         </Card>
       )}
 
-      {loading ? (
-        <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            Loading OCR results...
-          </CardContent>
-        </Card>
-      ) : hasExtraction ? (
+      {!loading && hasExtraction ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Extracted fields</CardTitle>
@@ -287,40 +300,25 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
             ))}
           </CardContent>
         </Card>
-      ) : (
-        <Card>
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <p className="text-sm text-muted-foreground">
-              No OCR results yet.
-            </p>
-            <Button size="sm" onClick={handleRetry} disabled={saving}>
-              {saving ? 'Working...' : 'Run OCR'}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {!isW9 && !loading && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-4 text-sm text-amber-700">
-            Field extraction is currently only available for W-9 documents.
-          </CardContent>
-        </Card>
-      )}
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <Button onClick={handleApprove} disabled={saving || !hasExtraction || !isW9}>
           {saving ? 'Saving...' : 'Approve and Save'}
         </Button>
         <Button
-          variant="secondary"
-          onClick={handleApplyToProfile}
-          disabled={saving || !isW9 || FIELD_KEYS.every((key) => !fields[key]?.trim())}
+          variant="outline"
+          onClick={() => docType && pick(docType)}
+          disabled={!docType || isReplacing || saving}
         >
-          Apply to company profile
-        </Button>
-        <Button variant="outline" onClick={handleRetry} disabled={saving}>
-          {saving ? 'Working...' : 'Re-run OCR'}
+          {isReplacing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Replacing…
+            </>
+          ) : (
+            'Replace'
+          )}
         </Button>
         <Button variant="ghost" onClick={() => router.push('/dashboard/documents')}>
           Back to File Upload
