@@ -92,8 +92,11 @@ export function applySupabaseSiteUrlRecoveryRouting(params: URLSearchParams): vo
     return
   }
 
-  params.set('type', 'recovery')
-  params.set('next', AUTH_UPDATE_PASSWORD_PATH)
+  // Bare `code` on the Site URL is usually OAuth (redirect URL not allowlisted), not recovery.
+  // Recovery links should include type=recovery, next=/auth/update-password, or sessionStorage pending.
+  if (!params.get('next')) {
+    params.set('next', '/dashboard')
+  }
 }
 
 /**

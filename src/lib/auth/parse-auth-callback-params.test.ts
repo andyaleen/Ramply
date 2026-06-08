@@ -23,10 +23,10 @@ describe('buildAuthConfirmPath', () => {
     expect(buildAuthConfirmPath(params)).toContain('next=%2Fauth%2Fupdate-password')
   })
 
-  test('routes Site URL code-only links to update-password', () => {
+  test('routes Site URL code-only links to dashboard OAuth', () => {
     const params = new URLSearchParams('code=xyz')
-    expect(buildAuthConfirmPath(params)).toContain('next=%2Fauth%2Fupdate-password')
-    expect(buildAuthConfirmPath(params)).toContain('type=recovery')
+    expect(buildAuthConfirmPath(params)).toContain('next=%2Fdashboard')
+    expect(buildAuthConfirmPath(params)).not.toContain('type=recovery')
   })
 
   test('preserves OAuth callback with next dashboard', () => {

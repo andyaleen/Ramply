@@ -7,11 +7,11 @@ import {
 } from './password-recovery-pending'
 
 describe('applySupabaseSiteUrlRecoveryRouting', () => {
-  test('routes bare Site URL code links to update-password', () => {
+  test('routes bare Site URL code links to dashboard OAuth', () => {
     const params = new URLSearchParams('code=abc')
     applySupabaseSiteUrlRecoveryRouting(params)
-    expect(params.get('type')).toBe('recovery')
-    expect(params.get('next')).toBe('/auth/update-password')
+    expect(params.get('type')).toBeNull()
+    expect(params.get('next')).toBe('/dashboard')
   })
 
   test('preserves OAuth callback when next is present', () => {
@@ -87,11 +87,31 @@ describe('resolvePostAuthDestination', () => {
 })
 
 describe('buildAuthConfirmPath recovery', () => {
-  test('site-url code-only builds confirm path to update-password', async () => {
+  test('site-url code-only builds confirm path to dashboard', async () => {
     const { buildAuthConfirmPath } = await import('./parse-auth-callback-params')
     const params = new URLSearchParams('code=xyz')
     applyPasswordRecoveryRoutingHints(params)
-    expect(buildAuthConfirmPath(params)).toContain('next=%2Fauth%2Fupdate-password')
-    expect(buildAuthConfirmPath(params)).toContain('type=recovery')
+    expect(buildAuthConfirmPath(params)).toContain('next=%2Fdashboard')
+    expect(buildAuthConfirmPath(params)).not.toContain('type=recovery')
+  })
+
+  test('sessionStorage pending still routes bare code to update-password', () => {
+    const store = new Map<string, string>()
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value)
+      },
+      removeItem: (key: string) => {
+        store.delete(key)
+      },
+    })
+    store.set('ramply_password_recovery_pending', '1')
+
+    const params = new URLSearchParams('code=xyz')
+    applyPasswordRecoveryRoutingHints(params)
+    expect(params.get('type')).toBe('recovery')
+    expect(params.get('next')).toBe('/auth/update-password')
+    vi.unstubAllGlobals()
   })
 })

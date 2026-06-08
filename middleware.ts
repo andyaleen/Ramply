@@ -27,17 +27,24 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     const { pathname, search } = request.nextUrl
+    const searchParams = request.nextUrl.searchParams
     const hasAuthCallback =
-      request.nextUrl.searchParams.has('code')
-      || request.nextUrl.searchParams.has('token_hash')
-      || request.nextUrl.searchParams.has('access_token')
+      searchParams.has('code')
+      || searchParams.has('token_hash')
+      || searchParams.has('access_token')
+    const hasAuthError =
+      searchParams.has('error') || searchParams.has('error_description')
     const isProtectedRoute = isProtectedAppPath(pathname)
     const isAuthPage = pathname === '/login' || pathname === '/signup'
+    const isAuthCallbackHandler =
+      pathname === '/auth/confirm' || pathname === '/auth/callback'
 
-    if ((pathname === '/' || pathname === '/login') && hasAuthCallback) {
+    // Supabase may fall back to Site URL on any path (e.g. /auth/update-password?code=…)
+    // when redirect_to is not allowlisted — always route through /auth/confirm.
+    if (hasAuthCallback && !hasAuthError && !isAuthCallbackHandler) {
       const confirmUrl = request.nextUrl.clone()
       confirmUrl.pathname = '/auth/confirm'
-      request.nextUrl.searchParams.forEach((value, key) => {
+      searchParams.forEach((value, key) => {
         confirmUrl.searchParams.set(key, value)
       })
       applyPasswordRecoveryRoutingHints(confirmUrl.searchParams)

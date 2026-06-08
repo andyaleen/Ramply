@@ -7,10 +7,11 @@ export const AUTH_UPDATE_PASSWORD_PATH = '/auth/update-password'
  */
 export function buildSupabaseAuthRedirectUrl(nextPath: string): string {
   const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '')
-  const origin =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : configuredOrigin ?? 'http://localhost:3000'
+  const browserOrigin =
+    typeof window !== 'undefined' ? window.location.origin : undefined
+  // Prefer configured app URL so OAuth redirect matches Supabase allowlist even when
+  // the user started on www vs apex (e.g. www.ramply.org vs ramply.org).
+  const origin = configuredOrigin ?? browserOrigin ?? 'http://localhost:3000'
 
   const next = normalizeRequestedPath(nextPath, '/dashboard')
   // Must match an entry in Supabase Auth → URL Configuration → Redirect URLs exactly.
