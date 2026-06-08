@@ -23,8 +23,13 @@ export type CompletePasswordSignInErrorCode =
   | 'oauth_only'
   | 'user_not_found'
 
+export type CompletePasswordSignInSession = {
+  access_token: string
+  refresh_token: string
+}
+
 export type CompletePasswordSignInResult =
-  | { ok: true }
+  | { ok: true; session: CompletePasswordSignInSession | null }
   | { ok: false; status: number; error: string; code?: CompletePasswordSignInErrorCode }
 
 const SIGN_IN_RETRY_DELAY_MS = 400
@@ -102,8 +107,16 @@ export async function completePasswordSignIn(
     }
   }
 
+  let signedInSession: CompletePasswordSignInSession | null = null
+
   const attemptSignIn = async (): Promise<AuthError | null> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error && data.session) {
+      signedInSession = {
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      }
+    }
     return error
   }
 
@@ -114,7 +127,7 @@ export async function completePasswordSignIn(
   for (let attempt = 0; attempt < SIGN_IN_MAX_ATTEMPTS; attempt += 1) {
     signInError = await attemptSignIn()
     if (!signInError) {
-      return { ok: true }
+      return { ok: true, session: signedInSession }
     }
 
     const isInvalidCredentials = signInError.message
@@ -139,7 +152,7 @@ export async function completePasswordSignIn(
   }
 
   if (!signInError) {
-    return { ok: true }
+    return { ok: true, session: signedInSession }
   }
 
   if (signInError.message.toLowerCase().includes('invalid login')) {

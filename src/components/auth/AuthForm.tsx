@@ -16,6 +16,8 @@ import {
 import { normalizeRequestedPath } from '@/lib/auth/routing'
 import { extractShareRequestToken } from '@/lib/auth/share-recipient-signup'
 import { AUTH_PASSWORD_MIN_LENGTH, getSessionExpiryMessage } from '@/lib/auth/session-policy'
+import { applyClientAuthSession } from '@/lib/auth/apply-client-auth-session'
+import type { CompletePasswordSignInSession } from '@/lib/auth/complete-password-sign-in'
 import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -154,6 +156,7 @@ export function AuthForm({
     const payload = (await res.json().catch(() => ({}))) as {
       error?: string
       code?: 'incorrect_password' | 'oauth_only' | 'user_not_found'
+      session?: CompletePasswordSignInSession | null
     }
     if (!res.ok) {
       if (payload.code === 'incorrect_password') {
@@ -170,7 +173,14 @@ export function AuthForm({
       return false
     }
 
-    await supabase.auth.getSession()
+    try {
+      await applyClientAuthSession(supabase, payload.session)
+    } catch (sessionError) {
+      console.error('Failed to establish client session after sign-in:', sessionError)
+      setError('Signed in, but the session could not be saved. Please try again.')
+      return false
+    }
+
     router.replace(requestedPath)
     router.refresh()
     return true

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { completePasswordSignIn } from '@/lib/auth/complete-password-sign-in'
 import { AUTH_PASSWORD_MIN_LENGTH } from '@/lib/auth/session-policy'
 import { reportServerError } from '@/lib/monitoring'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 
 const CompleteSignInSchema = z.object({
   email: z.string().trim().email(),
@@ -17,10 +18,10 @@ const CompleteSignInSchema = z.object({
  * Password sign-in that sets the session cookie and bypasses Supabase email confirmation.
  * Requires a valid password; share invites optionally validate the onboard token first.
  */
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   let body: unknown
   try {
-    body = await req.json()
+    body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const supabase = await createClient()
+    const { supabase, withAuthCookies } = createRouteHandlerClient(request)
     const admin = createAdminClient()
     const result = await completePasswordSignIn(supabase, admin, {
       email: parsed.data.email,
@@ -50,7 +51,12 @@ export async function POST(req: Request) {
       )
     }
 
-    return NextResponse.json({ ok: true })
+    return withAuthCookies(
+      NextResponse.json({
+        ok: true,
+        session: result.session,
+      })
+    )
   } catch (error) {
     reportServerError('complete-sign-in', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
