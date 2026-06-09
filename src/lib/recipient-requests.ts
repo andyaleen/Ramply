@@ -198,7 +198,7 @@ export async function fetchReceivedSubmissionDetails(
 
 type RecipientSubmissionRpcPayload = {
   field_data?: Partial<Record<string, string>>
-  documents?: CompanyDocumentRow[]
+  documents?: Array<Omit<CompanyDocumentRow, 'extracted_fields' | 'approved_fields' | 'approved_at'>>
 }
 
 function parseRecipientSubmissionDetails(
@@ -216,7 +216,12 @@ function parseRecipientSubmissionDetails(
       field_data: fieldData,
       shared_at: '',
     },
-    sharedDocs: payload.documents ?? [],
+    sharedDocs: (payload.documents ?? []).map((doc) => ({
+      ...doc,
+      extracted_fields: {},
+      approved_fields: null,
+      approved_at: null,
+    })),
   }
 }
 

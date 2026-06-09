@@ -36,9 +36,7 @@ BEGIN
             'file_hash', cd.file_hash,
             'version', cd.version,
             'superseded_by', cd.superseded_by,
-            'uploaded_at', cd.uploaded_at,
-            'extracted_fields', COALESCE(cd.extracted_fields, '{}'::jsonb),
-            'approved_fields', cd.approved_fields
+            'uploaded_at', cd.uploaded_at
           )
           ORDER BY cd.uploaded_at DESC
         )
