@@ -1,13 +1,15 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Clock, FileText, Plus } from 'lucide-react'
+import { Clock, FileText, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
 import {
@@ -15,6 +17,7 @@ import {
   PENDING_REQUEST_STATUS_LABELS,
   resolvePendingRequestDisplayStatus,
 } from '@/lib/pending-request-status'
+import { filterPendingSentRequests } from '@/lib/pending-request-search'
 import {
   fetchPendingSentShareRequests,
   type PendingSentRequest,
@@ -31,12 +34,18 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
   const { company } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
+  const [searchQuery, setSearchQuery] = useState('')
 
   const { data: requests = [], isLoading, error, refetch } = useQuery({
     queryKey: ['pending-sent-requests', company?.id],
     queryFn: async () => fetchPendingSentShareRequests(supabase, company?.id),
     enabled: !!company?.id,
   })
+
+  const filteredRequests = useMemo(
+    () => filterPendingSentRequests(requests, searchQuery),
+    [requests, searchQuery]
+  )
 
   const cancelMutation = useMutation({
     mutationFn: async (shareRequestId: string) => {
@@ -73,14 +82,28 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
 
   return (
     <Card id="pending-requests">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5 text-yellow-600" />
-          Pending Requests
-        </CardTitle>
-        <CardDescription>
-          Share requests you sent that are still waiting for recipients to complete
-        </CardDescription>
+      <CardHeader className="gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-yellow-600" />
+            Pending Requests
+          </CardTitle>
+          <CardDescription>
+            Share requests you sent that are still waiting for recipients to complete
+          </CardDescription>
+        </div>
+        {!isLoading && !error && requests.length > 0 ? (
+          <div className="relative w-full sm:w-72 sm:shrink-0">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search email, company, type, date…"
+              className="pl-9"
+              aria-label="Search pending requests"
+            />
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -107,6 +130,11 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
               </Button>
             ) : null}
           </div>
+        ) : filteredRequests.length === 0 ? (
+          <div className="flex flex-col items-center py-10 text-gray-500">
+            <Search className="mb-3 h-10 w-10" />
+            <p>No pending requests match your search.</p>
+          </div>
         ) : (
           <Table>
             <TableHeader>
@@ -119,7 +147,7 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requests.map((request) => {
+              {filteredRequests.map((request) => {
                 const status = resolvePendingRequestDisplayStatus(request)
                 return (
                   <TableRow key={request.id}>
