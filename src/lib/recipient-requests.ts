@@ -41,6 +41,7 @@ export type CompletedReceivedShareRequest = Pick<
 > & {
   companyName: string | null
   requesterEmail: string
+  recipientEmail: string
 }
 
 export type ReceivedSubmissionDetails = {
@@ -67,6 +68,7 @@ type CompletedReceivedShareRequestRow = PendingReceivedShareRequestRow & {
   mandatory_documents: ShareRequestRow['mandatory_documents']
   optional_documents: ShareRequestRow['optional_documents']
   completed_at: string | null
+  recipient_email: string | null
 }
 
 /** Resolve requester company name from profile fields only. */
@@ -164,6 +166,7 @@ export async function fetchCompletedReceivedShareRequests(
     completed_at: row.completed_at,
     companyName: resolveRequesterCompanyName(row),
     requesterEmail: row.requester_email?.trim() ?? '',
+    recipientEmail: row.recipient_email?.trim() ?? '',
   }))
 }
 

@@ -144,6 +144,7 @@ describe('recipient request queries', () => {
             requester_company_legal_name: 'Acme Corp',
             requester_company_dba_name: null,
             requester_email: 'sender@example.com',
+            recipient_email: 'vendor@example.com',
           },
         ],
         error: null,
@@ -168,6 +169,7 @@ describe('recipient request queries', () => {
         completed_at: '2026-06-02T00:00:00.000Z',
         companyName: 'Acme Corp',
         requesterEmail: 'sender@example.com',
+        recipientEmail: 'vendor@example.com',
       },
     ])
   })

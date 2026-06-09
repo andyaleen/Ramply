@@ -561,7 +561,8 @@ RETURNS TABLE (
   completed_at TIMESTAMPTZ,
   requester_company_legal_name TEXT,
   requester_company_dba_name TEXT,
-  requester_email TEXT
+  requester_email TEXT,
+  recipient_email TEXT
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -577,7 +578,8 @@ BEGIN
       sr.completed_at,
       rc.legal_name,
       rc.dba_name,
-      ru.email
+      ru.email,
+      sr.recipient_email
     FROM share_requests sr
     LEFT JOIN companies rc ON rc.id = sr.requester_company_id
     LEFT JOIN users ru ON ru.id = rc.owner_user_id

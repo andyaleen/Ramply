@@ -132,7 +132,7 @@ export default function RequestsPage() {
                   <TableRow key={request.id}>
                     <TableCell className="font-medium">{request.companyName ?? '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {request.requesterEmail || '—'}
+                      {request.recipientEmail || '—'}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDate(request.created_at)}

@@ -82,8 +82,8 @@ export function ReceivedSubmissionDialog({ request, onClose }: ReceivedSubmissio
                   <p className="text-sm font-medium">{request.companyName ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="text-sm font-medium">{request.requesterEmail || '—'}</p>
+                  <p className="text-xs text-muted-foreground">Submitted by</p>
+                  <p className="text-sm font-medium">{request.recipientEmail || '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Received</p>
