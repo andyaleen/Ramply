@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { BookTemplate, PencilLine, Plus } from 'lucide-react'
+import { PencilLine, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { RequestTemplateRow } from '@/lib/database.types'
 import { TemplateSchema, type TemplateFormValues } from '@/lib/validations'
@@ -101,10 +101,7 @@ export function SavedRequestTemplatesPanel({
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <BookTemplate className="h-5 w-5 text-blue-600" />
-              Saved Templates
-            </CardTitle>
+            <CardTitle>Saved Templates</CardTitle>
             <CardDescription>Reuse, update, or remove request templates from this page.</CardDescription>
           </div>
           <Button onClick={onCreateNew} className="gap-2 sm:self-center">
@@ -140,8 +137,14 @@ export function SavedRequestTemplatesPanel({
                       <Button size="sm" variant="outline" onClick={() => setEditingTemplateId(template.id)}>
                         Edit
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(template)}>
-                        Delete
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="px-2"
+                        aria-label={`Delete template ${template.name}`}
+                        onClick={() => handleDelete(template)}
+                      >
+                        <Trash2 className="h-4 w-4 text-black" />
                       </Button>
                     </div>
                   </div>

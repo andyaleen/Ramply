@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS share_requests (
   optional_documents TEXT[] NOT NULL DEFAULT '{}',
   token TEXT UNIQUE NOT NULL,
   expires_at TIMESTAMPTZ,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'expired', 'denied')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'expired', 'denied', 'cancelled')),
   completed_by_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   completed_at TIMESTAMPTZ,
   denied_at TIMESTAMPTZ,
@@ -792,6 +792,34 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION deny_share_request(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION cancel_share_request(p_share_request_id UUID)
+RETURNS VOID AS $$
+DECLARE
+  v_company_id UUID;
+BEGIN
+  SELECT id INTO v_company_id
+  FROM companies
+  WHERE owner_user_id = auth.uid();
+
+  IF v_company_id IS NULL THEN
+    RAISE EXCEPTION 'company_not_found';
+  END IF;
+
+  UPDATE share_requests
+  SET status = 'cancelled',
+      updated_at = NOW()
+  WHERE id = p_share_request_id
+    AND requester_company_id = v_company_id
+    AND status = 'pending';
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'share_request_not_allowed';
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION cancel_share_request(UUID) TO authenticated;
 
 CREATE OR REPLACE FUNCTION get_requester_shared_documents(p_share_request_ids UUID[])
 RETURNS TABLE (

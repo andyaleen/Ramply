@@ -1,13 +1,13 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Clock, FileText, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 import { documentTypeLabel, fieldLabel } from '@/lib/catalog'
 import { formatDate, formatExpirationHint, isExpiringSoon } from '@/lib/utils'
 import {
@@ -25,12 +25,46 @@ interface PendingSentRequestsPanelProps {
 export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequestsPanelProps) {
   const { company } = useAuth()
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
   const { data: requests = [], isLoading, error, refetch } = useQuery({
     queryKey: ['pending-sent-requests', company?.id],
     queryFn: async () => fetchPendingSentShareRequests(supabase, company?.id),
     enabled: !!company?.id,
   })
+
+  const cancelMutation = useMutation({
+    mutationFn: async (shareRequestId: string) => {
+      const response = await fetch('/api/share-requests/cancel', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ share_request_id: shareRequestId }),
+      })
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to cancel request')
+      }
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pending-sent-requests'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] }),
+      ])
+      toast.success('Request cancelled')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
+  function handleCancel(request: PendingSentRequest) {
+    const recipient = request.recipient_email || 'this recipient'
+    const confirmed = window.confirm(`Cancel the pending request sent to ${recipient}?`)
+    if (!confirmed) return
+    cancelMutation.mutate(request.id)
+  }
 
   return (
     <Card id="pending-requests">
@@ -75,9 +109,9 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
                 <TableHead>Recipient</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Requested</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>Sent</TableHead>
                 <TableHead>Expires</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -89,12 +123,6 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
                   <TableCell>{request.request_type}</TableCell>
                   <TableCell className="max-w-md whitespace-normal text-sm text-muted-foreground">
                     <RequestSelections request={request} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge className="flex w-fit items-center gap-1 bg-yellow-100 text-yellow-800">
-                      <Clock className="h-3 w-3" />
-                      Pending
-                    </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(request.created_at)}
@@ -114,6 +142,18 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
                         {formatDate(request.expires_at)}
                       </span>
                     ) : null}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
+                      disabled={cancelMutation.isPending}
+                      onClick={() => handleCancel(request)}
+                    >
+                      Cancel
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

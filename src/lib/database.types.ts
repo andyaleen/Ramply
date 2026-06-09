@@ -284,7 +284,7 @@ export type Database = {
           optional_documents: DocumentTypeKey[]
           token: string
           expires_at: string | null
-          status: 'pending' | 'completed' | 'expired' | 'denied'
+          status: 'pending' | 'completed' | 'expired' | 'denied' | 'cancelled'
           completed_by_company_id: string | null
           completed_at: string | null
           denied_at: string | null
@@ -303,7 +303,7 @@ export type Database = {
           optional_documents?: DocumentTypeKey[]
           token: string
           expires_at?: string | null
-          status?: 'pending' | 'completed' | 'expired' | 'denied'
+          status?: 'pending' | 'completed' | 'expired' | 'denied' | 'cancelled'
           completed_by_company_id?: string | null
           completed_at?: string | null
           denied_at?: string | null
@@ -322,7 +322,7 @@ export type Database = {
           optional_documents?: DocumentTypeKey[]
           token?: string
           expires_at?: string | null
-          status?: 'pending' | 'completed' | 'expired' | 'denied'
+          status?: 'pending' | 'completed' | 'expired' | 'denied' | 'cancelled'
           completed_by_company_id?: string | null
           completed_at?: string | null
           denied_at?: string | null
