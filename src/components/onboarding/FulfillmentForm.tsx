@@ -278,8 +278,9 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
 
       <Button
         type="button"
-        variant="ghost"
-        className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+        variant="outline"
+        size="lg"
+        className="w-full border-red-200 bg-red-50 text-red-800 hover:bg-red-100 hover:text-red-900"
         onClick={() => setDenyDialogOpen(true)}
         disabled={mutation.isPending}
       >

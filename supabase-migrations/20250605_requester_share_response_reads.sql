@@ -52,10 +52,7 @@ BEGIN
   RETURN QUERY
   SELECT DISTINCT c.id, c.legal_name, c.dba_name, c.owner_user_id
   FROM companies c
-  JOIN share_requests sr ON (
-    sr.completed_by_company_id = c.id
-    OR sr.denied_by_company_id = c.id
-  )
+  JOIN share_requests sr ON sr.completed_by_company_id = c.id
   JOIN companies requester ON sr.requester_company_id = requester.id
   WHERE requester.owner_user_id = auth.uid()
     AND c.id = ANY(p_company_ids);

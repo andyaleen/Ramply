@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/utils'
 import { downloadDocument } from '@/lib/file-utils'
 import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
 import {
+  fetchShareRequestsForRequester,
   fetchSharedDocumentsForRequester,
   fetchSharedRecipientCompanies,
   resolveRecipientCompanyLabel,
@@ -43,15 +44,8 @@ export function OnboardingResponsesList() {
     queryFn: async () => {
       if (!company) return []
 
-      const { data: requests, error: reqError } = await supabase
-        .from('share_requests')
-        .select('id, requester_company_id, request_type, recipient_email, mandatory_fields, mandatory_documents, optional_fields, optional_documents, expires_at, status, completed_by_company_id, completed_at, denied_at, denied_by_company_id, created_at, updated_at')
-        .eq('requester_company_id', company.id)
-        .in('status', ['completed', 'denied'])
-        .order('updated_at', { ascending: false })
-
-      if (reqError) throw reqError
-      if (!requests?.length) return []
+      const requests = await fetchShareRequestsForRequester(supabase, company.id)
+      if (!requests.length) return []
 
       const ids = requests.map((r) => r.id)
       const companyIds = requests

@@ -1,10 +1,23 @@
-import type { CompanyDocumentRow, CompanyRow, SharedDataRow } from '@/lib/database.types'
+import type {
+  CompanyDocumentRow,
+  CompanyRow,
+  SharedDataRow,
+  ShareRequestRow,
+} from '@/lib/database.types'
 import type { createClient } from '@/lib/supabase/client'
 
 export const REQUESTER_DOCUMENT_COLUMNS =
   'id, company_id, document_type, file_path, file_name, file_size, mime_type, file_hash, version, superseded_by, uploaded_at'
 
 export const REQUESTER_COMPANY_COLUMNS = 'id, legal_name, dba_name, owner_user_id'
+
+export const SHARE_REQUEST_COLUMNS_WITH_DENIED =
+  'id, requester_company_id, request_type, recipient_email, mandatory_fields, mandatory_documents, optional_fields, optional_documents, expires_at, status, completed_by_company_id, completed_at, denied_at, denied_by_company_id, created_at, updated_at'
+
+export const SHARE_REQUEST_COLUMNS_LEGACY =
+  'id, requester_company_id, request_type, recipient_email, mandatory_fields, mandatory_documents, optional_fields, optional_documents, expires_at, status, completed_by_company_id, completed_at, created_at, updated_at'
+
+export type RequesterShareRequestRow = Omit<ShareRequestRow, 'token'>
 
 export type RequesterShareResponsesClient = ReturnType<typeof createClient>
 
@@ -35,6 +48,56 @@ export function resolveRecipientCompanyLabel(
   }
 
   return recipientEmail?.trim() || 'Unknown company'
+}
+
+/** True when the deny-request migration has not been applied yet. */
+export function isMissingDeniedColumns(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === 'PGRST204') return /denied_/i.test(error.message ?? '')
+  return /denied_at|denied_by_company_id/i.test(error.message ?? '')
+}
+
+/** True when requester share-response RPCs have not been deployed yet. */
+export function isMissingRequesterShareRpc(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === 'PGRST202') return true
+  return /get_requester_shared_(documents|companies)/i.test(error.message ?? '')
+}
+
+/** Load completed and declined share requests for the signed-in requester company. */
+export async function fetchShareRequestsForRequester(
+  supabase: RequesterShareResponsesClient,
+  requesterCompanyId: string
+): Promise<RequesterShareRequestRow[]> {
+  const withDenied = await supabase
+    .from('share_requests')
+    .select(SHARE_REQUEST_COLUMNS_WITH_DENIED)
+    .eq('requester_company_id', requesterCompanyId)
+    .in('status', ['completed', 'denied'])
+    .order('updated_at', { ascending: false })
+
+  if (!withDenied.error) {
+    return (withDenied.data ?? []) as RequesterShareRequestRow[]
+  }
+
+  if (!isMissingDeniedColumns(withDenied.error)) {
+    throw withDenied.error
+  }
+
+  const legacy = await supabase
+    .from('share_requests')
+    .select(SHARE_REQUEST_COLUMNS_LEGACY)
+    .eq('requester_company_id', requesterCompanyId)
+    .eq('status', 'completed')
+    .order('updated_at', { ascending: false })
+
+  if (legacy.error) throw legacy.error
+
+  return (legacy.data ?? []).map((row) => ({
+    ...(row as Omit<ShareRequestRow, 'token' | 'denied_at' | 'denied_by_company_id'>),
+    denied_at: null,
+    denied_by_company_id: null,
+  }))
 }
 
 /** Load documents shared with the signed-in requester for the given share requests. */
@@ -88,7 +151,10 @@ async function fetchSharedDocumentsViaRpc(
     p_share_request_ids: shareRequestIds,
   })
 
-  if (error) throw error
+  if (error) {
+    if (isMissingRequesterShareRpc(error)) return []
+    throw error
+  }
 
   return (data ?? []).map((row: RpcSharedDocumentRow) => ({
     share_request_id: row.share_request_id,
@@ -132,6 +198,9 @@ export async function fetchSharedRecipientCompanies(
   })
 
   if (rpcError) {
+    if (isMissingRequesterShareRpc(rpcError)) {
+      return (data ?? []) as CompanyRow[]
+    }
     if (error) throw error
     throw rpcError
   }

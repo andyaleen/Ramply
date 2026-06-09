@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { OnboardingResponsesList } from '@/components/dashboard/OnboardingResponsesList'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, FileText, Users } from 'lucide-react'
+import { ArrowLeft, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface ResponseStats {
@@ -81,9 +81,8 @@ export default function ResponsesPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Responses</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {statsLoading
@@ -95,9 +94,8 @@ export default function ResponsesPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Month</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {statsLoading
@@ -109,9 +107,8 @@ export default function ResponsesPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Unique Request Types</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {statsLoading
