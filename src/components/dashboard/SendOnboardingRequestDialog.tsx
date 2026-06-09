@@ -42,7 +42,7 @@ export function SendOnboardingRequestDialog({
   const [createdForEmail, setCreatedForEmail] = useState<string | null>(null)
   const [inviteEmailSent, setInviteEmailSent] = useState<boolean | null>(null)
   const [inviteEmailError, setInviteEmailError] = useState<string | null>(null)
-  const [atLimit, setAtLimit] = useState(false)
+  const [limitReason, setLimitReason] = useState<'free_tier_limit' | 'classic_monthly_limit' | null>(null)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
@@ -74,9 +74,12 @@ export function SendOnboardingRequestDialog({
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string }
-        if (res.status === 402 || err.error === 'free_tier_limit') {
-          setAtLimit(true)
-          throw new Error('free_tier_limit')
+        if (
+          res.status === 402 &&
+          (err.error === 'free_tier_limit' || err.error === 'classic_monthly_limit')
+        ) {
+          setLimitReason(err.error)
+          throw new Error(err.error)
         }
         throw new Error(err.error ?? 'Failed to create share request')
       }
@@ -103,7 +106,10 @@ export function SendOnboardingRequestDialog({
       }
     },
     onError: (error) => {
-      if ((error as Error).message === 'free_tier_limit') return // handled by atLimit state
+      if (
+        (error as Error).message === 'free_tier_limit' ||
+        (error as Error).message === 'classic_monthly_limit'
+      ) return
       console.error('Failed to create share request:', error)
       toast.error('Failed to create share request. Please try again.')
     },
@@ -125,7 +131,7 @@ export function SendOnboardingRequestDialog({
     setCreatedForEmail(null)
     setInviteEmailSent(null)
     setInviteEmailError(null)
-    setAtLimit(false)
+    setLimitReason(null)
     setShowSaveTemplate(false)
     setTemplateName('')
     onOpenChange(false)
@@ -194,23 +200,25 @@ export function SendOnboardingRequestDialog({
   const usingSavedTemplate = Boolean(initialTemplateId)
   const submitLabel = createMutation.isPending ? 'Sending…' : 'Send Request'
 
-  if (atLimit) {
+  if (limitReason) {
+    const isClassicLimit = limitReason === 'classic_monthly_limit'
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-blue-600" />
-              Upgrade to Pro
+              {isClassicLimit ? 'Upgrade to Ramply Pro' : 'Choose a plan'}
             </DialogTitle>
             <DialogDescription>
-              You have reached the free tier limit of 3 connected companies.
-              Upgrade to Ramply Pro for unlimited connections.
+              {isClassicLimit
+                ? 'You have used all 20 share requests included with Classic this month. Upgrade to Ramply Pro for unlimited requests.'
+                : 'You have used all 3 free share requests. Subscribe to Classic or Ramply Pro to keep sending onboarding requests.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={handleClose}>Cancel</Button>
-            <Button onClick={() => { handleClose(); router.push('/dashboard/billing') }}>
+            <Button onClick={() => { handleClose(); router.push(isClassicLimit ? '/dashboard/billing' : '/pricing') }}>
               View Plans
             </Button>
           </DialogFooter>

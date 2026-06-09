@@ -1,7 +1,4 @@
 import { createBrowserClient } from '@supabase/ssr'
-import type { SupabaseClient } from '@supabase/supabase-js'
-
-let browserClient: SupabaseClient | undefined
 
 export const createClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -32,14 +29,11 @@ export const createClient = () => {
     }
   }
 
-  if (!browserClient) {
-    browserClient = createBrowserClient(effectiveUrl!, key!, {
-      auth: {
-        flowType: 'pkce',
-        detectSessionInUrl: true,
-      },
-    })
-  }
-
-  return browserClient
+  // Fresh client per call — PKCE verifier is stored in cookies by @supabase/ssr.
+  // Server-side /auth/callback exchanges the code; avoid detectSessionInUrl races.
+  return createBrowserClient(effectiveUrl!, key!, {
+    auth: {
+      flowType: 'pkce',
+    },
+  })
 }

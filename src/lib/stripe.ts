@@ -15,13 +15,14 @@ export function getStripe(): Stripe {
   return stripeClient
 }
 
-/** The Stripe Price ID for the Ramply Pro monthly subscription. */
-export function getStripePriceId(): string {
-  if (!process.env.STRIPE_PRO_PRICE_ID) {
-    throw new Error('STRIPE_PRO_PRICE_ID is not set')
-  }
-  return process.env.STRIPE_PRO_PRICE_ID
-}
+export type CheckoutPlan = 'classic' | 'pro'
 
-/** Free tier limit: max number of unique companies a requester can connect with. */
-export const FREE_TIER_LIMIT = 3
+/** Returns the Stripe Price ID for the requested paid plan. */
+export function getStripePriceId(plan: CheckoutPlan): string {
+  const envKey = plan === 'classic' ? 'STRIPE_CLASSIC_PRICE_ID' : 'STRIPE_PRO_PRICE_ID'
+  const priceId = process.env[envKey]
+  if (!priceId) {
+    throw new Error(`${envKey} is not set`)
+  }
+  return priceId
+}

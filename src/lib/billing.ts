@@ -1,14 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
-import { FREE_TIER_LIMIT } from '@/lib/stripe'
+import {
+  checkSendRequestLimit,
+  CLASSIC_MONTHLY_LIMIT,
+  FREE_REQUEST_LIMIT,
+  getPlanFromPriceId,
+  isActiveSubscription,
+  type SubscriptionPlan,
+} from '@/lib/plan-limits'
+import { getShareRequestCounts } from '@/lib/request-usage'
 
 export interface BillingStatus {
-  /** Whether the company has an active paid subscription. */
+  plan: SubscriptionPlan
   isSubscribed: boolean
-  /** Number of unique companies that have completed a share request. */
-  connectedCount: number
-  /** True when on the free tier and at or over the limit. */
+  totalSent: number
+  monthlySent: number
   isAtLimit: boolean
-  /** The company's Stripe customer ID, if one exists. */
+  limitError: 'free_tier_limit' | 'classic_monthly_limit' | null
   stripeCustomerId: string | null
 }
 
@@ -23,31 +30,30 @@ export async function getBillingStatus(): Promise<BillingStatus | null> {
 
   const { data: company } = await supabase
     .from('companies')
-    .select('id, stripe_customer_id, subscription_status')
+    .select('id, stripe_customer_id, subscription_status, subscription_price_id')
     .eq('owner_user_id', user.id)
     .single()
 
   if (!company) return null
 
-  // Count distinct companies that have completed a share request to this requester
-  const { data: connections } = await supabase
-    .from('share_requests')
-    .select('completed_by_company_id')
-    .eq('requester_company_id', company.id)
-    .eq('status', 'completed')
-    .not('completed_by_company_id', 'is', null)
-
-  const connectedCount = new Set(
-    (connections ?? []).map((r) => r.completed_by_company_id)
-  ).size
-
-  const isSubscribed = company.subscription_status === 'active' ||
-    company.subscription_status === 'trialing'
+  const counts = await getShareRequestCounts(supabase, company.id)
+  const subscribed = isActiveSubscription(company.subscription_status)
+  const plan = subscribed ? getPlanFromPriceId(company.subscription_price_id) : 'free'
+  const limit = checkSendRequestLimit(
+    company.subscription_status,
+    company.subscription_price_id,
+    counts,
+  )
 
   return {
-    isSubscribed,
-    connectedCount,
-    isAtLimit: !isSubscribed && connectedCount >= FREE_TIER_LIMIT,
+    plan,
+    isSubscribed: subscribed,
+    totalSent: counts.totalSent,
+    monthlySent: counts.monthlySent,
+    isAtLimit: !limit.allowed,
+    limitError: limit.error ?? null,
     stripeCustomerId: company.stripe_customer_id ?? null,
   }
 }
+
+export { FREE_REQUEST_LIMIT, CLASSIC_MONTHLY_LIMIT }

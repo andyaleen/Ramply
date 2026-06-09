@@ -28,6 +28,18 @@ export async function middleware(request: NextRequest) {
 
     const { pathname, search } = request.nextUrl
     const searchParams = request.nextUrl.searchParams
+
+    // Legacy Supabase redirects may still target /auth/confirm?code=… — exchange on the server.
+    if (
+      pathname === '/auth/confirm'
+      && searchParams.has('code')
+      && !searchParams.has('access_token')
+    ) {
+      const callbackUrl = request.nextUrl.clone()
+      callbackUrl.pathname = '/auth/callback'
+      return NextResponse.redirect(callbackUrl)
+    }
+
     const hasAuthCallback =
       searchParams.has('code')
       || searchParams.has('token_hash')
@@ -37,13 +49,13 @@ export async function middleware(request: NextRequest) {
     const isProtectedRoute = isProtectedAppPath(pathname)
     const isAuthPage = pathname === '/login' || pathname === '/signup'
     const isAuthCallbackHandler =
-      pathname === '/auth/confirm' || pathname === '/auth/callback'
+      pathname === '/auth/callback' || pathname === '/auth/confirm'
 
     // Supabase may fall back to Site URL on any path (e.g. /auth/update-password?code=…)
     // when redirect_to is not allowlisted — always route through /auth/confirm.
     if (hasAuthCallback && !hasAuthError && !isAuthCallbackHandler) {
       const confirmUrl = request.nextUrl.clone()
-      confirmUrl.pathname = '/auth/confirm'
+      confirmUrl.pathname = searchParams.has('code') ? '/auth/callback' : '/auth/confirm'
       searchParams.forEach((value, key) => {
         confirmUrl.searchParams.set(key, value)
       })

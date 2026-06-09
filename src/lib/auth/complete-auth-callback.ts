@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { getAuthConfirmNextPath } from '@/lib/auth/auth-redirect'
+import { formatAuthExchangeError } from '@/lib/auth/auth-exchange-errors'
 import { isPkceVerifierError, waitForAuthSession } from '@/lib/auth/wait-for-auth-session'
 
 export type CompleteAuthCallbackParams = URLSearchParams
@@ -59,13 +60,9 @@ export async function completeAuthCallback(
         return { ok: true, nextPath }
       }
       if (isPkceVerifierError(error.message)) {
-        return {
-          ok: false,
-          error:
-            'Open the reset link in the same browser where you clicked Forgot password, or request a new reset email from ramply.org/login.',
-        }
+        return { ok: false, error: formatAuthExchangeError(error.message) }
       }
-      return { ok: false, error: error.message }
+      return { ok: false, error: formatAuthExchangeError(error.message) }
     }
     return { ok: true, nextPath }
   }

@@ -1,13 +1,25 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { getStripe, getStripePriceId } from '@/lib/stripe'
+import { getStripe, getStripePriceId, type CheckoutPlan } from '@/lib/stripe'
+
+const CHECKOUT_PLANS = new Set<CheckoutPlan>(['classic', 'pro'])
 
 /**
  * POST /api/billing/checkout
- * Creates a Stripe Checkout session for the Pro subscription.
+ * Creates a Stripe Checkout session for Classic or Ramply Pro.
  * Redirects to Stripe's hosted checkout page.
  */
-export async function POST() {
+export async function POST(req: Request) {
+  let plan: CheckoutPlan = 'classic'
+  try {
+    const body = await req.json() as { plan?: string }
+    if (body.plan && CHECKOUT_PLANS.has(body.plan as CheckoutPlan)) {
+      plan = body.plan as CheckoutPlan
+    }
+  } catch {
+    // Default to Classic when no body is provided.
+  }
+
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
@@ -27,7 +39,7 @@ export async function POST() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
   const stripe = getStripe()
-  const priceId = getStripePriceId()
+  const priceId = getStripePriceId(plan)
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -39,10 +51,10 @@ export async function POST() {
       : { customer_email: user.email }),
     // Pass company ID so the webhook can link the subscription back
     client_reference_id: company.id,
-    success_url: `${appUrl}/dashboard/billing?success=1`,
+    success_url: `${appUrl}/dashboard/billing?success=1&plan=${plan}`,
     cancel_url: `${appUrl}/dashboard/billing?canceled=1`,
     subscription_data: {
-      metadata: { company_id: company.id },
+      metadata: { company_id: company.id, plan },
     },
   })
 

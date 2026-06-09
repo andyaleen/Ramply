@@ -26,7 +26,7 @@ const LEGACY_ADMIN_PATH_MAP: Record<string, string> = {
   '/admin': '/dashboard',
   '/admin/send-links': '/dashboard/send-links',
   '/admin/responses': '/dashboard/responses',
-  '/admin/templates': '/dashboard/templates',
+  '/admin/templates': '/dashboard/send-links',
   '/admin/billing': '/dashboard/billing',
   '/admin/settings': '/dashboard/settings',
   '/admin/request-types': '/dashboard',

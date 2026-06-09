@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
 export default function LegacyAdminTemplates() {
-  redirect('/dashboard/templates')
+  redirect('/dashboard/send-links')
 }

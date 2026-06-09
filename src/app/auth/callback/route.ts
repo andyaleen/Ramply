@@ -1,13 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
 import { getAuthConfirmNextPath } from '@/lib/auth/auth-redirect'
+import { formatAuthExchangeError } from '@/lib/auth/auth-exchange-errors'
 import { applyPasswordRecoveryRoutingHints } from '@/lib/auth/password-recovery-pending'
+import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 
 /**
- * Handles email auth links that include token_hash (server-safe).
- * PKCE `code` links are forwarded to /auth/confirm for browser cookie exchange.
+ * Handles Supabase auth return URLs.
+ * PKCE `code` and `token_hash` links are verified here so session cookies
+ * are set on the server using the browser's PKCE cookie.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -24,7 +26,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (token_hash && type) {
-    const supabase = await createClient()
+    const destination = new URL(next, origin)
+    const { supabase, getResponse } = createRouteHandlerClient(request, () =>
+      NextResponse.redirect(destination),
+    )
+
     const { error } = await supabase.auth.verifyOtp({
       type: type as EmailOtpType,
       token_hash,
@@ -32,26 +38,33 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       const errorUrl = new URL('/auth/auth-code-error', origin)
-      errorUrl.searchParams.set('error', error.message)
+      errorUrl.searchParams.set('error', formatAuthExchangeError(error.message))
       return NextResponse.redirect(errorUrl)
     }
 
-    return NextResponse.redirect(new URL(next, origin))
+    return getResponse()
   }
 
   if (code) {
-    const confirmUrl = new URL('/auth/confirm', origin)
-    searchParams.forEach((value, key) => {
-      confirmUrl.searchParams.set(key, value)
-    })
-    applyPasswordRecoveryRoutingHints(confirmUrl.searchParams)
-    if (!confirmUrl.searchParams.get('next')) {
-      confirmUrl.searchParams.set(
-        'next',
-        getAuthConfirmNextPath(null, confirmUrl.searchParams.get('type'))
-      )
+    applyPasswordRecoveryRoutingHints(searchParams)
+
+    const destination = new URL('/auth/oauth-complete', origin)
+    destination.searchParams.set('next', next)
+    if (type) destination.searchParams.set('type', type)
+
+    const { supabase, getResponse } = createRouteHandlerClient(request, () =>
+      NextResponse.redirect(destination),
+    )
+
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (error) {
+      const errorUrl = new URL('/auth/auth-code-error', origin)
+      errorUrl.searchParams.set('error', formatAuthExchangeError(error.message))
+      return NextResponse.redirect(errorUrl)
     }
-    return NextResponse.redirect(confirmUrl)
+
+    return getResponse()
   }
 
   const errorUrl = new URL('/auth/auth-code-error', origin)

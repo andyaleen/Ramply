@@ -31,7 +31,7 @@ export default function SendLinksPage() {
   return (
     <div className="flex-1 space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Send Share Requests</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Send Requests</h1>
         <Button onClick={openChooser} className="flex shrink-0 items-center gap-2">
           <Plus className="h-4 w-4" />
           Create Share Request

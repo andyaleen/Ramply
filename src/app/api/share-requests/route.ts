@@ -5,6 +5,8 @@ import { ShareRequestSchema } from '@/lib/validations'
 import { reportServerError } from '@/lib/monitoring'
 import { getShareLinkOrigin } from '@/lib/share-link-origin'
 import { sendShareRequestInvite } from '@/lib/email/share-request-invite'
+import { checkSendRequestLimit } from '@/lib/plan-limits'
+import { getShareRequestCounts } from '@/lib/request-usage'
 
 /** Generate a URL-safe 32-byte hex token on the server. */
 function generateToken(): string {
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
 
   const { data: company, error: companyError } = await supabase
     .from('companies')
-    .select('id, subscription_status, legal_name')
+    .select('id, subscription_status, subscription_price_id, legal_name')
     .eq('owner_user_id', user.id)
     .single()
 
@@ -40,28 +42,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Company not found' }, { status: 400 })
   }
 
-  // Enforce free-tier limit: max 3 unique connected companies
-  const isSubscribed = company.subscription_status === 'active' ||
-    company.subscription_status === 'trialing'
+  const counts = await getShareRequestCounts(supabase, company.id)
+  const limit = checkSendRequestLimit(
+    company.subscription_status,
+    company.subscription_price_id,
+    counts,
+  )
 
-  if (!isSubscribed) {
-    const { data: connections } = await supabase
-      .from('share_requests')
-      .select('completed_by_company_id')
-      .eq('requester_company_id', company.id)
-      .eq('status', 'completed')
-      .not('completed_by_company_id', 'is', null)
-
-    const uniqueConnected = new Set(
-      (connections ?? []).map((r) => r.completed_by_company_id)
-    ).size
-
-    if (uniqueConnected >= 3) {
-      return NextResponse.json(
-        { error: 'free_tier_limit', message: 'Upgrade to Pro to connect with more than 3 companies.' },
-        { status: 402 }
-      )
-    }
+  if (!limit.allowed && limit.error) {
+    return NextResponse.json(
+      { error: limit.error, message: limit.message },
+      { status: 402 },
+    )
   }
 
   const token = generateToken()

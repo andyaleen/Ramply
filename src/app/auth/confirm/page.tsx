@@ -34,12 +34,15 @@ function AuthConfirmContent() {
       applyPasswordRecoveryRoutingHints(params)
 
       if (!hasAuthCallbackParams(params)) {
-        setStatus('No sign-in data found in this link.')
-        router.replace(
-          `/auth/auth-code-error?error=${encodeURIComponent(
-            'This link is missing sign-in data. Request a new password reset from https://www.ramply.org/login (same browser).'
-          )}`
-        )
+        router.replace('/login')
+        return
+      }
+
+      // PKCE codes must be exchanged server-side (see /auth/callback).
+      if (params.get('code') && !params.get('access_token')) {
+        const callback = new URLSearchParams()
+        params.forEach((value, key) => callback.set(key, value))
+        window.location.replace(`/auth/callback?${callback.toString()}`)
         return
       }
 

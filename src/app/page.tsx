@@ -4,14 +4,13 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { RamplyMarketingNav } from '@/components/marketing/RamplyMarketingNav'
+import { sansBody, serifTitle } from '@/components/marketing/marketing-styles'
 import {
   buildAuthConfirmPath,
   getAuthCallbackParamsFromLocation,
   hasAuthCallbackParams,
 } from '@/lib/auth/parse-auth-callback-params'
-
-const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
-const sansBody = "font-['DM_Sans',sans-serif]"
 
 const onboardingItems = [
   'W-9 tax form',
@@ -64,37 +63,13 @@ export default function Landing() {
 
   return (
     <div className={`${sansBody} min-h-screen bg-[#F0EFE9] text-[#0F1F18]`}>
-      <RamplyNav onLoginClick={() => router.push('/login')} />
+      <RamplyMarketingNav onLoginClick={() => router.push('/login')} />
       <Hero
         onPrimaryClick={() => router.push('/signup')}
         onSecondaryClick={() => router.push('/signup')}
       />
       <StatsBar />
     </div>
-  )
-}
-
-interface NavProps {
-  onLoginClick: () => void
-}
-
-/** Renders the landing-page nav with the simplified Ramply wordmark. */
-function RamplyNav({ onLoginClick }: NavProps) {
-  return (
-    <header className="bg-[#F0EFE9] border-b border-[#DDDCD5]">
-      <div className="h-16 flex items-center justify-between px-6 md:px-12">
-        <span className="text-[20px] md:text-[24px] font-semibold text-[#0F1F18]">
-          Ramply
-        </span>
-        <button
-          type="button"
-          onClick={onLoginClick}
-          className="text-[14px] md:text-[15px] text-[#4A5C54] hover:text-[#0F1F18] px-3 py-1.5 rounded-lg"
-        >
-          Log in
-        </button>
-      </div>
-    </header>
   )
 }
 

@@ -2,57 +2,55 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-/**
- * Supabase client for Route Handlers — mirrors middleware cookie wiring so
- * sign-in can persist session cookies on the HTTP response.
- */
-export function createRouteHandlerClient(request: NextRequest) {
-  let cookieResponse = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
-  const supabaseKey =
+function getSupabaseKey(): string {
+  return (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+/**
+ * Supabase client for Route Handlers — uses getAll/setAll so auth cookies
+ * persist correctly on redirects (required by @supabase/ssr 0.6+).
+ */
+export function createRouteHandlerClient(
+  request: NextRequest,
+  buildResponse: () => NextResponse = () =>
+    NextResponse.next({ request: { headers: request.headers } }),
+) {
+  let response = buildResponse()
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey!,
+    getSupabaseKey(),
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: Record<string, unknown>) {
-          request.cookies.set({ name, value, ...options })
-          cookieResponse = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value)
           })
-          cookieResponse.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: Record<string, unknown>) {
-          request.cookies.set({ name, value: '', ...options })
-          cookieResponse = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+          response = buildResponse()
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
           })
-          cookieResponse.cookies.set({ name, value: '', ...options })
         },
       },
-    }
+    },
   )
 
-  /** Copies auth cookies collected during the handler onto the final response. */
-  const withAuthCookies = <T extends NextResponse>(response: T): T => {
-    cookieResponse.cookies.getAll().forEach((cookie) => {
-      response.cookies.set(cookie.name, cookie.value)
+  /** Returns the response that accumulated auth cookies during the handler. */
+  const getResponse = () => response
+
+  /** Merges auth cookies onto a different response (e.g. JSON). */
+  const withAuthCookies = <T extends NextResponse>(finalResponse: T): T => {
+    response.cookies.getAll().forEach((cookie) => {
+      finalResponse.cookies.set(cookie)
     })
-    return response
+    return finalResponse
   }
 
-  return { supabase, withAuthCookies }
+  return { supabase, getResponse, withAuthCookies }
 }

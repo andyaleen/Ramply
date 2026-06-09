@@ -12,12 +12,19 @@ export async function startGoogleAuth(next = '/dashboard'): Promise<string | nul
     clearPasswordRecoveryPending()
     const supabase = createClient()
     const redirectTo = buildSupabaseAuthRedirectUrl(next)
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
     })
 
-    return error?.message ?? null
+    if (error) return error.message
+
+    if (data?.url) {
+      window.location.assign(data.url)
+      return null
+    }
+
+    return 'Google sign-in could not be started. Please try again.'
   } catch (err) {
     console.error('Google sign-in error:', err)
 

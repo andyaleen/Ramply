@@ -32,9 +32,14 @@ export function hasAuthCallbackParams(params: URLSearchParams): boolean {
 }
 
 /**
- * Builds `/auth/confirm?...` preserving auth params for the client handler.
+ * Builds an auth handler path for callback params.
+ * PKCE `code` links go to `/auth/callback` for server-side exchange.
  */
 export function buildAuthConfirmPath(params: URLSearchParams): string {
+  const handlerPath = params.get('code') && !params.get('access_token')
+    ? '/auth/callback'
+    : '/auth/confirm'
+
   applyPasswordRecoveryRoutingHints(params)
   const next = getAuthConfirmNextPath(params.get('next'), params.get('type'))
   const out = new URLSearchParams()
@@ -58,5 +63,5 @@ export function buildAuthConfirmPath(params: URLSearchParams): string {
   }
 
   const query = out.toString()
-  return query ? `/auth/confirm?${query}` : '/auth/confirm'
+  return query ? `${handlerPath}?${query}` : handlerPath
 }

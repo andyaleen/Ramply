@@ -38,15 +38,16 @@ function AuthCodeErrorContent() {
             </p>
             <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
               <li>The link has expired or was already used</li>
-              <li>The reset was opened in a different browser than where you requested it</li>
-              <li>Request a new reset link from the same browser you use to sign in</li>
+              <li>The link was opened in a different browser than where you started sign-in</li>
+              <li>You switched ports (for example localhost:3000 vs localhost:3001)</li>
+              <li>Try signing in again from the login page in the same browser</li>
             </ul>
           </div>
 
           <div className="flex flex-col space-y-2">
             <Link href="/login">
               <Button className="w-full">
-                Request a new reset link
+                Back to Sign In
               </Button>
             </Link>
             <Link href="/login">
