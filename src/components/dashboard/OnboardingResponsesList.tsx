@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CheckCircle, Clock, Download, Eye, FileText } from 'lucide-react'
+import { CheckCircle, Clock, Download, FileText } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { downloadDocument } from '@/lib/file-utils'
 import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
@@ -125,11 +125,11 @@ export function OnboardingResponsesList() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Type of Request</TableHead>
             <TableHead>Company</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Type of request</TableHead>
             <TableHead>Date</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -138,12 +138,11 @@ export function OnboardingResponsesList() {
             const badge = STATUS_BADGE[r.status] ?? STATUS_BADGE.pending
             return (
               <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.request_type}</TableCell>
                 <TableCell className="text-sm">
                   {r.recipientCompany?.id ? (
                     <Button
                       variant="link"
-                      className="h-auto p-0 text-sm"
+                      className="h-auto p-0 text-sm font-medium"
                       onClick={() => {
                         window.location.href = `/dashboard/responses/${r.recipientCompany?.id}`
                       }}
@@ -151,16 +150,14 @@ export function OnboardingResponsesList() {
                       {companyLabel(r)}
                     </Button>
                   ) : (
-                    <span className="text-gray-500">{r.recipient_email ?? 'Unknown'}</span>
+                    <span className="font-medium text-gray-900">{companyLabel(r)}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {resolveCompleterEmail(r.recipient_email, r.sharedData)}
                 </TableCell>
-                <TableCell>
-                  <Badge className={badge.className}>{badge.label}</Badge>
-                </TableCell>
-                <TableCell className="text-sm text-gray-500">
+                <TableCell className="font-medium">{r.request_type}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
                   {r.denied_at
                     ? formatDate(r.denied_at)
                     : r.completed_at
@@ -168,13 +165,14 @@ export function OnboardingResponsesList() {
                       : formatDate(r.created_at)}
                 </TableCell>
                 <TableCell>
+                  <Badge className={badge.className}>{badge.label}</Badge>
+                </TableCell>
+                <TableCell>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setSelected(r)}
-                    className="flex items-center gap-1"
                   >
-                    <Eye className="h-4 w-4" />
                     View
                   </Button>
                 </TableCell>

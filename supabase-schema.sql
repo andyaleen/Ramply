@@ -701,14 +701,6 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Mandatory fields must be present and non-empty
-  FOREACH v_field_key IN ARRAY v_sr.mandatory_fields
-  LOOP
-    IF COALESCE(TRIM(p_field_data ->> v_field_key), '') = '' THEN
-      RAISE EXCEPTION 'missing_mandatory_field';
-    END IF;
-  END LOOP;
-
   -- Mandatory documents must be provided
   IF array_length(v_sr.mandatory_documents, 1) > 0 THEN
     IF p_company_document_ids IS NULL OR array_length(p_company_document_ids, 1) IS NULL THEN

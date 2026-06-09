@@ -467,11 +467,13 @@ export function AuthForm({
     <AuthFormShell embedded={embedded}>
       <Card className={`w-full border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)] ${embedded ? 'rounded-2xl' : 'rounded-[28px]'}`}>
         <CardHeader className="space-y-2 border-b border-[#EEECE5] px-8 pb-6 pt-8 text-center">
-          <div className="mb-3 flex items-center justify-center">
-            <div className="rounded-full bg-[#287253] p-3">
-              <Building2 className="h-6 w-6 text-white" />
+          {!embedded && (
+            <div className="mb-3 flex items-center justify-center">
+              <div className="rounded-full bg-[#287253] p-3">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
             </div>
-          </div>
+          )}
           <CardTitle className="text-3xl font-semibold tracking-tight text-[#0F1F18]">
             {welcomeTitle}
           </CardTitle>

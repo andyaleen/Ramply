@@ -23,6 +23,7 @@ import {
   missingVaultDocumentTypes,
   vaultDocsQueryKey,
 } from '@/lib/vault-documents'
+import { profileUpdatesFromFulfillmentFields } from '@/lib/fulfillment-profile-sync'
 
 type ShareRequestForFulfillment = Omit<ShareRequestRow, 'token'>
 
@@ -33,11 +34,12 @@ interface FulfillmentFormProps {
 }
 
 export function FulfillmentForm({ shareRequest, onComplete, onDenied }: FulfillmentFormProps) {
-  const { user, company } = useAuth()
+  const { user, company, updateCompany } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
   const router = useRouter()
   const [denyDialogOpen, setDenyDialogOpen] = useState(false)
+  const [pendingBlankFieldConfirm, setPendingBlankFieldConfirm] = useState(false)
   const { data: vaultDocs = [], isFetching: vaultFetching, isFetched: vaultFetched } =
     useVaultDocuments(company?.id)
   const vaultChecking = !!company?.id && !vaultFetched && vaultFetching
@@ -66,6 +68,18 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   const missingRequiredFields = (shareRequest.mandatory_fields ?? []).filter(
     (key) => !fieldValues[key]?.trim()
   )
+
+  const handleFieldChange = (key: FieldKey, value: string) => {
+    setFieldValues((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const buildFieldPayload = () => {
+    const payload: Partial<Record<FieldKey, string>> = { ...fieldValues }
+    for (const key of [...(shareRequest.mandatory_fields ?? []), ...(shareRequest.optional_fields ?? [])]) {
+      if (payload[key] === undefined) payload[key] = ''
+    }
+    return payload
+  }
 
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
     user,
@@ -101,9 +115,6 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   const mutation = useMutation({
     mutationFn: async () => {
       if (!company) throw new Error('No company found')
-      if (missingRequiredFields.length > 0) {
-        throw new Error('missing_required_fields')
-      }
 
       const latestVaultDocs =
         queryClient.getQueryData<CompanyDocumentRow[]>(vaultDocsQueryKey(company.id)) ?? vaultDocs
@@ -118,22 +129,30 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
         .filter((doc): doc is CompanyDocumentRow => !!doc)
         .map((doc) => doc.id)
 
+      const fieldPayload = buildFieldPayload()
+
       const { error } = await supabase.rpc('fulfill_share_request', {
         p_share_request_id: shareRequest.id,
-        p_field_data: fieldValues,
+        p_field_data: fieldPayload,
         p_company_document_ids: documentIds,
       })
       if (error) throw error
+
+      const profileUpdates = profileUpdatesFromFulfillmentFields(fieldPayload)
+      if (Object.keys(profileUpdates).length > 0) {
+        try {
+          await updateCompany(profileUpdates)
+        } catch (profileError) {
+          console.error('Failed to sync profile after share:', profileError)
+        }
+      }
     },
     onSuccess: () => {
+      setPendingBlankFieldConfirm(false)
       toast.success('Information shared successfully!')
       onComplete()
     },
     onError: (error: Error) => {
-      if (error.message === 'missing_required_fields') {
-        toast.error('Please fill in all required fields.')
-        return
-      }
       if (error.message === 'missing_required_documents') {
         toast.error('Please upload all required documents.')
         return
@@ -141,6 +160,14 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
       toast.error('Failed to submit. Please try again.')
     },
   })
+
+  const handleShareInformation = () => {
+    if (missingRequiredFields.length > 0 && !pendingBlankFieldConfirm) {
+      setPendingBlankFieldConfirm(true)
+      return
+    }
+    mutation.mutate()
+  }
 
   const handleDenyRequest = async () => {
     const response = await fetch('/api/share-requests/deny', {
@@ -181,16 +208,25 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Required</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(shareRequest.mandatory_fields ?? []).map((key) => (
-                    <div key={key}>
-                      <Label>{fieldLabel(key)}</Label>
-                      <Input
-                        value={fieldValues[key] ?? ''}
-                        onChange={(e) => setFieldValues(prev => ({ ...prev, [key]: e.target.value }))}
-                        placeholder={`Enter ${fieldLabel(key)}`}
-                      />
-                    </div>
-                  ))}
+                  {(shareRequest.mandatory_fields ?? []).map((key) => {
+                    const isBlank = !fieldValues[key]?.trim()
+                    const showBlankPrompt = pendingBlankFieldConfirm && isBlank
+                    return (
+                      <div key={key}>
+                        <Label>{fieldLabel(key)}</Label>
+                        <Input
+                          value={fieldValues[key] ?? ''}
+                          onChange={(e) => handleFieldChange(key, e.target.value)}
+                          placeholder={`Enter ${fieldLabel(key)}`}
+                          aria-invalid={showBlankPrompt}
+                          className={showBlankPrompt ? 'border-amber-500 focus-visible:ring-amber-500' : undefined}
+                        />
+                        {showBlankPrompt ? (
+                          <p className="mt-1 text-xs text-amber-700">Leave this field blank?</p>
+                        ) : null}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -203,7 +239,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
                       <Label>{fieldLabel(key)}</Label>
                       <Input
                         value={fieldValues[key] ?? ''}
-                        onChange={(e) => setFieldValues(prev => ({ ...prev, [key]: e.target.value }))}
+                        onChange={(e) => handleFieldChange(key, e.target.value)}
                         placeholder={`Enter ${fieldLabel(key)}`}
                       />
                     </div>
@@ -261,13 +297,18 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
         onChange={handleFileChange}
       />
 
+      {pendingBlankFieldConfirm && missingRequiredFields.length > 0 ? (
+        <p className="text-sm text-amber-800">
+          Some required fields are empty. Click Share Information again to confirm sending them blank.
+        </p>
+      ) : null}
+
       <Button
-        onClick={() => mutation.mutate()}
+        onClick={handleShareInformation}
         disabled={
           mutation.isPending
           || vaultChecking
           || missingRequiredDocs.length > 0
-          || missingRequiredFields.length > 0
           || !company
         }
         size="lg"
