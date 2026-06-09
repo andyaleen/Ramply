@@ -11,6 +11,7 @@ export type PendingSentRequest = Pick<
   | 'mandatory_documents'
   | 'optional_documents'
   | 'expires_at'
+  | 'opened_at'
   | 'created_at'
 >
 
@@ -26,7 +27,7 @@ export async function fetchPendingSentShareRequests(
   const { data, error } = await supabase
     .from('share_requests')
     .select(
-      'id, request_type, recipient_email, mandatory_fields, optional_fields, mandatory_documents, optional_documents, expires_at, created_at'
+      'id, request_type, recipient_email, mandatory_fields, optional_fields, mandatory_documents, optional_documents, expires_at, opened_at, created_at'
     )
     .eq('requester_company_id', companyId)
     .eq('status', 'pending')

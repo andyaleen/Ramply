@@ -4,11 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Clock, FileText, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatDate, formatExpirationHint, isExpiringSoon } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import {
+  PENDING_REQUEST_STATUS_CLASSES,
+  PENDING_REQUEST_STATUS_LABELS,
+  resolvePendingRequestDisplayStatus,
+} from '@/lib/pending-request-status'
 import {
   fetchPendingSentShareRequests,
   type PendingSentRequest,
@@ -108,50 +114,42 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
                 <TableHead>Recipient</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Sent</TableHead>
-                <TableHead>Expires</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell className="font-medium">
-                    {request.recipient_email || 'No email captured'}
-                  </TableCell>
-                  <TableCell>{request.request_type}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(request.created_at)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <span
-                      className={
-                        isExpiringSoon(request.expires_at)
-                          ? 'font-medium text-amber-700'
-                          : 'text-muted-foreground'
-                      }
-                    >
-                      {formatExpirationHint(request.expires_at)}
-                    </span>
-                    {request.expires_at ? (
-                      <span className="block text-xs text-muted-foreground">
-                        {formatDate(request.expires_at)}
-                      </span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
-                      disabled={cancelMutation.isPending}
-                      onClick={() => handleCancel(request)}
-                    >
-                      Cancel
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {requests.map((request) => {
+                const status = resolvePendingRequestDisplayStatus(request)
+                return (
+                  <TableRow key={request.id}>
+                    <TableCell className="font-medium">
+                      {request.recipient_email || 'No email captured'}
+                    </TableCell>
+                    <TableCell>{request.request_type}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatDate(request.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={PENDING_REQUEST_STATUS_CLASSES[status]}>
+                        {PENDING_REQUEST_STATUS_LABELS[status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
+                        disabled={cancelMutation.isPending}
+                        onClick={() => handleCancel(request)}
+                      >
+                        Cancel
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         )}

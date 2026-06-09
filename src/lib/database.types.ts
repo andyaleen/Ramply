@@ -289,6 +289,7 @@ export type Database = {
           completed_at: string | null
           denied_at: string | null
           denied_by_company_id: string | null
+          opened_at: string | null
           created_at: string
           updated_at: string
         }
@@ -308,6 +309,7 @@ export type Database = {
           completed_at?: string | null
           denied_at?: string | null
           denied_by_company_id?: string | null
+          opened_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -327,6 +329,7 @@ export type Database = {
           completed_at?: string | null
           denied_at?: string | null
           denied_by_company_id?: string | null
+          opened_at?: string | null
           created_at?: string
           updated_at?: string
         }

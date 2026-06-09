@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS share_requests (
   completed_at TIMESTAMPTZ,
   denied_at TIMESTAMPTZ,
   denied_by_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+  opened_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -481,6 +482,14 @@ RETURNS TABLE (
   requester_company_legal_name TEXT
 ) AS $$
 BEGIN
+  UPDATE share_requests sr
+  SET opened_at = NOW(),
+      updated_at = NOW()
+  WHERE sr.token = p_token
+    AND sr.status = 'pending'
+    AND sr.opened_at IS NULL
+    AND (sr.expires_at IS NULL OR sr.expires_at > NOW());
+
   RETURN QUERY
     SELECT
       sr.id,
