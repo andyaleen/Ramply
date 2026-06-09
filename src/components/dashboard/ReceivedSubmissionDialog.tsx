@@ -33,6 +33,7 @@ export function ReceivedSubmissionDialog({ request, onClose }: ReceivedSubmissio
       return fetchReceivedSubmissionDetails(supabase, request.id)
     },
     enabled: !!request,
+    retry: 1,
   })
 
   if (!request) return null

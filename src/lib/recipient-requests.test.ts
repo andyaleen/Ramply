@@ -7,6 +7,7 @@ import {
   fetchCompletedReceivedShareRequests,
   fetchPendingReceivedShareRequests,
   fetchReceivedShareRequests,
+  fetchReceivedSubmissionDetails,
   resolveRequesterCompanyName,
   type ReceivedRequestsClient,
 } from './recipient-requests'
@@ -172,6 +173,45 @@ describe('recipient request queries', () => {
         recipientEmail: 'vendor@example.com',
       },
     ])
+  })
+})
+
+describe('fetchReceivedSubmissionDetails', () => {
+  test('loads submission details via recipient RPC', async () => {
+    const client = {
+      rpc: async () => ({
+        data: {
+          field_data: { legal_name: 'Vendor LLC' },
+          documents: [
+            {
+              id: 'doc-1',
+              company_id: 'company-1',
+              document_type: 'W9',
+              file_path: 'user/W9/file.pdf',
+              file_name: 'file.pdf',
+              file_size: 100,
+              mime_type: 'application/pdf',
+              file_hash: 'hash',
+              version: 1,
+              superseded_by: null,
+              uploaded_at: '2026-06-02T00:00:00.000Z',
+              extracted_fields: {},
+              approved_fields: null,
+            },
+          ],
+        },
+        error: null,
+      }),
+    }
+
+    const details = await fetchReceivedSubmissionDetails(
+      client as unknown as ReceivedRequestsClient,
+      'req-1'
+    )
+
+    expect(details.sharedData?.field_data).toEqual({ legal_name: 'Vendor LLC' })
+    expect(details.sharedDocs).toHaveLength(1)
+    expect(details.sharedDocs[0]?.document_type).toBe('W9')
   })
 })
 

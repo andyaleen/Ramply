@@ -170,8 +170,58 @@ export async function fetchCompletedReceivedShareRequests(
   }))
 }
 
+/** True when recipient submission RPC has not been deployed yet. */
+export function isMissingRecipientSubmissionRpc(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === 'PGRST202') return true
+  return /get_recipient_submission_details/i.test(error.message ?? '')
+}
+
 /** Load submitted field data and documents for a completed received request. */
 export async function fetchReceivedSubmissionDetails(
+  supabase: ReceivedRequestsClient,
+  shareRequestId: string
+): Promise<ReceivedSubmissionDetails> {
+  const { data, error } = await supabase.rpc('get_recipient_submission_details', {
+    p_share_request_id: shareRequestId,
+  })
+
+  if (error) {
+    if (isMissingRecipientSubmissionRpc(error)) {
+      return fetchReceivedSubmissionDetailsLegacy(supabase, shareRequestId)
+    }
+    throw error
+  }
+
+  return parseRecipientSubmissionDetails(shareRequestId, data)
+}
+
+type RecipientSubmissionRpcPayload = {
+  field_data?: Partial<Record<string, string>>
+  documents?: CompanyDocumentRow[]
+}
+
+function parseRecipientSubmissionDetails(
+  shareRequestId: string,
+  data: unknown
+): ReceivedSubmissionDetails {
+  const payload = (data ?? {}) as RecipientSubmissionRpcPayload
+  const fieldData = payload.field_data ?? {}
+
+  return {
+    sharedData: {
+      id: shareRequestId,
+      share_request_id: shareRequestId,
+      sharing_company_id: '',
+      field_data: fieldData,
+      shared_at: '',
+    },
+    sharedDocs: payload.documents ?? [],
+  }
+}
+
+/** Direct-table fallback when the recipient submission RPC is unavailable. */
+async function fetchReceivedSubmissionDetailsLegacy(
   supabase: ReceivedRequestsClient,
   shareRequestId: string
 ): Promise<ReceivedSubmissionDetails> {
