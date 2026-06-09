@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { reportServerError } from '@/lib/monitoring'
+import { loadDownloadableDocumentForUser } from '@/lib/shared-document-access'
 import { DOCUMENTS_STORAGE_BUCKET } from '@/lib/vault-documents'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -11,7 +12,7 @@ const DownloadQuerySchema = z.object({
 
 /**
  * Returns a short-lived signed URL for a shared company document.
- * Access is enforced via RLS on company_documents (owner or requester).
+ * Access is verified server-side for owners and completed-share requesters.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -33,14 +34,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: doc, error: docError } = await supabase
-    .from('company_documents')
-    .select('file_path, file_name')
-    .eq('id', parsed.data.document_id)
-    .maybeSingle()
+  const admin = createAdminClient()
+  let doc: { file_path: string; file_name: string } | null = null
 
-  if (docError) {
-    reportServerError('documents.shared-download.load', docError, {
+  try {
+    doc = await loadDownloadableDocumentForUser(admin, user.id, parsed.data.document_id)
+  } catch (error) {
+    reportServerError('documents.shared-download.load', error, {
       documentId: parsed.data.document_id,
       userId: user.id,
     })
@@ -51,7 +51,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Document not found or not accessible' }, { status: 403 })
   }
 
-  const admin = createAdminClient()
   const { data, error: signedUrlError } = await admin.storage
     .from(DOCUMENTS_STORAGE_BUCKET)
     .createSignedUrl(doc.file_path, 120)
