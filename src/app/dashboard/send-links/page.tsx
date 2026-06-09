@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Plus, Send } from 'lucide-react'
-import { PendingReceivedRequestsPanel } from '@/components/dashboard/PendingReceivedRequestsPanel'
+import { PendingSentRequestsPanel } from '@/components/dashboard/PendingSentRequestsPanel'
 import { SavedRequestTemplatesPanel } from '@/components/dashboard/SavedRequestTemplatesPanel'
 import { SendOnboardingRequestDialog } from '@/components/dashboard/SendOnboardingRequestDialog'
 
@@ -66,7 +66,7 @@ export default function SendLinksPage() {
         onUseTemplate={(templateId) => openNewRequest(templateId)}
       />
 
-      <PendingReceivedRequestsPanel />
+      <PendingSentRequestsPanel onCreateRequest={() => openNewRequest()} />
 
       <SendOnboardingRequestDialog
         open={showDialog}

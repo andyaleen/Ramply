@@ -25,15 +25,8 @@ export function RequestsReceivedCard() {
   return (
     <section>
       <div className="bg-white border border-[#DDDCD5] rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#DDDCD5]">
+        <div className="px-6 py-4 border-b border-[#DDDCD5]">
           <h3 className="text-[14px] font-medium text-[#0F1F18]">Requests sent to you</h3>
-          <button
-            type="button"
-            onClick={() => router.push('/dashboard/send-links#pending-requests')}
-            className="text-[13px] text-[#287253] hover:underline"
-          >
-            View →
-          </button>
         </div>
 
         {isLoading ? (

@@ -91,6 +91,8 @@ export function SendOnboardingRequestDialog({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['share-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['pending-sent-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
       setGeneratedLink(data.link)
       setCreatedForEmail(data.recipient_email)
       setInviteEmailSent(data.email_sent ?? false)

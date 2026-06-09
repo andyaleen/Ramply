@@ -84,7 +84,7 @@ export function Dashboard() {
           highlighted
           loading={statsLoading}
           icon={<ClockIcon />}
-          onClick={() => router.push('/dashboard/pending-requests')}
+          onClick={() => router.push('/dashboard/send-links#pending-requests')}
         />
         <StatCard
           label="Completed This Month"
