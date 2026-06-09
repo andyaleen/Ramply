@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Download, FileText } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { downloadDocument } from '@/lib/file-utils'
-import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
+import { fieldLabel, documentTypeLabel, type DocumentTypeKey } from '@/lib/catalog'
 import {
   fetchReceivedSubmissionDetails,
   type CompletedReceivedShareRequest,
@@ -170,7 +170,7 @@ function DocumentRow({
   doc,
   required,
 }: {
-  docType: string
+  docType: DocumentTypeKey
   doc?: { id: string; file_name: string; file_path: string; uploaded_at: string }
   required: boolean
 }) {
