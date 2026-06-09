@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Clock, FileText, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { documentTypeLabel, fieldLabel } from '@/lib/catalog'
 import { formatDate, formatExpirationHint, isExpiringSoon } from '@/lib/utils'
 import {
   fetchPendingSentShareRequests,
@@ -108,7 +107,6 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
               <TableRow>
                 <TableHead>Recipient</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Requested</TableHead>
                 <TableHead>Sent</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead className="text-right">Action</TableHead>
@@ -121,9 +119,6 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
                     {request.recipient_email || 'No email captured'}
                   </TableCell>
                   <TableCell>{request.request_type}</TableCell>
-                  <TableCell className="max-w-md whitespace-normal text-sm text-muted-foreground">
-                    <RequestSelections request={request} />
-                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(request.created_at)}
                   </TableCell>
@@ -162,21 +157,5 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
         )}
       </CardContent>
     </Card>
-  )
-}
-
-function RequestSelections({ request }: { request: PendingSentRequest }) {
-  const fields = [...request.mandatory_fields, ...request.optional_fields].map(fieldLabel)
-  const documents = [...request.mandatory_documents, ...request.optional_documents].map(
-    documentTypeLabel
-  )
-
-  return (
-    <div className="space-y-1">
-      <p>
-        {fields.length} fields, {documents.length} documents
-      </p>
-      <p className="line-clamp-2">{[...fields, ...documents].join(', ') || 'No selections'}</p>
-    </div>
   )
 }

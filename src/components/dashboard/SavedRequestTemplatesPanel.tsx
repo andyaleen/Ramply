@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { PencilLine, Plus, Trash2 } from 'lucide-react'
+import { PencilLine, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { RequestTemplateRow } from '@/lib/database.types'
 import { TemplateSchema, type TemplateFormValues } from '@/lib/validations'
@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input'
 import { TemplateSelectionsForm } from '@/components/templates/TemplateSelectionsForm'
 
 interface SavedRequestTemplatesPanelProps {
-  onCreateNew: () => void
   onUseTemplate: (templateId: string) => void
 }
 
@@ -43,7 +42,6 @@ const emptyTemplate: TemplateFormValues = {
  * Saved templates panel shown on the Send Requests page for reuse and editing.
  */
 export function SavedRequestTemplatesPanel({
-  onCreateNew,
   onUseTemplate,
 }: SavedRequestTemplatesPanelProps) {
   const queryClient = useQueryClient()
@@ -99,15 +97,11 @@ export function SavedRequestTemplatesPanel({
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <CardHeader>
           <div>
             <CardTitle>Saved Templates</CardTitle>
             <CardDescription>Reuse, update, or remove request templates from this page.</CardDescription>
           </div>
-          <Button onClick={onCreateNew} className="gap-2 sm:self-center">
-            <Plus className="h-4 w-4" />
-            New Request
-          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
