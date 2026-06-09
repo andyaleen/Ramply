@@ -1,5 +1,8 @@
 -- Pending sent share requests for the requester, with recipient company when known.
 
+ALTER TABLE share_requests
+  ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ;
+
 CREATE OR REPLACE FUNCTION get_pending_sent_share_requests()
 RETURNS TABLE (
   id UUID,

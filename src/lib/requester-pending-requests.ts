@@ -20,12 +20,53 @@ export type PendingSentRequest = Pick<
 
 export type RequesterRequestsClient = ReturnType<typeof createClient>
 
-type PendingSentShareRequestRow = PendingSentRequest
+const PENDING_SENT_BASE_COLUMNS =
+  'id, request_type, recipient_email, mandatory_fields, optional_fields, mandatory_documents, optional_documents, expires_at, created_at'
 
-function isMissingPendingSentRpc(error: { code?: string; message?: string } | null): boolean {
+const PENDING_SENT_FULL_COLUMNS = `${PENDING_SENT_BASE_COLUMNS}, opened_at`
+
+function isMissingColumn(error: { code?: string; message?: string } | null, column: string): boolean {
   if (!error) return false
-  if (error.code === 'PGRST202') return true
-  return /get_pending_sent_share_requests/i.test(error.message ?? '')
+  if (error.code === 'PGRST204') return new RegExp(column, 'i').test(error.message ?? '')
+  return new RegExp(column, 'i').test(error.message ?? '')
+}
+
+/** Load pending sent requests via table query when RPC is unavailable or broken. */
+async function fetchPendingSentShareRequestsFromTable(
+  supabase: RequesterRequestsClient,
+  companyId: string
+): Promise<PendingSentRequest[]> {
+  const withOpened = await supabase
+    .from('share_requests')
+    .select(PENDING_SENT_FULL_COLUMNS)
+    .eq('requester_company_id', companyId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (!withOpened.error) {
+    return (withOpened.data ?? []).map((row) => ({
+      ...(row as PendingSentRequest),
+      opened_at: (row as PendingSentRequest).opened_at ?? null,
+    }))
+  }
+
+  if (!isMissingColumn(withOpened.error, 'opened_at')) {
+    throw withOpened.error
+  }
+
+  const legacy = await supabase
+    .from('share_requests')
+    .select(PENDING_SENT_BASE_COLUMNS)
+    .eq('requester_company_id', companyId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (legacy.error) throw legacy.error
+
+  return (legacy.data ?? []).map((row) => ({
+    ...(row as PendingSentRequest),
+    opened_at: null,
+  }))
 }
 
 /** Outgoing share requests still awaiting recipient completion. */
@@ -41,19 +82,5 @@ export async function fetchPendingSentShareRequests(
     return (rpcData ?? []) as PendingSentRequest[]
   }
 
-  if (!isMissingPendingSentRpc(rpcError)) {
-    throw rpcError
-  }
-
-  const { data, error } = await supabase
-    .from('share_requests')
-    .select(
-      'id, request_type, recipient_email, mandatory_fields, optional_fields, mandatory_documents, optional_documents, expires_at, opened_at, created_at'
-    )
-    .eq('requester_company_id', companyId)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data ?? []) as PendingSentShareRequestRow[]
+  return fetchPendingSentShareRequestsFromTable(supabase, companyId)
 }
