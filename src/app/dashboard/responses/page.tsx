@@ -1,12 +1,10 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { OnboardingResponsesList } from '@/components/dashboard/OnboardingResponsesList'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface ResponseStats {
@@ -17,7 +15,6 @@ interface ResponseStats {
 
 export default function ResponsesPage() {
   const { company, profileLoading } = useAuth()
-  const router = useRouter()
 
   const { data: stats, isLoading: statsLoading } = useQuery<ResponseStats>({
     queryKey: ['response-stats', company?.id],
@@ -66,16 +63,9 @@ export default function ResponsesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')} className="flex items-center gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Share Responses</h1>
-          <p className="text-gray-600">View completed and declined share requests from recipients</p>
-        </div>
+    <div className="flex-1 space-y-6 p-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Responses</h1>
       </div>
 
       {/* Stats */}

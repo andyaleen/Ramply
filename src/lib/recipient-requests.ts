@@ -1,4 +1,4 @@
-import type { ShareRequestRow, SharedDataRow, CompanyDocumentRow } from '@/lib/database.types'
+import type { ShareRequestRow } from '@/lib/database.types'
 import type { createClient } from '@/lib/supabase/client'
 import { safeLowerCase } from '@/lib/utils'
 
@@ -27,28 +27,6 @@ export type PendingReceivedShareRequest = {
   showEmailInSubtitle: boolean
 }
 
-export type CompletedReceivedShareRequest = Pick<
-  ShareRequestRow,
-  | 'id'
-  | 'token'
-  | 'request_type'
-  | 'mandatory_fields'
-  | 'optional_fields'
-  | 'mandatory_documents'
-  | 'optional_documents'
-  | 'created_at'
-  | 'completed_at'
-> & {
-  companyName: string | null
-  requesterEmail: string
-  recipientEmail: string
-}
-
-export type ReceivedSubmissionDetails = {
-  sharedData: SharedDataRow | null
-  sharedDocs: CompanyDocumentRow[]
-}
-
 export const RECIPIENT_REQUEST_COLUMNS =
   'id, token, request_type, mandatory_fields, optional_fields, mandatory_documents, optional_documents, status, created_at, completed_at'
 
@@ -59,26 +37,6 @@ type PendingReceivedShareRequestRow = {
   requester_company_legal_name: string | null
   requester_company_dba_name: string | null
   requester_email: string | null
-}
-
-type CompletedReceivedShareRequestRow = PendingReceivedShareRequestRow & {
-  request_type: string
-  mandatory_fields: ShareRequestRow['mandatory_fields']
-  optional_fields: ShareRequestRow['optional_fields']
-  mandatory_documents: ShareRequestRow['mandatory_documents']
-  optional_documents: ShareRequestRow['optional_documents']
-  completed_at: string | null
-  recipient_email: string | null
-}
-
-/** Resolve requester company name from profile fields only. */
-export function resolveRequesterCompanyName(row: {
-  requester_company_legal_name: string | null
-  requester_company_dba_name: string | null
-}): string | null {
-  return row.requester_company_legal_name?.trim()
-    || row.requester_company_dba_name?.trim()
-    || null
 }
 
 /** Build dashboard labels for a pending request from the requester company and account email. */
@@ -142,125 +100,6 @@ export async function fetchReceivedShareRequests(
 
   if (error) throw error
   return (data ?? []) as RecipientRequest[]
-}
-
-/** Load completed share requests sent to the signed-in user for the Received page. */
-export async function fetchCompletedReceivedShareRequests(
-  supabase: ReceivedRequestsClient,
-  userEmail: string | null | undefined
-): Promise<CompletedReceivedShareRequest[]> {
-  if (!safeLowerCase(userEmail)) return []
-
-  const { data, error } = await supabase.rpc('get_completed_received_share_requests')
-  if (error) throw error
-
-  return (data ?? []).map((row: CompletedReceivedShareRequestRow) => ({
-    id: row.id,
-    token: row.token,
-    request_type: row.request_type,
-    mandatory_fields: row.mandatory_fields ?? [],
-    optional_fields: row.optional_fields ?? [],
-    mandatory_documents: row.mandatory_documents ?? [],
-    optional_documents: row.optional_documents ?? [],
-    created_at: row.created_at,
-    completed_at: row.completed_at,
-    companyName: resolveRequesterCompanyName(row),
-    requesterEmail: row.requester_email?.trim() ?? '',
-    recipientEmail: row.recipient_email?.trim() ?? '',
-  }))
-}
-
-/** True when recipient submission RPC has not been deployed yet. */
-export function isMissingRecipientSubmissionRpc(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false
-  if (error.code === 'PGRST202') return true
-  return /get_recipient_submission_details/i.test(error.message ?? '')
-}
-
-/** Load submitted field data and documents for a completed received request. */
-export async function fetchReceivedSubmissionDetails(
-  supabase: ReceivedRequestsClient,
-  shareRequestId: string
-): Promise<ReceivedSubmissionDetails> {
-  const { data, error } = await supabase.rpc('get_recipient_submission_details', {
-    p_share_request_id: shareRequestId,
-  })
-
-  if (error) {
-    if (isMissingRecipientSubmissionRpc(error)) {
-      return fetchReceivedSubmissionDetailsLegacy(supabase, shareRequestId)
-    }
-    throw error
-  }
-
-  return parseRecipientSubmissionDetails(shareRequestId, data)
-}
-
-type RecipientSubmissionRpcPayload = {
-  field_data?: Partial<Record<string, string>>
-  documents?: Array<Omit<CompanyDocumentRow, 'extracted_fields' | 'approved_fields' | 'approved_at'>>
-}
-
-function parseRecipientSubmissionDetails(
-  shareRequestId: string,
-  data: unknown
-): ReceivedSubmissionDetails {
-  const payload = (data ?? {}) as RecipientSubmissionRpcPayload
-  const fieldData = payload.field_data ?? {}
-
-  return {
-    sharedData: {
-      id: shareRequestId,
-      share_request_id: shareRequestId,
-      sharing_company_id: '',
-      field_data: fieldData,
-      shared_at: '',
-    },
-    sharedDocs: (payload.documents ?? []).map((doc) => ({
-      ...doc,
-      extracted_fields: {},
-      approved_fields: null,
-      approved_at: null,
-    })),
-  }
-}
-
-/** Direct-table fallback when the recipient submission RPC is unavailable. */
-async function fetchReceivedSubmissionDetailsLegacy(
-  supabase: ReceivedRequestsClient,
-  shareRequestId: string
-): Promise<ReceivedSubmissionDetails> {
-  const { data: sharedData, error: sharedDataError } = await supabase
-    .from('shared_data')
-    .select('*')
-    .eq('share_request_id', shareRequestId)
-    .maybeSingle()
-
-  if (sharedDataError) throw sharedDataError
-
-  const { data: links, error: linksError } = await supabase
-    .from('shared_documents')
-    .select('company_document_id')
-    .eq('share_request_id', shareRequestId)
-
-  if (linksError) throw linksError
-
-  const docIds = [...new Set((links ?? []).map((row) => row.company_document_id).filter(Boolean))]
-  if (!docIds.length) {
-    return { sharedData: sharedData ?? null, sharedDocs: [] }
-  }
-
-  const { data: docs, error: docsError } = await supabase
-    .from('company_documents')
-    .select('*')
-    .in('id', docIds)
-
-  if (docsError) throw docsError
-
-  return {
-    sharedData: sharedData ?? null,
-    sharedDocs: (docs ?? []) as CompanyDocumentRow[],
-  }
 }
 
 /** Load pending share requests sent to the signed-in user for dashboard review. */

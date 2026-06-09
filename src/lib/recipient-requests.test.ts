@@ -4,11 +4,8 @@ import {
   RECIPIENT_REQUEST_COLUMNS,
   buildPendingReceivedRequestDisplay,
   countPendingReceivedShareRequests,
-  fetchCompletedReceivedShareRequests,
   fetchPendingReceivedShareRequests,
   fetchReceivedShareRequests,
-  fetchReceivedSubmissionDetails,
-  resolveRequesterCompanyName,
   type ReceivedRequestsClient,
 } from './recipient-requests'
 
@@ -78,7 +75,7 @@ describe('recipient request queries', () => {
     ])
   })
 
-  test('loads the received page from recipient_email, not outgoing requester rows', async () => {
+  test('loads incoming requests from recipient_email, not outgoing requester rows', async () => {
     const client = new FakeReceivedRequestsClient({ data: [], error: null })
 
     const requests = await fetchReceivedShareRequests(
@@ -126,112 +123,6 @@ describe('recipient request queries', () => {
         showEmailInSubtitle: true,
       },
     ])
-  })
-
-  test('loads completed received requests via recipient RPC', async () => {
-    const client = {
-      rpc: async () => ({
-        data: [
-          {
-            id: 'req-2',
-            token: 'token-2',
-            request_type: 'Vendor onboarding',
-            mandatory_fields: ['legal_name'],
-            optional_fields: [],
-            mandatory_documents: [],
-            optional_documents: [],
-            created_at: '2026-06-01T00:00:00.000Z',
-            completed_at: '2026-06-02T00:00:00.000Z',
-            requester_company_legal_name: 'Acme Corp',
-            requester_company_dba_name: null,
-            requester_email: 'sender@example.com',
-            recipient_email: 'vendor@example.com',
-          },
-        ],
-        error: null,
-      }),
-    }
-
-    const requests = await fetchCompletedReceivedShareRequests(
-      client as unknown as ReceivedRequestsClient,
-      'vendor@example.com'
-    )
-
-    expect(requests).toEqual([
-      {
-        id: 'req-2',
-        token: 'token-2',
-        request_type: 'Vendor onboarding',
-        mandatory_fields: ['legal_name'],
-        optional_fields: [],
-        mandatory_documents: [],
-        optional_documents: [],
-        created_at: '2026-06-01T00:00:00.000Z',
-        completed_at: '2026-06-02T00:00:00.000Z',
-        companyName: 'Acme Corp',
-        requesterEmail: 'sender@example.com',
-        recipientEmail: 'vendor@example.com',
-      },
-    ])
-  })
-})
-
-describe('fetchReceivedSubmissionDetails', () => {
-  test('loads submission details via recipient RPC', async () => {
-    const client = {
-      rpc: async () => ({
-        data: {
-          field_data: { legal_name: 'Vendor LLC' },
-          documents: [
-            {
-              id: 'doc-1',
-              company_id: 'company-1',
-              document_type: 'W9',
-              file_path: 'user/W9/file.pdf',
-              file_name: 'file.pdf',
-              file_size: 100,
-              mime_type: 'application/pdf',
-              file_hash: 'hash',
-              version: 1,
-              superseded_by: null,
-              uploaded_at: '2026-06-02T00:00:00.000Z',
-              extracted_fields: {},
-              approved_fields: null,
-            },
-          ],
-        },
-        error: null,
-      }),
-    }
-
-    const details = await fetchReceivedSubmissionDetails(
-      client as unknown as ReceivedRequestsClient,
-      'req-1'
-    )
-
-    expect(details.sharedData?.field_data).toEqual({ legal_name: 'Vendor LLC' })
-    expect(details.sharedDocs).toHaveLength(1)
-    expect(details.sharedDocs[0]?.document_type).toBe('W9')
-  })
-})
-
-describe('resolveRequesterCompanyName', () => {
-  test('prefers legal name over dba', () => {
-    expect(
-      resolveRequesterCompanyName({
-        requester_company_legal_name: 'Acme LLC',
-        requester_company_dba_name: 'Acme',
-      })
-    ).toBe('Acme LLC')
-  })
-
-  test('returns null when company names are missing', () => {
-    expect(
-      resolveRequesterCompanyName({
-        requester_company_legal_name: null,
-        requester_company_dba_name: null,
-      })
-    ).toBeNull()
   })
 })
 

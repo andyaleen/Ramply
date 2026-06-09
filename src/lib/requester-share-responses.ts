@@ -50,6 +50,22 @@ export function resolveRecipientCompanyLabel(
   return recipientEmail?.trim() || 'Unknown company'
 }
 
+/** Email for the recipient who completed or declined a share request. */
+export function resolveCompleterEmail(
+  recipientEmail: string | null | undefined,
+  sharedData: Pick<SharedDataRow, 'field_data'> | null
+): string {
+  const invitedEmail = recipientEmail?.trim()
+  if (invitedEmail) return invitedEmail
+
+  const fields = (sharedData?.field_data ?? {}) as Record<string, unknown>
+  if (typeof fields.contact_email === 'string' && fields.contact_email.trim()) {
+    return fields.contact_email.trim()
+  }
+
+  return '—'
+}
+
 /** True when the deny-request migration has not been applied yet. */
 export function isMissingDeniedColumns(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false

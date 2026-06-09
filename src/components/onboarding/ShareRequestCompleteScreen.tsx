@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const DASHBOARD_REDIRECT_MS = 5000
-export const RECEIVED_REQUESTS_PATH = '/dashboard/received'
+export const RESPONSES_PATH = '/dashboard/responses'
 
 /**
  * Shown after a recipient successfully fulfills a share request.
@@ -46,9 +46,9 @@ export function ShareRequestCompleteScreen() {
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => router.push(RECEIVED_REQUESTS_PATH)}
+            onClick={() => router.push(RESPONSES_PATH)}
           >
-            Back to Pending Requests
+            View Responses
           </Button>
         </div>
       </Card>

@@ -17,6 +17,7 @@ import {
   fetchShareRequestsForRequester,
   fetchSharedDocumentsForRequester,
   fetchSharedRecipientCompanies,
+  resolveCompleterEmail,
   resolveRecipientCompanyLabel,
 } from '@/lib/requester-share-responses'
 import type { ShareRequestRow, SharedDataRow, CompanyDocumentRow, CompanyRow } from '@/lib/database.types'
@@ -126,7 +127,7 @@ export function OnboardingResponsesList() {
           <TableRow>
             <TableHead>Type of Request</TableHead>
             <TableHead>Company</TableHead>
-            <TableHead>Fields / Docs</TableHead>
+            <TableHead>Email</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Actions</TableHead>
@@ -153,10 +154,8 @@ export function OnboardingResponsesList() {
                     <span className="text-gray-500">{r.recipient_email ?? 'Unknown'}</span>
                   )}
                 </TableCell>
-                <TableCell className="text-sm text-gray-600">
-                  {r.mandatory_fields.length} required, {r.optional_fields.length} optional fields
-                  <br />
-                  {r.mandatory_documents.length} required, {r.optional_documents.length} optional docs
+                <TableCell className="text-sm text-muted-foreground">
+                  {resolveCompleterEmail(r.recipient_email, r.sharedData)}
                 </TableCell>
                 <TableCell>
                   <Badge className={badge.className}>{badge.label}</Badge>

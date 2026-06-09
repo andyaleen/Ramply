@@ -239,11 +239,6 @@ export const navigationConfig: NavigationGroup[] = [
         icon: Users,
       },
       {
-        title: "Received",
-        url: "/dashboard/received",
-        icon: FileText,
-      },
-      {
         title: "Documents",
         url: "/dashboard/documents",
         icon: Archive,

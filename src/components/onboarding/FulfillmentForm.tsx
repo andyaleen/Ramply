@@ -160,13 +160,12 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['pending-received-requests'] }),
       queryClient.invalidateQueries({ queryKey: ['pending-received-requests-panel'] }),
-      queryClient.invalidateQueries({ queryKey: ['recipient-requests-page'] }),
       queryClient.invalidateQueries({ queryKey: ['share-responses'] }),
     ])
 
     toast.success('Request denied. The sender has been notified.')
     onDenied?.()
-    router.push('/dashboard/received')
+    router.push('/dashboard/responses')
   }
 
   return (

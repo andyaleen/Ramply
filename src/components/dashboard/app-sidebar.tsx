@@ -126,7 +126,6 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Dashboard', url: '/dashboard', icon: 'dashboard' },
       { title: 'Send Requests', url: '/dashboard/send-links', icon: 'send' },
       { title: 'Responses', url: '/dashboard/responses', icon: 'chart' },
-      { title: 'Received', url: '/dashboard/received', icon: 'list' },
       { title: 'Documents', url: '/dashboard/documents', icon: 'document' },
       { title: 'Templates', url: '/dashboard/templates', icon: 'template' },
     ],

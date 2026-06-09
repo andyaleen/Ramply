@@ -4,7 +4,20 @@ import {
   isMissingDeniedColumns,
   isMissingRequesterShareRpc,
   resolveRecipientCompanyLabel,
+  resolveCompleterEmail,
 } from './requester-share-responses'
+
+describe('resolveCompleterEmail', () => {
+  test('uses recipient email when present', () => {
+    expect(resolveCompleterEmail('vendor@example.com', null)).toBe('vendor@example.com')
+  })
+
+  test('falls back to submitted contact email', () => {
+    expect(
+      resolveCompleterEmail(null, { field_data: { contact_email: 'finance@example.com' } })
+    ).toBe('finance@example.com')
+  })
+})
 
 describe('resolveRecipientCompanyLabel', () => {
   test('uses shared field data when company row is hidden', () => {
