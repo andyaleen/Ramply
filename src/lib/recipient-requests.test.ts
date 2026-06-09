@@ -4,8 +4,10 @@ import {
   RECIPIENT_REQUEST_COLUMNS,
   buildPendingReceivedRequestDisplay,
   countPendingReceivedShareRequests,
+  fetchCompletedReceivedShareRequests,
   fetchPendingReceivedShareRequests,
   fetchReceivedShareRequests,
+  resolveRequesterCompanyName,
   type ReceivedRequestsClient,
 } from './recipient-requests'
 
@@ -123,6 +125,71 @@ describe('recipient request queries', () => {
         showEmailInSubtitle: true,
       },
     ])
+  })
+
+  test('loads completed received requests via recipient RPC', async () => {
+    const client = {
+      rpc: async () => ({
+        data: [
+          {
+            id: 'req-2',
+            token: 'token-2',
+            request_type: 'Vendor onboarding',
+            mandatory_fields: ['legal_name'],
+            optional_fields: [],
+            mandatory_documents: [],
+            optional_documents: [],
+            created_at: '2026-06-01T00:00:00.000Z',
+            completed_at: '2026-06-02T00:00:00.000Z',
+            requester_company_legal_name: 'Acme Corp',
+            requester_company_dba_name: null,
+            requester_email: 'sender@example.com',
+          },
+        ],
+        error: null,
+      }),
+    }
+
+    const requests = await fetchCompletedReceivedShareRequests(
+      client as unknown as ReceivedRequestsClient,
+      'vendor@example.com'
+    )
+
+    expect(requests).toEqual([
+      {
+        id: 'req-2',
+        token: 'token-2',
+        request_type: 'Vendor onboarding',
+        mandatory_fields: ['legal_name'],
+        optional_fields: [],
+        mandatory_documents: [],
+        optional_documents: [],
+        created_at: '2026-06-01T00:00:00.000Z',
+        completed_at: '2026-06-02T00:00:00.000Z',
+        companyName: 'Acme Corp',
+        requesterEmail: 'sender@example.com',
+      },
+    ])
+  })
+})
+
+describe('resolveRequesterCompanyName', () => {
+  test('prefers legal name over dba', () => {
+    expect(
+      resolveRequesterCompanyName({
+        requester_company_legal_name: 'Acme LLC',
+        requester_company_dba_name: 'Acme',
+      })
+    ).toBe('Acme LLC')
+  })
+
+  test('returns null when company names are missing', () => {
+    expect(
+      resolveRequesterCompanyName({
+        requester_company_legal_name: null,
+        requester_company_dba_name: null,
+      })
+    ).toBeNull()
   })
 })
 

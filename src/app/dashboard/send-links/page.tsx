@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Plus, Send } from 'lucide-react'
+import { PendingReceivedRequestsPanel } from '@/components/dashboard/PendingReceivedRequestsPanel'
 import { SavedRequestTemplatesPanel } from '@/components/dashboard/SavedRequestTemplatesPanel'
 import { SendOnboardingRequestDialog } from '@/components/dashboard/SendOnboardingRequestDialog'
 
@@ -12,6 +13,12 @@ export default function SendLinksPage() {
   const router = useRouter()
   const [showDialog, setShowDialog] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (window.location.hash === '#pending-requests') {
+      document.getElementById('pending-requests')?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [])
 
   function openNewRequest(templateId: string | null = null) {
     setSelectedTemplateId(templateId)
@@ -58,6 +65,8 @@ export default function SendLinksPage() {
         onCreateNew={() => openNewRequest()}
         onUseTemplate={(templateId) => openNewRequest(templateId)}
       />
+
+      <PendingReceivedRequestsPanel />
 
       <SendOnboardingRequestDialog
         open={showDialog}

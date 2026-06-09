@@ -29,7 +29,7 @@ export function RequestsReceivedCard() {
           <h3 className="text-[14px] font-medium text-[#0F1F18]">Requests sent to you</h3>
           <button
             type="button"
-            onClick={() => router.push('/dashboard/received')}
+            onClick={() => router.push('/dashboard/send-links#pending-requests')}
             className="text-[13px] text-[#287253] hover:underline"
           >
             View →
