@@ -6,7 +6,7 @@ interface StatCardProps {
   label: string
   value: number
   description: string
-  icon: React.ReactNode
+  icon?: React.ReactNode
   loading: boolean
   highlighted?: boolean
   onClick?: () => void
@@ -48,9 +48,11 @@ function StatCardContent({ label, value, description, icon, loading, highlighted
       />
       <div className="flex items-start justify-between">
         <p className="text-[13px] text-[#7A8C84]">{label}</p>
-        <div className="h-8 w-8 rounded-lg bg-[#E8F2ED] text-[#287253] flex items-center justify-center">
-          {icon}
-        </div>
+        {icon ? (
+          <div className="h-8 w-8 rounded-lg bg-[#E8F2ED] text-[#287253] flex items-center justify-center">
+            {icon}
+          </div>
+        ) : null}
       </div>
       <div className="mt-4">
         {loading ? (

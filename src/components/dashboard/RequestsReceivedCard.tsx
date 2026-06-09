@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { createClient } from '@/lib/supabase/client'
-import { DocumentIcon } from '@/components/dashboard/DashboardStatCard'
 import { fetchPendingReceivedShareRequests } from '@/lib/recipient-requests'
 import { formatDate } from '@/lib/utils'
 
@@ -36,11 +35,8 @@ export function RequestsReceivedCard() {
             ))}
           </div>
         ) : pendingRequests.length === 0 ? (
-          <div className="px-6 py-12 flex flex-col items-center text-center">
-            <div className="h-10 w-10 rounded-lg bg-[#E8F2ED] text-[#287253] flex items-center justify-center">
-              <DocumentIcon />
-            </div>
-            <p className="mt-4 text-[14px] font-light text-[#7A8C84] max-w-sm">
+          <div className="px-6 py-12 text-center">
+            <p className="text-[14px] font-light text-[#7A8C84] max-w-sm mx-auto">
               You have no pending requests from other companies right now.
             </p>
           </div>

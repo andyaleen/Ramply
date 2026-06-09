@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
-import { ClockIcon, DocumentCheckIcon, DocumentIcon, StatCard } from '@/components/dashboard/DashboardStatCard'
+import { ClockIcon, StatCard } from '@/components/dashboard/DashboardStatCard'
 import { RequestsReceivedCard } from '@/components/dashboard/RequestsReceivedCard'
 
 const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
@@ -91,14 +91,12 @@ export function Dashboard() {
           value={stats?.completedThisMonth ?? 0}
           description="Successful this month"
           loading={statsLoading}
-          icon={<DocumentCheckIcon />}
         />
         <StatCard
           label="Total Completed"
           value={stats?.totalCompleted ?? 0}
           description="All-time completed"
           loading={statsLoading}
-          icon={<DocumentIcon />}
         />
       </section>
 

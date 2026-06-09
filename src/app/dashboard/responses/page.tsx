@@ -10,7 +10,6 @@ import { createClient } from '@/lib/supabase/client'
 interface ResponseStats {
   total: number
   thisMonth: number
-  uniqueVendors: number
 }
 
 export default function ResponsesPage() {
@@ -19,7 +18,7 @@ export default function ResponsesPage() {
   const { data: stats, isLoading: statsLoading } = useQuery<ResponseStats>({
     queryKey: ['response-stats', company?.id],
     queryFn: async () => {
-      if (!company) return { total: 0, thisMonth: 0, uniqueVendors: 0 }
+      if (!company) return { total: 0, thisMonth: 0 }
       const supabase = createClient()
 
       const now = new Date()
@@ -28,7 +27,7 @@ export default function ResponsesPage() {
       const [{ data: all }, { data: monthly }] = await Promise.all([
         supabase
           .from('share_requests')
-          .select('request_type')
+          .select('id')
           .eq('requester_company_id', company.id)
           .eq('status', 'completed'),
         supabase
@@ -39,11 +38,9 @@ export default function ResponsesPage() {
           .gte('completed_at', firstOfMonth),
       ])
 
-      const uniqueVendors = new Set((all ?? []).map((r) => r.request_type)).size
       return {
         total: all?.length ?? 0,
         thisMonth: monthly?.length ?? 0,
-        uniqueVendors,
       }
     },
     enabled: !!company,
@@ -69,7 +66,7 @@ export default function ResponsesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Responses</CardTitle>
@@ -93,19 +90,6 @@ export default function ResponsesPage() {
               : <div className="text-2xl font-bold">{stats?.thisMonth ?? 0}</div>
             }
             <p className="text-xs text-muted-foreground">Responses this month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unique Request Types</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statsLoading
-              ? <div className="animate-pulse bg-gray-200 h-8 w-12 rounded" />
-              : <div className="text-2xl font-bold">{stats?.uniqueVendors ?? 0}</div>
-            }
-            <p className="text-xs text-muted-foreground">Distinct request types with completed responses</p>
           </CardContent>
         </Card>
       </div>
