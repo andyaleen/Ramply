@@ -11,6 +11,10 @@ import { FileText, ExternalLink } from 'lucide-react'
 import { documentTypeLabel } from '@/lib/catalog'
 import type { CompanyDocumentRow, CompanyRow, SharedDataRow } from '@/lib/database.types'
 import {
+  downloadFromSignedUrl,
+  fetchSharedDocumentDownloadUrl,
+} from '@/lib/shared-document-download'
+import {
   fetchSharedDocumentsForRequester,
   fetchSharedRecipientCompanies,
   resolveRecipientCompanyLabel,
@@ -120,19 +124,15 @@ export function CompanyAssets({ companyId }: CompanyAssetsProps) {
   }, [company, loadAssets])
 
   const handleOpen = useCallback(async (doc: CompanyDocumentRow) => {
-    if (!doc.file_path) return
+    if (!doc.id) return
 
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(doc.file_path, 60)
-
-    if (error || !data?.signedUrl) {
+    try {
+      const { signedUrl } = await fetchSharedDocumentDownloadUrl(doc.id)
+      downloadFromSignedUrl(signedUrl, doc.file_name)
+    } catch {
       setError('Failed to generate file link')
-      return
     }
-
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
-  }, [supabase])
+  }, [])
 
   const uniqueAssets = useMemo(() => {
     const seen = new Set<string>()

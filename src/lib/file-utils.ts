@@ -1,7 +1,12 @@
 import { createClient } from '@/lib/supabase/client'
+import {
+  downloadFromSignedUrl,
+  fetchSharedDocumentDownloadUrl,
+} from '@/lib/shared-document-download'
 import { toast } from 'sonner'
 
 export interface DocumentInfo {
+  id?: string
   file_path: string
   file_name: string
   document_type?: string
@@ -15,7 +20,12 @@ export async function downloadDocument(doc: DocumentInfo): Promise<void> {
   const supabase = createClient()
 
   try {
-  console.log("📁 Attempting to download file from path:", doc.file_path);
+    if (doc.id) {
+      const { signedUrl, fileName } = await fetchSharedDocumentDownloadUrl(doc.id)
+      downloadFromSignedUrl(signedUrl, fileName)
+      toast.success(`Downloaded ${fileName}`)
+      return
+    }
 
     // First, try the direct download with the stored path
     let downloadError: Error | null = null
