@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 
-import type { DocumentTypeKey } from '@/lib/catalog'
+import { documentTypeStorageSegment } from '@/lib/custom-selections'
 
 export const MAX_DOCUMENT_UPLOAD_BYTES = 15 * 1024 * 1024
 
@@ -21,11 +21,11 @@ export function sanitizeStorageFileName(fileName: string): string {
 /** Build a stable storage key scoped to the signed-in user and document type. */
 export function buildDocumentStoragePath(
   userId: string,
-  docType: DocumentTypeKey,
+  docType: string,
   fileName: string
 ): string {
   const safeName = sanitizeStorageFileName(fileName)
-  return `${userId}/${docType}/${Date.now()}_${safeName}`
+  return `${userId}/${documentTypeStorageSegment(docType)}/${Date.now()}_${safeName}`
 }
 
 /** Hash file bytes for vault deduplication (Node.js). */

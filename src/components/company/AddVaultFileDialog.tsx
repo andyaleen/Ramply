@@ -27,7 +27,7 @@ interface AddVaultFileDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   vaultDocs: CompanyDocumentRow[]
-  uploading: DocumentTypeKey | null
+  uploading: string | null
   disabled?: boolean
   onUpload: (file: File, docType: DocumentTypeKey) => Promise<void>
 }

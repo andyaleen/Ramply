@@ -1,4 +1,3 @@
-import type { DocumentTypeKey } from '@/lib/catalog'
 import type { CompanyDocumentRow } from '@/lib/database.types'
 import type { createClient } from '@/lib/supabase/client'
 
@@ -90,10 +89,10 @@ export async function createVaultDocumentSignedUrl(
   return data.signedUrl
 }
 
-/** Return the active vault document for a catalog type, if present. */
+/** Return the active vault document for a document type, if present. */
 export function getVaultDocument(
   docs: CompanyDocumentRow[],
-  documentType: DocumentTypeKey
+  documentType: string
 ): CompanyDocumentRow | null {
   return docs.find((doc) => doc.document_type === documentType) ?? null
 }
@@ -101,7 +100,7 @@ export function getVaultDocument(
 /** True when the company already has an active vault document for this type. */
 export function hasVaultDocument(
   docs: CompanyDocumentRow[],
-  documentType: DocumentTypeKey
+  documentType: string
 ): boolean {
   return getVaultDocument(docs, documentType) !== null
 }
@@ -109,7 +108,7 @@ export function hasVaultDocument(
 /** Mandatory document types that are still missing from the vault. */
 export function missingVaultDocumentTypes(
   docs: CompanyDocumentRow[],
-  mandatoryTypes: DocumentTypeKey[]
-): DocumentTypeKey[] {
+  mandatoryTypes: string[]
+): string[] {
   return mandatoryTypes.filter((documentType) => !hasVaultDocument(docs, documentType))
 }

@@ -1,9 +1,20 @@
 import { z } from 'zod'
 import type { FieldKey, DocumentTypeKey } from './catalog'
 import { CATALOG_FIELDS, CATALOG_DOCUMENT_TYPES } from './catalog'
+import { isAllowedSelectionKey } from './custom-selections'
 
 const fieldKeys = CATALOG_FIELDS.map(f => f.key) as [FieldKey, ...FieldKey[]]
 const docTypeKeys = CATALOG_DOCUMENT_TYPES.map(d => d.key) as [DocumentTypeKey, ...DocumentTypeKey[]]
+
+const catalogFieldSelectionSchema = z.string().refine(
+  (key) => isAllowedSelectionKey(key, fieldKeys),
+  'Invalid field selection'
+)
+
+const catalogDocumentSelectionSchema = z.string().refine(
+  (key) => isAllowedSelectionKey(key, docTypeKeys),
+  'Invalid document selection'
+)
 
 // Company profile — all standardized fields, all optional except legal_name
 export const CompanyProfileSchema = z.object({
@@ -31,10 +42,10 @@ export const CompanyProfileSchema = z.object({
 export const ShareRequestSchema = z.object({
   request_type: z.string().trim().min(1, 'Type of request is required'),
   recipient_email: z.string().trim().min(1, 'Recipient email is required').email('Valid email is required'),
-  mandatory_fields: z.array(z.enum(fieldKeys)).min(0),
-  optional_fields: z.array(z.enum(fieldKeys)).min(0),
-  mandatory_documents: z.array(z.enum(docTypeKeys)).min(0),
-  optional_documents: z.array(z.enum(docTypeKeys)).min(0),
+  mandatory_fields: z.array(catalogFieldSelectionSchema).min(0),
+  optional_fields: z.array(catalogFieldSelectionSchema).min(0),
+  mandatory_documents: z.array(catalogDocumentSelectionSchema).min(0),
+  optional_documents: z.array(catalogDocumentSelectionSchema).min(0),
   expires_at: z.string().optional(),
 }).superRefine((value, ctx) => {
   const total =
@@ -74,10 +85,10 @@ export type ShareRequest = z.infer<typeof ShareRequestSchema>
 // Request templates - reusable field/document bundles
 export const TemplateSchema = z.object({
   name: z.string().min(1, 'Template name is required').max(100),
-  mandatory_fields: z.array(z.enum(fieldKeys)).min(0),
-  optional_fields: z.array(z.enum(fieldKeys)).min(0),
-  mandatory_documents: z.array(z.enum(docTypeKeys)).min(0),
-  optional_documents: z.array(z.enum(docTypeKeys)).min(0),
+  mandatory_fields: z.array(catalogFieldSelectionSchema).min(0),
+  optional_fields: z.array(catalogFieldSelectionSchema).min(0),
+  mandatory_documents: z.array(catalogDocumentSelectionSchema).min(0),
+  optional_documents: z.array(catalogDocumentSelectionSchema).min(0),
 }).superRefine((value, ctx) => {
   const total =
     value.mandatory_fields.length +

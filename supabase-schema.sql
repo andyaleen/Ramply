@@ -77,7 +77,8 @@ CREATE TABLE IF NOT EXISTS companies (
 CREATE TABLE IF NOT EXISTS company_documents (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  document_type TEXT NOT NULL CHECK (document_type IN (
+  document_type TEXT NOT NULL CHECK (
+    document_type IN (
     'W9',
     'liability_insurance',
     'resale_cert',
@@ -86,7 +87,9 @@ CREATE TABLE IF NOT EXISTS company_documents (
     'articles_of_incorporation',
     'business_license',
     'voided_check'
-  )),
+    )
+    OR document_type LIKE 'custom:%'
+  ),
   file_path TEXT NOT NULL,
   file_name TEXT NOT NULL,
   file_size BIGINT,
@@ -981,15 +984,18 @@ BEGIN
     RAISE EXCEPTION 'unauthorized';
   END IF;
 
-  IF p_document_type NOT IN (
-    'W9',
-    'liability_insurance',
-    'resale_cert',
-    'bank_reference',
-    'insurance_cert',
-    'articles_of_incorporation',
-    'business_license',
-    'voided_check'
+  IF NOT (
+    p_document_type IN (
+      'W9',
+      'liability_insurance',
+      'resale_cert',
+      'bank_reference',
+      'insurance_cert',
+      'articles_of_incorporation',
+      'business_license',
+      'voided_check'
+    )
+    OR p_document_type LIKE 'custom:%'
   ) THEN
     RAISE EXCEPTION 'invalid_document_type';
   END IF;

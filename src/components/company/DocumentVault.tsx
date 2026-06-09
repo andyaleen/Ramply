@@ -21,7 +21,7 @@ export function DocumentVault() {
   const { data: docs = [], isFetching, isFetched, refetch } = useVaultDocuments(company?.id)
   const vaultChecking = !!company?.id && !isFetched && isFetching
 
-  const handleUploadSuccess = ({ doc, duplicate }: { doc: { id: string; version: number }; duplicate: boolean }, docType: DocumentTypeKey) => {
+  const handleUploadSuccess = ({ doc, duplicate }: { doc: { id: string; version: number }; duplicate: boolean }, docType: string) => {
     if (duplicate) {
       toast.info('This file is identical to the current version — no update needed.')
       return

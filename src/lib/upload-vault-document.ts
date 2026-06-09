@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { User } from '@supabase/supabase-js'
 
-import type { DocumentTypeKey } from '@/lib/catalog'
 import { persistVaultUpload } from '@/lib/complete-vault-upload'
 import type { CompanyDocumentRow, CompanyRow } from '@/lib/database.types'
 import {
@@ -21,7 +20,7 @@ export async function uploadVaultDocument(options: {
   company: Pick<CompanyRow, 'id'>
   existingDocs: CompanyDocumentRow[]
   file: File
-  docType: DocumentTypeKey
+  docType: string
 }): Promise<VaultUploadResult> {
   const { supabase, user, company, existingDocs, file, docType } = options
 

@@ -1,11 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-import type { DocumentTypeKey } from '@/lib/catalog'
 import type { CompanyDocumentRow } from '@/lib/database.types'
 import { getVaultDocument } from '@/lib/vault-documents'
 
 export interface CompleteVaultUploadInput {
-  document_type: DocumentTypeKey
+  document_type: string
   file_path: string
   file_name: string
   file_size: number

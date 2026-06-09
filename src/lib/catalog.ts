@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customSelectionLabel, isCustomSelectionKey } from '@/lib/custom-selections'
 
 export const CATALOG_FIELDS = [
   { key: 'legal_name',           label: 'Legal Business Name' },
@@ -64,8 +65,12 @@ export const documentTypeKeySchema = z.enum([
 export type CompanyFieldData = Partial<Record<FieldKey, string>>;
 
 // Lookup helpers
-export const fieldLabel = (key: FieldKey): string =>
-  CATALOG_FIELDS.find((f) => f.key === key)?.label ?? key;
+export const fieldLabel = (key: FieldKey | string): string => {
+  if (isCustomSelectionKey(key)) return customSelectionLabel(key)
+  return CATALOG_FIELDS.find((f) => f.key === key)?.label ?? key
+}
 
-export const documentTypeLabel = (key: DocumentTypeKey): string =>
-  CATALOG_DOCUMENT_TYPES.find((d) => d.key === key)?.label ?? key;
+export const documentTypeLabel = (key: DocumentTypeKey | string): string => {
+  if (isCustomSelectionKey(key)) return customSelectionLabel(key)
+  return CATALOG_DOCUMENT_TYPES.find((d) => d.key === key)?.label ?? key
+}

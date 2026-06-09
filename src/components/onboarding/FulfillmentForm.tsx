@@ -6,7 +6,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ShareRequestRow, CompanyDocumentRow } from '@/lib/database.types'
-import { fieldLabel, documentTypeLabel, type FieldKey, type DocumentTypeKey } from '@/lib/catalog'
+import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
+import { isCustomSelectionKey } from '@/lib/custom-selections'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,19 +46,20 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   const vaultChecking = !!company?.id && !vaultFetched && vaultFetching
 
   /** Pre-fill field values from the authenticated user's company profile */
-  const [fieldValues, setFieldValues] = useState<Partial<Record<FieldKey, string>>>(() => {
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => {
     if (!company) return {}
-    const vals: Partial<Record<FieldKey, string>> = {}
+    const vals: Record<string, string> = {}
     const allFields = [...(shareRequest.mandatory_fields ?? []), ...(shareRequest.optional_fields ?? [])]
     for (const key of allFields) {
+      if (isCustomSelectionKey(key)) continue
       const val = company[key as keyof typeof company]
       if (typeof val === 'string') vals[key] = val
     }
     return vals
   })
 
-  const mandatoryDocTypes = (shareRequest.mandatory_documents ?? []) as DocumentTypeKey[]
-  const optionalDocTypes = (shareRequest.optional_documents ?? []) as DocumentTypeKey[]
+  const mandatoryDocTypes = shareRequest.mandatory_documents ?? []
+  const optionalDocTypes = shareRequest.optional_documents ?? []
   const allDocTypes = [...mandatoryDocTypes, ...optionalDocTypes]
 
   const missingRequiredDocs = useMemo(
@@ -69,12 +71,12 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
     (key) => !fieldValues[key]?.trim()
   )
 
-  const handleFieldChange = (key: FieldKey, value: string) => {
+  const handleFieldChange = (key: string, value: string) => {
     setFieldValues((prev) => ({ ...prev, [key]: value }))
   }
 
   const buildFieldPayload = () => {
-    const payload: Partial<Record<FieldKey, string>> = { ...fieldValues }
+    const payload: Record<string, string> = { ...fieldValues }
     for (const key of [...(shareRequest.mandatory_fields ?? []), ...(shareRequest.optional_fields ?? [])]) {
       if (payload[key] === undefined) payload[key] = ''
     }
@@ -104,7 +106,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
       toast.error(getUploadErrorMessage(err))
     },
     onClassified: (slotType, detectedType) => {
-      if (!detectedType || detectedType === slotType) return
+      if (!detectedType || detectedType === slotType || isCustomSelectionKey(slotType)) return
       toast.warning(
         `This looks like a ${documentTypeLabel(detectedType)}, but it was uploaded to the ${documentTypeLabel(slotType)} slot. You can replace it if needed.`,
         { duration: 8000 }
@@ -337,12 +339,12 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
 }
 
 interface DocRowProps {
-  docType: DocumentTypeKey
+  docType: string
   required: boolean
   doc: CompanyDocumentRow | null
   vaultChecking: boolean
   uploading: boolean
-  onUpload: (docType: DocumentTypeKey) => void
+  onUpload: (docType: string) => void
 }
 
 function DocRow({ docType, required, doc, vaultChecking, uploading, onUpload }: DocRowProps) {
