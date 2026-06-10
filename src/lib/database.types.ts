@@ -70,6 +70,7 @@ export type Database = {
           subscription_status: string | null
           subscription_price_id: string | null
           subscription_current_period_end: string | null
+          logo_path: string | null
           created_at: string
           updated_at: string
         }
@@ -106,6 +107,7 @@ export type Database = {
           subscription_status?: string | null
           subscription_price_id?: string | null
           subscription_current_period_end?: string | null
+          logo_path?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -142,6 +144,7 @@ export type Database = {
           subscription_status?: string | null
           subscription_price_id?: string | null
           subscription_current_period_end?: string | null
+          logo_path?: string | null
           created_at?: string
           updated_at?: string
         }

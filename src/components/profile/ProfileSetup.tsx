@@ -14,6 +14,7 @@ import { Building2, MapPin, User, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { US_STATES, US_STATE_VALUES } from '@/lib/us-states'
 import { cn } from '@/lib/utils'
+import { CompanyLogoUpload } from '@/components/profile/CompanyLogoUpload'
 
 interface ProfileSetupProps {
   onComplete: () => void
@@ -119,7 +120,10 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                   <Building2 className="h-4 w-4" /> Business Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="space-y-6">
+                <CompanyLogoUpload variant="compact" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="legal_name" render={({ field, fieldState }) => (
                   <FormItem className={cn('md:col-span-2', invalidFieldClass(!!fieldState.error))}>
                     <RequiredLabel>Legal Business Name</RequiredLabel>
@@ -185,6 +189,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                     <FormMessage />
                   </FormItem>
                 )} />
+                </div>
               </CardContent>
             </Card>
 

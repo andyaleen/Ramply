@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS companies (
   subscription_status TEXT,               -- 'active' | 'trialing' | 'past_due' | 'canceled' | NULL
   subscription_price_id TEXT,
   subscription_current_period_end TIMESTAMPTZ,
+  logo_path TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

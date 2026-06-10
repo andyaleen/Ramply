@@ -36,12 +36,9 @@ export function AuthScreen({ children }: AuthScreenProps) {
         </div>
       </header>
 
-      <main className="mx-auto grid min-h-[calc(100vh-56px)] max-w-7xl grid-cols-1 gap-12 px-6 py-12 md:px-12 lg:grid-cols-[1.1fr_560px] lg:items-center">
+      <main className="mx-auto grid min-h-[calc(100vh-56px)] max-w-7xl grid-cols-1 gap-12 px-6 py-12 md:px-12 lg:grid-cols-[1.1fr_560px] lg:items-start">
         <section className="max-w-[520px]">
-          <p className="text-[12px] font-medium uppercase tracking-[0.24em] text-[#287253]">
-            Secure Access
-          </p>
-          <h1 className={`${serifTitle} mt-5 text-[42px] leading-[1.05] text-[#0F1F18] md:text-[60px]`}>
+          <h1 className={`${serifTitle} text-[42px] leading-[1.05] text-[#0F1F18] md:text-[60px]`}>
             Step back into Ramply without stepping back into paperwork.
           </h1>
           <p className="mt-6 max-w-[440px] text-[16px] leading-relaxed text-[#4A5C54]">

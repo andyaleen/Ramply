@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { CompanyLogoUpload } from '@/components/profile/CompanyLogoUpload'
+import { useCompanyLogoUrl } from '@/hooks/useCompanyLogoUrl'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -34,6 +36,7 @@ export default function ProfilePage() {
   const { user, company, updateCompany, loading } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const router = useRouter()
+  const { logoUrl } = useCompanyLogoUrl(company?.logo_path)
 
   const form = useForm<CompanyProfile>({
     resolver: zodResolver(CompanyProfileSchema),
@@ -97,6 +100,9 @@ export default function ProfilePage() {
         <CardContent className="pt-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-20 w-20">
+              {logoUrl ? (
+                <AvatarImage src={logoUrl} alt="Company logo" className="object-contain p-2" />
+              ) : null}
               <AvatarFallback className="text-lg">
                 {company.contact_name ? getInitials(company.contact_name) : 'UN'}
               </AvatarFallback>
@@ -113,6 +119,15 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Brand Logo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CompanyLogoUpload />
         </CardContent>
       </Card>
 

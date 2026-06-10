@@ -9,10 +9,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CheckCircle, Clock, Download, FileText } from 'lucide-react'
+import { CheckCircle, Clock, Download, FileDown, FileText, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { downloadDocument } from '@/lib/file-utils'
-import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
+import { documentTypeLabel } from '@/lib/catalog'
+import { buildResponseDetailViewModel } from '@/lib/response-detail-view-model'
+import { downloadResponsePdf } from '@/lib/export-response-pdf'
+import { toast } from 'sonner'
 import {
   fetchShareRequestsForRequester,
   fetchSharedDocumentsForRequester,
@@ -195,39 +198,52 @@ function ResponseDetailsDialog({
   response: ShareResponse | null
   onClose: () => void
 }) {
+  const [exportingPdf, setExportingPdf] = useState(false)
+
   if (!response) return null
 
-  const companyName = resolveRecipientCompanyLabel(
-    response.recipientCompany,
-    response.sharedData,
-    response.recipient_email
-  )
-
-  const requiredFieldEntries = response.sharedData
-    ? response.mandatory_fields.map((key) => ({
-        key,
-        label: fieldLabel(key),
-        value: response.sharedData!.field_data[key] ?? '-',
-      }))
-    : []
-
-  const optionalFieldEntries = response.sharedData
-    ? response.optional_fields.map((key) => ({
-        key,
-        label: fieldLabel(key),
-        value: response.sharedData!.field_data[key] ?? '-',
-      }))
-    : []
+  const viewModel = buildResponseDetailViewModel(response)
+  const companyName = viewModel.companyName
+  const requiredFieldEntries = viewModel.requiredFields
+  const optionalFieldEntries = viewModel.optionalFields
 
   const sharedDocsByType = new Map(
     response.sharedDocs.map((doc) => [doc.document_type, doc])
   )
 
+  const handleExportPdf = async () => {
+    setExportingPdf(true)
+    try {
+      await downloadResponsePdf(response.id, viewModel)
+      toast.success('PDF exported')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to export PDF')
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   return (
     <Dialog open={!!response} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <DialogTitle>Share Request - {response.request_type}</DialogTitle>
+          {response.status === 'completed' ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={exportingPdf}
+              className="shrink-0"
+            >
+              {exportingPdf ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="mr-2 h-4 w-4" />
+              )}
+              Export PDF
+            </Button>
+          ) : null}
         </DialogHeader>
 
         <div className="space-y-6">
