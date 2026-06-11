@@ -14,14 +14,14 @@ test.describe('smoke — public pages', () => {
 
   test('login page renders auth form with sign-in and sign-up tabs', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.getByText('Welcome to Ramply')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /welcome back to ramply/i })).toBeVisible()
     await expect(page.getByRole('tab', { name: /sign in/i })).toBeVisible()
     await expect(page.getByRole('tab', { name: /sign up/i })).toBeVisible()
   })
 
   test('signup page renders with signup tab active', async ({ page }) => {
     await page.goto('/signup')
-    await expect(page.getByText('Welcome to Ramply')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /welcome back to ramply/i })).toBeVisible()
     // Confirm password field is visible when signup tab is default
     await expect(page.getByLabel(/confirm password/i)).toBeVisible()
   })

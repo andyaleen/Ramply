@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import type { NotificationPreferences } from '@/lib/database.types'
+import { pickUserSelfUpdateFields } from '@/lib/user-self-update'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
@@ -75,10 +76,12 @@ export function NotificationSettingsTab() {
       if (!user) throw new Error('No user found')
       const { error } = await supabase
         .from('users')
-        .update({
-          notification_preferences: values,
-          updated_at: new Date().toISOString(),
-        })
+        .update(
+          pickUserSelfUpdateFields({
+            notification_preferences: values,
+            updated_at: new Date().toISOString(),
+          })
+        )
         .eq('id', user.id)
       if (error) throw error
     },

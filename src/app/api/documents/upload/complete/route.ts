@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { CATALOG_DOCUMENT_TYPES, type DocumentTypeKey } from '@/lib/catalog'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { getUploadErrorMessage, isUserOwnedDocumentPath } from '@/lib/document-upload'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createBearerClient } from '@/lib/supabase/bearer'
@@ -44,7 +45,9 @@ async function resolveAuthedClient(req: Request): Promise<{
   } = await cookieClient.auth.getUser()
 
   if (!cookieError && cookieUser) {
-    return { supabase: cookieClient, userId: cookieUser.id }
+    const session = await requireAppSession(cookieClient, cookieUser)
+    if (!session.ok) return null
+    return { supabase: cookieClient, userId: session.user.id }
   }
 
   const authHeader = req.headers.get('authorization')
@@ -58,7 +61,11 @@ async function resolveAuthedClient(req: Request): Promise<{
   } = await bearerClient.auth.getUser(accessToken)
 
   if (bearerError || !bearerUser) return null
-  return { supabase: bearerClient, userId: bearerUser.id }
+
+  const session = await requireAppSession(bearerClient, bearerUser)
+  if (!session.ok) return null
+
+  return { supabase: bearerClient, userId: session.user.id }
 }
 
 /** Persist a Document Vault row after the browser uploaded bytes to storage. */

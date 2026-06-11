@@ -1,17 +1,13 @@
 import { z } from "zod";
 import { customSelectionLabel, isCustomSelectionKey } from '@/lib/custom-selections'
+import { ADDRESS_CATALOG_KEY } from '@/lib/address-fields'
 
 export const CATALOG_FIELDS = [
   { key: 'legal_name',           label: 'Legal Business Name' },
   { key: 'dba_name',             label: 'DBA / Trade Name' },
   { key: 'ein',                  label: 'EIN / Tax ID' },
   { key: 'business_type',        label: 'Business Type' },
-  { key: 'address_line1',        label: 'Street Address' },
-  { key: 'address_line2',        label: 'Suite / Unit' },
-  { key: 'city',                 label: 'City' },
-  { key: 'state',                label: 'State' },
-  { key: 'postal_code',          label: 'ZIP Code' },
-  { key: 'country',              label: 'Country' },
+  { key: ADDRESS_CATALOG_KEY,    label: 'Business Address' },
   { key: 'contact_name',         label: 'Primary Contact Name' },
   { key: 'contact_email',        label: 'Contact Email' },
   { key: 'contact_phone',        label: 'Contact Phone' },

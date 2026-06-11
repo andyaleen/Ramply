@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { reportServerError } from '@/lib/monitoring'
 import { buildResponseDetailViewModel, responsePdfFileName } from '@/lib/response-detail-view-model'
 import { generateResponsePdf } from '@/lib/generate-response-pdf'
@@ -28,14 +29,9 @@ export async function GET(
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
+  const { user } = session
 
   const admin = createAdminClient()
 

@@ -1,11 +1,16 @@
 'use client'
 
 import React from 'react'
+import dynamic from 'next/dynamic'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Toaster } from '@/components/ui/sonner'
+
+const ReactQueryDevtools = dynamic(
+  () => import('@tanstack/react-query-devtools').then((mod) => mod.ReactQueryDevtools),
+  { ssr: false }
+)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,7 +35,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           {children}
           <Toaster />
-          <ReactQueryDevtools initialIsOpen={false} />
+          {process.env.NODE_ENV === 'development' && (
+            <ReactQueryDevtools initialIsOpen={false} />
+          )}
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

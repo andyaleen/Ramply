@@ -1,5 +1,6 @@
 import { US_STATES } from '@/lib/us-states'
 import type { FieldKey } from '@/lib/catalog'
+import type { AddressComponentKey } from '@/lib/address-fields'
 
 type TextAnchor = {
   textSegments?: Array<{ startIndex?: number; endIndex?: number }>
@@ -110,7 +111,7 @@ function parseCityStateZip(value: string): {
 export function extractW9Fields(
   documentJson: Record<string, unknown>,
   rawText: string
-): Partial<Record<FieldKey, string>> {
+): Partial<Record<FieldKey | AddressComponentKey, string>> {
   const doc = documentJson as DocumentAiJson
   const lines = collectLines(doc)
 
@@ -140,7 +141,7 @@ export function extractW9Fields(
 
   const ein = extractEinFromText(rawText) ?? extractEinFromLines(lines)
 
-  const fields: Partial<Record<FieldKey, string>> = {}
+  const fields: Partial<Record<FieldKey | AddressComponentKey, string>> = {}
 
   if (legalName) fields.legal_name = legalName
   fields.dba_name = dbaName ?? ''

@@ -2,14 +2,22 @@ import { z } from 'zod'
 import type { FieldKey, DocumentTypeKey } from './catalog'
 import { CATALOG_FIELDS, CATALOG_DOCUMENT_TYPES } from './catalog'
 import { isAllowedSelectionKey } from './custom-selections'
+import { isAllowedBusinessType } from './field-inputs'
+import { LEGACY_ADDRESS_CATALOG_KEYS, normalizeFieldSelections } from './address-fields'
 
 const fieldKeys = CATALOG_FIELDS.map(f => f.key) as [FieldKey, ...FieldKey[]]
 const docTypeKeys = CATALOG_DOCUMENT_TYPES.map(d => d.key) as [DocumentTypeKey, ...DocumentTypeKey[]]
+const legacyAddressKeySet = new Set<string>(LEGACY_ADDRESS_CATALOG_KEYS)
 
 const catalogFieldSelectionSchema = z.string().refine(
-  (key) => isAllowedSelectionKey(key, fieldKeys),
+  (key) => isAllowedSelectionKey(key, fieldKeys) || legacyAddressKeySet.has(key),
   'Invalid field selection'
 )
+
+const fieldSelectionArraySchema = z
+  .array(catalogFieldSelectionSchema)
+  .min(0)
+  .transform((fields) => normalizeFieldSelections(fields))
 
 const catalogDocumentSelectionSchema = z.string().refine(
   (key) => isAllowedSelectionKey(key, docTypeKeys),
@@ -21,7 +29,10 @@ export const CompanyProfileSchema = z.object({
   legal_name: z.string().trim().min(1, 'Legal business name is required'),
   dba_name: z.string().optional(),
   ein: z.string().trim().min(1, 'EIN / Tax ID is required'),
-  business_type: z.string().optional(),
+  business_type: z
+    .string()
+    .optional()
+    .refine(isAllowedBusinessType, 'Select a valid business type'),
   address_line1: z.string().optional(),
   address_line2: z.string().optional(),
   city: z.string().optional(),
@@ -42,8 +53,8 @@ export const CompanyProfileSchema = z.object({
 export const ShareRequestSchema = z.object({
   request_type: z.string().trim().min(1, 'Type of request is required'),
   recipient_email: z.string().trim().min(1, 'Recipient email is required').email('Valid email is required'),
-  mandatory_fields: z.array(catalogFieldSelectionSchema).min(0),
-  optional_fields: z.array(catalogFieldSelectionSchema).min(0),
+  mandatory_fields: fieldSelectionArraySchema,
+  optional_fields: fieldSelectionArraySchema,
   mandatory_documents: z.array(catalogDocumentSelectionSchema).min(0),
   optional_documents: z.array(catalogDocumentSelectionSchema).min(0),
   expires_at: z.string().optional(),
@@ -85,8 +96,8 @@ export type ShareRequest = z.infer<typeof ShareRequestSchema>
 // Request templates - reusable field/document bundles
 export const TemplateSchema = z.object({
   name: z.string().min(1, 'Template name is required').max(100),
-  mandatory_fields: z.array(catalogFieldSelectionSchema).min(0),
-  optional_fields: z.array(catalogFieldSelectionSchema).min(0),
+  mandatory_fields: fieldSelectionArraySchema,
+  optional_fields: fieldSelectionArraySchema,
   mandatory_documents: z.array(catalogDocumentSelectionSchema).min(0),
   optional_documents: z.array(catalogDocumentSelectionSchema).min(0),
 }).superRefine((value, ctx) => {

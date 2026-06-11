@@ -1,7 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
 
-const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
-
 interface StatCardProps {
   label: string
   value: number
@@ -13,7 +11,7 @@ interface StatCardProps {
 }
 
 /**
- * Stat card with a top accent stripe, icon badge, and Instrument Serif metric.
+ * Stat card with a top accent stripe, icon badge, and large metric numeral.
  */
 export function StatCard(props: StatCardProps) {
   if (props.onClick) {
@@ -58,10 +56,10 @@ function StatCardContent({ label, value, description, icon, loading, highlighted
         {loading ? (
           <Skeleton className="h-10 w-16" />
         ) : (
-          <p className={`${serifTitle} text-[38px] leading-none text-[#0F1F18]`}>{value}</p>
+          <p className="text-[38px] font-semibold leading-none tabular-nums text-[#0F1F18]">{value}</p>
         )}
       </div>
-      <p className="mt-2 text-[12px] font-light text-[#7A8C84]">{description}</p>
+      <p className="mt-2 text-[12px] text-[#7A8C84]">{description}</p>
     </>
   )
 }

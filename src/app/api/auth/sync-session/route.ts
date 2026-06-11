@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { seedAppSessionActivityCookie } from '@/lib/auth/require-app-session'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 
 /**
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: 'No active session' }, { status: 401 })
   }
+
+  await seedAppSessionActivityCookie(user)
 
   return withAuthCookies(
     NextResponse.json({

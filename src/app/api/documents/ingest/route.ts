@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 import { runOcr } from '@/lib/ocr'
 import { extractW9Fields } from '@/lib/ocr/w9-extractor'
@@ -30,11 +31,9 @@ function resolveMimeType(fileName: string, storedMimeType: string | null): strin
 /** POST /api/documents/ingest — OCR a company document and persist extraction results. */
 export async function POST(req: Request) {
   const supabase = await createClient()
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
+  const { user } = session
 
   let body: unknown
   try {

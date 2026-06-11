@@ -8,12 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CompanyProfileSchema, type CompanyProfile } from '@/lib/validations'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CompanyFieldInput } from '@/components/company/CompanyFieldInput'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Building2, MapPin, User, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
-import { US_STATES, US_STATE_VALUES } from '@/lib/us-states'
 import { cn } from '@/lib/utils'
+import { AddressProfileFields } from '@/components/address/AddressProfileFields'
 import { CompanyLogoUpload } from '@/components/profile/CompanyLogoUpload'
 
 interface ProfileSetupProps {
@@ -158,18 +158,12 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 <FormField control={form.control} name="business_type" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Business Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                      <FormControl>
-                        <SelectTrigger className="border-[#DDDCD5] focus:ring-[#287253]/30"><SelectValue placeholder="Select type" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="LLC">LLC</SelectItem>
-                        <SelectItem value="Corporation">Corporation</SelectItem>
-                        <SelectItem value="Sole Proprietorship">Sole Proprietorship</SelectItem>
-                        <SelectItem value="Partnership">Partnership</SelectItem>
-                        <SelectItem value="Non Profit">Non Profit</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <CompanyFieldInput
+                      fieldKey="business_type"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      selectTriggerClassName="border-[#DDDCD5] focus:ring-[#287253]/30"
+                    />
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -232,70 +226,11 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                   <MapPin className="h-4 w-4" /> Business Address
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="address_line1" render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Street Address</FormLabel>
-                    <FormControl><Input placeholder="123 Main Street" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="address_line2" render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Suite / Unit</FormLabel>
-                    <FormControl><Input placeholder="Suite 100" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="city" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl><Input placeholder="New York" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="state" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>State</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                      <FormControl>
-                        <SelectTrigger className="border-[#DDDCD5] focus:ring-[#287253]/30">
-                          <SelectValue placeholder="Select state" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {!US_STATE_VALUES.has(field.value ?? '') && field.value ? (
-                          <SelectItem value={field.value}>{field.value}</SelectItem>
-                        ) : null}
-                        {US_STATES.map((state) => (
-                          <SelectItem key={state.value} value={state.value}>
-                            {state.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="postal_code" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ZIP Code</FormLabel>
-                    <FormControl><Input placeholder="10001" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="country" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <FormControl><Input placeholder="United States" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+              <CardContent className="space-y-4">
+                <AddressProfileFields
+                  form={form}
+                  inputClassName="border-[#DDDCD5] focus:ring-[#287253]/30"
+                />
               </CardContent>
             </Card>
 

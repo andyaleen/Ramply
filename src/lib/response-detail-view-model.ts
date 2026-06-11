@@ -1,6 +1,12 @@
 import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
 import { formatDate } from '@/lib/utils'
 import {
+  ADDRESS_CATALOG_KEY,
+  isAddressRelatedCatalogKey,
+  normalizeFieldSelections,
+  resolveAddressDisplayValue,
+} from '@/lib/address-fields'
+import {
   resolveCompleterEmail,
   resolveRecipientCompanyLabel,
 } from '@/lib/requester-share-responses'
@@ -43,6 +49,35 @@ type ShareResponseInput = Omit<ShareRequestRow, 'token'> & {
   recipientCompany: CompanyRow | null
 }
 
+function buildFieldEntries(
+  keys: string[],
+  fieldData: SharedDataRow['field_data'] | null | undefined
+): ResponseFieldEntry[] {
+  const normalizedKeys = normalizeFieldSelections(keys)
+  const entries: ResponseFieldEntry[] = []
+
+  for (const key of normalizedKeys) {
+    if (key === ADDRESS_CATALOG_KEY) {
+      entries.push({
+        key,
+        label: fieldLabel(key),
+        value: resolveAddressDisplayValue(fieldData as Record<string, unknown> | undefined),
+      })
+      continue
+    }
+
+    if (isAddressRelatedCatalogKey(key)) continue
+
+    entries.push({
+      key,
+      label: fieldLabel(key),
+      value: String(fieldData?.[key as keyof typeof fieldData] ?? '-'),
+    })
+  }
+
+  return entries
+}
+
 /** Build a normalized view model for response detail UI and PDF export. */
 export function buildResponseDetailViewModel(response: ShareResponseInput): ResponseDetailViewModel {
   const companyName = resolveRecipientCompanyLabel(
@@ -52,19 +87,11 @@ export function buildResponseDetailViewModel(response: ShareResponseInput): Resp
   )
 
   const requiredFields = response.sharedData
-    ? response.mandatory_fields.map((key) => ({
-        key,
-        label: fieldLabel(key),
-        value: String(response.sharedData!.field_data[key] ?? '-'),
-      }))
+    ? buildFieldEntries(response.mandatory_fields ?? [], response.sharedData.field_data)
     : []
 
   const optionalFields = response.sharedData
-    ? response.optional_fields.map((key) => ({
-        key,
-        label: fieldLabel(key),
-        value: String(response.sharedData!.field_data[key] ?? '-'),
-      }))
+    ? buildFieldEntries(response.optional_fields ?? [], response.sharedData.field_data)
     : []
 
   const sharedDocsByType = new Map(response.sharedDocs.map((doc) => [doc.document_type, doc]))

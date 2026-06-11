@@ -3,8 +3,6 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { sansBody } from '@/components/marketing/marketing-styles'
-
 interface RamplyMarketingNavProps {
   onLoginClick?: () => void
 }
@@ -15,8 +13,7 @@ export function RamplyMarketingNav({ onLoginClick }: RamplyMarketingNavProps) {
   const pathname = usePathname()
 
   return (
-    <header className={`${sansBody} bg-[#F0EFE9] border-b border-[#DDDCD5]`}>
-      <div className="h-16 flex items-center justify-between px-6 md:px-12">
+    <header className="bg-[#F0EFE9] border-b border-[#DDDCD5]">      <div className="h-16 flex items-center justify-between px-6 md:px-12">
         <Link
           href="/"
           className="text-[20px] md:text-[24px] font-semibold text-[#0F1F18] hover:text-[#287253] transition-colors"

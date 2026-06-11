@@ -10,7 +10,7 @@ import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
 import { isCustomSelectionKey } from '@/lib/custom-selections'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { CompanyFieldInput } from '@/components/company/CompanyFieldInput'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, FileText, Upload, Loader2 } from 'lucide-react'
@@ -24,7 +24,17 @@ import {
   missingVaultDocumentTypes,
   vaultDocsQueryKey,
 } from '@/lib/vault-documents'
+import {
+  ADDRESS_CATALOG_KEY,
+  ADDRESS_COMPONENT_KEYS,
+  buildShareAddressFieldPayload,
+  isAddressComplete,
+  partitionRequestFields,
+  pickAddressComponents,
+  requestIncludesAddress,
+} from '@/lib/address-fields'
 import { profileUpdatesFromFulfillmentFields } from '@/lib/fulfillment-profile-sync'
+import { AddressFieldsSection } from '@/components/address/AddressFieldsSection'
 
 type ShareRequestForFulfillment = Omit<ShareRequestRow, 'token'>
 
@@ -45,18 +55,47 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
     useVaultDocuments(company?.id)
   const vaultChecking = !!company?.id && !vaultFetched && vaultFetching
 
+  const mandatoryFieldKeys = shareRequest.mandatory_fields ?? []
+  const optionalFieldKeys = shareRequest.optional_fields ?? []
+  const allRequestedFieldKeys = [...mandatoryFieldKeys, ...optionalFieldKeys]
+
+  const mandatoryNonAddress = useMemo(
+    () => partitionRequestFields(mandatoryFieldKeys).nonAddressFields,
+    [mandatoryFieldKeys]
+  )
+  const optionalNonAddress = useMemo(
+    () => partitionRequestFields(optionalFieldKeys).nonAddressFields,
+    [optionalFieldKeys]
+  )
+  const addressRequired = requestIncludesAddress(mandatoryFieldKeys)
+  const addressOptional = requestIncludesAddress(optionalFieldKeys) && !addressRequired
+
   /** Pre-fill field values from the authenticated user's company profile */
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => {
     if (!company) return {}
     const vals: Record<string, string> = {}
-    const allFields = [...(shareRequest.mandatory_fields ?? []), ...(shareRequest.optional_fields ?? [])]
-    for (const key of allFields) {
+
+    for (const key of allRequestedFieldKeys) {
       if (isCustomSelectionKey(key)) continue
+      if (key === ADDRESS_CATALOG_KEY || requestIncludesAddress([key])) continue
       const val = company[key as keyof typeof company]
       if (typeof val === 'string') vals[key] = val
     }
+
+    if (requestIncludesAddress(allRequestedFieldKeys)) {
+      for (const key of ADDRESS_COMPONENT_KEYS) {
+        const val = company[key as keyof typeof company]
+        if (typeof val === 'string') vals[key] = val
+      }
+    }
+
     return vals
   })
+
+  const addressComponents = useMemo(
+    () => pickAddressComponents(fieldValues),
+    [fieldValues]
+  )
 
   const mandatoryDocTypes = shareRequest.mandatory_documents ?? []
   const optionalDocTypes = shareRequest.optional_documents ?? []
@@ -67,19 +106,49 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
     [vaultDocs, mandatoryDocTypes]
   )
 
-  const missingRequiredFields = (shareRequest.mandatory_fields ?? []).filter(
-    (key) => !fieldValues[key]?.trim()
-  )
+  const missingRequiredFields = useMemo(() => {
+    const missing: string[] = []
+
+    if (addressRequired && !isAddressComplete(addressComponents)) {
+      missing.push(ADDRESS_CATALOG_KEY)
+    }
+
+    for (const key of mandatoryNonAddress) {
+      if (!fieldValues[key]?.trim()) missing.push(key)
+    }
+
+    return missing
+  }, [addressRequired, addressComponents, mandatoryNonAddress, fieldValues])
 
   const handleFieldChange = (key: string, value: string) => {
     setFieldValues((prev) => ({ ...prev, [key]: value }))
   }
 
+  const handleAddressChange = (components: ReturnType<typeof pickAddressComponents>) => {
+    setFieldValues((prev) => ({ ...prev, ...components }))
+  }
+
   const buildFieldPayload = () => {
-    const payload: Record<string, string> = { ...fieldValues }
-    for (const key of [...(shareRequest.mandatory_fields ?? []), ...(shareRequest.optional_fields ?? [])]) {
+    const requested = allRequestedFieldKeys
+    const payload: Record<string, string> = {}
+
+    if (requestIncludesAddress(requested)) {
+      Object.assign(payload, buildShareAddressFieldPayload(requested, addressComponents))
+    }
+
+    for (const key of requested) {
+      if (isCustomSelectionKey(key)) {
+        payload[key] = fieldValues[key] ?? ''
+        continue
+      }
+      if (key === ADDRESS_CATALOG_KEY || requestIncludesAddress([key])) continue
+      payload[key] = fieldValues[key] ?? ''
+    }
+
+    for (const key of requested) {
       if (payload[key] === undefined) payload[key] = ''
     }
+
     return payload
   }
 
@@ -140,7 +209,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
       })
       if (error) throw error
 
-      const profileUpdates = profileUpdatesFromFulfillmentFields(fieldPayload)
+      const profileUpdates = profileUpdatesFromFulfillmentFields(fieldPayload, addressComponents)
       if (Object.keys(profileUpdates).length > 0) {
         try {
           await updateCompany(profileUpdates)
@@ -205,20 +274,36 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
             <CardTitle className="text-base">Information Requested</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {(shareRequest.mandatory_fields?.length ?? 0) > 0 && (
+            {(mandatoryFieldKeys.length > 0) && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Required</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(shareRequest.mandatory_fields ?? []).map((key) => {
+                  {addressRequired ? (
+                    <div className="md:col-span-2">
+                      <AddressFieldsSection
+                        value={addressComponents}
+                        onChange={handleAddressChange}
+                        addressLabel={fieldLabel(ADDRESS_CATALOG_KEY)}
+                        addressInvalid={
+                          pendingBlankFieldConfirm
+                          && missingRequiredFields.includes(ADDRESS_CATALOG_KEY)
+                        }
+                      />
+                      {pendingBlankFieldConfirm && missingRequiredFields.includes(ADDRESS_CATALOG_KEY) ? (
+                        <p className="mt-1 text-xs text-amber-700">Leave this address blank?</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {mandatoryNonAddress.map((key) => {
                     const isBlank = !fieldValues[key]?.trim()
                     const showBlankPrompt = pendingBlankFieldConfirm && isBlank
                     return (
                       <div key={key}>
                         <Label>{fieldLabel(key)}</Label>
-                        <Input
+                        <CompanyFieldInput
+                          fieldKey={key}
                           value={fieldValues[key] ?? ''}
-                          onChange={(e) => handleFieldChange(key, e.target.value)}
-                          placeholder={`Enter ${fieldLabel(key)}`}
+                          onChange={(value) => handleFieldChange(key, value)}
                           aria-invalid={showBlankPrompt}
                           className={showBlankPrompt ? 'border-amber-500 focus-visible:ring-amber-500' : undefined}
                         />
@@ -231,17 +316,26 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
                 </div>
               </div>
             )}
-            {(shareRequest.optional_fields?.length ?? 0) > 0 && (
+            {(optionalFieldKeys.length > 0) && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Optional</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(shareRequest.optional_fields ?? []).map((key) => (
+                  {addressOptional ? (
+                    <div className="md:col-span-2">
+                      <AddressFieldsSection
+                        value={addressComponents}
+                        onChange={handleAddressChange}
+                        addressLabel={fieldLabel(ADDRESS_CATALOG_KEY)}
+                      />
+                    </div>
+                  ) : null}
+                  {optionalNonAddress.map((key) => (
                     <div key={key}>
                       <Label>{fieldLabel(key)}</Label>
-                      <Input
+                      <CompanyFieldInput
+                        fieldKey={key}
                         value={fieldValues[key] ?? ''}
-                        onChange={(e) => handleFieldChange(key, e.target.value)}
-                        placeholder={`Enter ${fieldLabel(key)}`}
+                        onChange={(value) => handleFieldChange(key, value)}
                       />
                     </div>
                   ))}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { reportServerError } from '@/lib/monitoring'
 import { loadDownloadableDocumentForUser } from '@/lib/shared-document-access'
 import { DOCUMENTS_STORAGE_BUCKET } from '@/lib/vault-documents'
@@ -25,14 +26,9 @@ export async function GET(req: Request) {
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
+  const { user } = session
 
   const admin = createAdminClient()
   let doc: { file_path: string; file_name: string } | null = null

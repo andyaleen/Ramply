@@ -136,50 +136,89 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
             <p>No pending requests match your search.</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Recipient</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Sent</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            <div className="space-y-3 md:hidden">
               {filteredRequests.map((request) => {
                 const status = resolvePendingRequestDisplayStatus(request)
                 return (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">
-                      {request.recipient_email || 'No email captured'}
-                    </TableCell>
-                    <TableCell>{request.request_type}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(request.created_at)}
-                    </TableCell>
-                    <TableCell>
+                  <div key={request.id} className="rounded-lg border bg-card p-4 space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium break-all">
+                        {request.recipient_email || 'No email captured'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{request.request_type}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Sent</p>
+                        <p className="text-sm">{formatDate(request.created_at)}</p>
+                      </div>
                       <Badge className={PENDING_REQUEST_STATUS_CLASSES[status]}>
                         {PENDING_REQUEST_STATUS_LABELS[status]}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
-                        disabled={cancelMutation.isPending}
-                        onClick={() => handleCancel(request)}
-                      >
-                        Cancel
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
+                      disabled={cancelMutation.isPending}
+                      onClick={() => handleCancel(request)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 )
               })}
-            </TableBody>
-          </Table>
+            </div>
+
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Sent</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRequests.map((request) => {
+                    const status = resolvePendingRequestDisplayStatus(request)
+                    return (
+                      <TableRow key={request.id}>
+                        <TableCell className="font-medium">
+                          {request.recipient_email || 'No email captured'}
+                        </TableCell>
+                        <TableCell>{request.request_type}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(request.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={PENDING_REQUEST_STATUS_CLASSES[status]}>
+                            {PENDING_REQUEST_STATUS_LABELS[status]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
+                            disabled={cancelMutation.isPending}
+                            onClick={() => handleCancel(request)}
+                          >
+                            Cancel
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

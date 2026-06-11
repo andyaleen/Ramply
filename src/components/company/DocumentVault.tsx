@@ -71,23 +71,23 @@ export function DocumentVault() {
 
           return (
             <Card key={key} className={existing ? 'border-green-200 bg-green-50' : ''}>
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3 min-w-0">
+              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
                   {existing
-                    ? <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                    : <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                    ? <CheckCircle className="h-5 w-5 shrink-0 text-green-600" />
+                    : <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                   }
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{label}</p>
+                    <p className="text-sm font-medium">{label}</p>
                     {existing ? (
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground break-all">
                         {existing.file_name}
                         {existing.version > 1 && (
                           <span className="ml-1 text-blue-500">v{existing.version}</span>
                         )}
                       </p>
                     ) : vaultChecking ? (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Loader2 className="h-3 w-3 animate-spin" />
                         Checking vault…
                       </p>
@@ -95,11 +95,12 @@ export function DocumentVault() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 ml-3 shrink-0">
+                <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   {existing && (
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="w-full sm:w-auto"
                       onClick={() => router.push(`/dashboard/documents/review/${existing.id}`)}
                       disabled={isUploading}
                     >
@@ -109,6 +110,7 @@ export function DocumentVault() {
                   <Button
                     size="sm"
                     variant={existing ? 'outline' : 'default'}
+                    className="w-full sm:w-auto"
                     onClick={() => pick(key)}
                     disabled={isUploading || !company}
                   >

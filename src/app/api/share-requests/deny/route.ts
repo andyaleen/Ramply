@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { sendShareRequestDeniedEmail } from '@/lib/email/share-request-denied'
 import { reportServerError } from '@/lib/monitoring'
 import { getShareLinkOrigin } from '@/lib/share-link-origin'
@@ -15,14 +16,9 @@ const DenyShareRequestSchema = z.object({
  */
 export async function POST(req: Request) {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
+  const { user } = session
 
   let body: unknown
   try {

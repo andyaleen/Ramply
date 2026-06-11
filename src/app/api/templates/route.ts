@@ -1,19 +1,33 @@
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { TemplateSchema } from '@/lib/validations'
 
+async function requireTemplatesSession() {
+  const supabase = await createClient()
+  const session = await requireAppSession(supabase)
+  if (!session.ok) {
+    return { error: session.response }
+  }
+
+  return { supabase, user: session.user }
+}
+
 /** GET /api/templates — list all templates for the authenticated company */
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireTemplatesSession()
+  if ('error' in auth) return auth.error
+  const { supabase, user } = auth
 
-  const { data: company } = await supabase
+  const { data: company, error: companyError } = await supabase
     .from('companies')
     .select('id')
     .eq('owner_user_id', user.id)
-    .single()
+    .maybeSingle()
 
+  if (companyError) {
+    return NextResponse.json({ error: companyError.message }, { status: 500 })
+  }
   if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 400 })
 
   const { data, error } = await supabase
@@ -23,14 +37,14 @@ export async function GET() {
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json(data ?? [])
 }
 
 /** POST /api/templates — create a new template */
 export async function POST(req: Request) {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireTemplatesSession()
+  if ('error' in auth) return auth.error
+  const { supabase, user } = auth
 
   let body: unknown
   try {
@@ -63,9 +77,9 @@ export async function POST(req: Request) {
 
 /** PUT /api/templates?id=<uuid> — update an existing template */
 export async function PUT(req: Request) {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireTemplatesSession()
+  if ('error' in auth) return auth.error
+  const { supabase } = auth
 
   const id = new URL(req.url).searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
@@ -95,9 +109,9 @@ export async function PUT(req: Request) {
 
 /** DELETE /api/templates?id=<uuid> — delete a template */
 export async function DELETE(req: Request) {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireTemplatesSession()
+  if ('error' in auth) return auth.error
+  const { supabase } = auth
 
   const id = new URL(req.url).searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })

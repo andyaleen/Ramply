@@ -111,6 +111,19 @@ export function getSessionTimeoutState(metadata: StoredSessionMetadata, now = Da
 }
 
 /**
+ * Returns true when the authenticated session has exceeded the absolute
+ * lifetime limit, based on the user's last sign-in timestamp.
+ */
+export function isAbsoluteAppSessionExpired(
+  user: { last_sign_in_at?: string | null },
+  now = Date.now()
+): boolean {
+  const lastSignIn = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : 0
+  if (!lastSignIn) return false
+  return now - lastSignIn > AUTH_SESSION_ABSOLUTE_TIMEOUT_MS
+}
+
+/**
  * Converts login-page reason query params into user-facing session messages.
  */
 export function getSessionExpiryMessage(reason: string | null): string | null {

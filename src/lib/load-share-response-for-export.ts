@@ -10,6 +10,7 @@ import {
   fetchSharedRecipientCompanies,
   SHARE_REQUEST_COLUMNS_WITH_DENIED,
 } from '@/lib/requester-share-responses'
+import { isUserOwnedLogoPath } from '@/lib/company-logo-upload'
 import { DOCUMENTS_STORAGE_BUCKET } from '@/lib/vault-documents'
 
 export type LoadedShareResponse = Omit<ShareRequestRow, 'token'> & {
@@ -71,15 +72,20 @@ export async function loadShareResponseForExport(
   let logoBuffer: Buffer | null = null
   let logoMimeType: string | null = null
 
-  if (requesterCompany.logo_path) {
+  const safeLogoPath =
+    requesterCompany.logo_path && isUserOwnedLogoPath(requesterCompany.logo_path, userId)
+      ? requesterCompany.logo_path
+      : null
+
+  if (safeLogoPath) {
     const { data: logoBlob, error: logoError } = await admin.storage
       .from(DOCUMENTS_STORAGE_BUCKET)
-      .download(requesterCompany.logo_path)
+      .download(safeLogoPath)
 
     if (!logoError && logoBlob) {
       const arrayBuffer = await logoBlob.arrayBuffer()
       logoBuffer = Buffer.from(arrayBuffer)
-      logoMimeType = logoBlob.type || guessMimeFromPath(requesterCompany.logo_path)
+      logoMimeType = logoBlob.type || guessMimeFromPath(safeLogoPath)
     }
   }
 
@@ -92,7 +98,7 @@ export async function loadShareResponseForExport(
     },
     branding: {
       legalName: requesterCompany.legal_name,
-      logoPath: requesterCompany.logo_path,
+      logoPath: safeLogoPath,
       logoBuffer,
       logoMimeType,
     },

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ClockIcon, StatCard } from '@/components/dashboard/DashboardStatCard'
 import { RequestsReceivedCard } from '@/components/dashboard/RequestsReceivedCard'
 
-const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
+const pageTitle = 'text-[30px] font-semibold leading-tight text-[#0F1F18]'
 
 interface DashboardStats {
   pending: number
@@ -66,12 +66,12 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex-1 bg-[#F0EFE9] p-6 md:p-10 space-y-10 font-['DM_Sans',sans-serif]">
+    <div className="flex-1 bg-[#F0EFE9] p-6 md:p-10 space-y-10">
       <header>
-        <h1 className={`${serifTitle} text-[30px] leading-tight text-[#0F1F18] font-normal`}>
+        <h1 className={pageTitle}>
           Welcome back, {company?.contact_name || 'there'}
         </h1>
-        <p className="mt-2 text-[14px] font-light text-[#7A8C84]">
+        <p className="mt-2 text-[14px] text-[#7A8C84]">
           Send share requests to partners and track vendor submissions in one place.
         </p>
       </header>

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BookTemplate, FilePlus2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { fetchRequestTemplates } from '@/lib/request-templates'
+import { useAuth } from '@/contexts/AuthContext'
+import { fetchRequestTemplates, requestTemplatesQueryKey } from '@/lib/request-templates'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -31,10 +32,11 @@ export function CreateShareRequestChooserDialog({
   onSelectTemplate,
 }: CreateShareRequestChooserDialogProps) {
   const [step, setStep] = useState<'method' | 'template'>('method')
+  const { company } = useAuth()
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['request-templates'],
+    queryKey: requestTemplatesQueryKey(company?.id),
     queryFn: fetchRequestTemplates,
-    enabled: open,
+    enabled: open && !!company?.id,
   })
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export function CreateShareRequestChooserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md sm:w-full">
         {step === 'method' ? (
           <>
             <DialogHeader>

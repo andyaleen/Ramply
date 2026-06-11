@@ -8,7 +8,8 @@ import { CompanyProfileSchema, type CompanyProfile } from '@/lib/validations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CompanyFieldInput } from '@/components/company/CompanyFieldInput'
+import { AddressProfileFields } from '@/components/address/AddressProfileFields'
 import {
   Form,
   FormControl,
@@ -17,7 +18,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { US_STATES } from '@/lib/us-states'
 import { toast } from 'sonner'
 
 /**
@@ -119,58 +119,17 @@ export function ProfileSettingsTab() {
               <FormField control={form.control} name="business_type" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Business Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                    <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="llc">LLC</SelectItem>
-                      <SelectItem value="corporation">Corporation</SelectItem>
-                      <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
-                      <SelectItem value="partnership">Partnership</SelectItem>
-                      <SelectItem value="nonprofit">Nonprofit</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <CompanyFieldInput
+                    fieldKey="business_type"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                  />
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="address_line1" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address Line 1</FormLabel>
-                  <FormControl><Input placeholder="123 Main St" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="city" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>City</FormLabel>
-                  <FormControl><Input placeholder="City" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="state" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>State</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                    <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {US_STATES.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="postal_code" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Postal Code</FormLabel>
-                  <FormControl><Input placeholder="12345" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <div className="md:col-span-2">
+                <AddressProfileFields form={form} />
+              </div>
             </div>
 
             <div className="pt-4">

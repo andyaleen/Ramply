@@ -14,7 +14,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { CompanyRow, UserRow } from '@/lib/database.types'
 import { fetchActiveVaultDocuments, vaultDocsQueryKey } from '@/lib/vault-documents'
+import { bootstrapAppUser } from '@/lib/auth/bootstrap-app-user'
 import { isCompanyProfileComplete, isProtectedAppPath } from '@/lib/auth/routing'
+import { isUserOwnedLogoPath } from '@/lib/company-logo-upload'
 import {
   AUTH_REDIRECT_REASON_SESSION_EXPIRED,
   clearStoredSessionMetadata,
@@ -33,6 +35,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   updateCompany: (data: Partial<CompanyRow>) => Promise<void>
   refreshUserProfile: () => Promise<void>
+  seedBootstrapState: (state: BootstrapState) => void
   isAdmin: boolean
   promoteToAdmin: (userId: string) => Promise<{ error: string | null }>
 }
@@ -96,73 +99,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const bootstrapPromise = (async () => {
         if (!silent) setProfileLoading(true)
         try {
-          const { data: existingUser, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', authUser.id)
-            .maybeSingle()
-
-          if (userError) throw userError
-
-          let resolvedUser = existingUser
-          if (!resolvedUser) {
-            const { data: createdUser, error: createUserError } = await supabase
-              .from('users')
-              .insert([{ id: authUser.id, email: authUser.email ?? '', role: 'external' }])
-              .select()
-              .single()
-
-            if (createUserError && createUserError.code !== '23505') throw createUserError
-            resolvedUser = createdUser ?? null
-          }
-
-          if (!resolvedUser) {
-            const { data: reloadedUser, error: reloadUserError } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', authUser.id)
-              .single()
-
-            if (reloadUserError) throw reloadUserError
-            resolvedUser = reloadedUser
-          }
-
-          const { data: existingCompany, error: companyError } = await supabase
-            .from('companies')
-            .select('*')
-            .eq('owner_user_id', authUser.id)
-            .maybeSingle()
-
-          if (companyError) throw companyError
-
-          let resolvedCompany = existingCompany
-          if (!resolvedCompany) {
-            const { data: createdCompany, error: createCompanyError } = await supabase
-              .from('companies')
-              .insert([{ owner_user_id: authUser.id }])
-              .select()
-              .single()
-
-            if (createCompanyError && createCompanyError.code !== '23505') throw createCompanyError
-            resolvedCompany = createdCompany ?? null
-          }
-
-          if (!resolvedCompany) {
-            const { data: reloadedCompany, error: reloadCompanyError } = await supabase
-              .from('companies')
-              .select('*')
-              .eq('owner_user_id', authUser.id)
-              .single()
-
-            if (reloadCompanyError) throw reloadCompanyError
-            resolvedCompany = reloadedCompany
-          }
+          const { userProfile: resolvedUser, company: resolvedCompany } =
+            await bootstrapAppUser(supabase)
 
           setUserProfile(resolvedUser)
           setCompany(resolvedCompany)
           bootstrappedUserIdRef.current = authUser.id
 
-          if (resolvedCompany?.id) {
+          if (resolvedCompany.id) {
             void queryClient.prefetchQuery({
               queryKey: vaultDocsQueryKey(resolvedCompany.id),
               queryFn: () => fetchActiveVaultDocuments(supabase, resolvedCompany.id),
@@ -366,6 +310,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Not authenticated')
       }
 
+      if (
+        data.logo_path != null &&
+        !isUserOwnedLogoPath(data.logo_path, user.id)
+      ) {
+        throw new Error('Invalid company logo path')
+      }
+
       const { data: updated, error } = await supabase
         .from('companies')
         .update({ ...data, updated_at: new Date().toISOString() })
@@ -383,6 +334,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
     await bootstrapUserState(user)
   }, [bootstrapUserState, user])
+
+  const seedBootstrapState = useCallback(
+    (state: BootstrapState) => {
+      setUserProfile(state.userProfile)
+      setCompany(state.company)
+      if (state.userProfile?.id) {
+        bootstrappedUserIdRef.current = state.userProfile.id
+      }
+
+      if (state.company?.id) {
+        void queryClient.prefetchQuery({
+          queryKey: vaultDocsQueryKey(state.company.id),
+          queryFn: () => fetchActiveVaultDocuments(supabase, state.company!.id),
+        })
+      }
+    },
+    [queryClient, supabase]
+  )
 
   const promoteToAdmin = useCallback(
     async (userId: string) => {
@@ -413,6 +382,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       updateCompany,
       refreshUserProfile,
+      seedBootstrapState,
       isAdmin: userProfile?.role === 'admin',
       promoteToAdmin,
     }),
@@ -422,6 +392,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profileLoading,
       promoteToAdmin,
       refreshUserProfile,
+      seedBootstrapState,
       signIn,
       signOut,
       signUp,

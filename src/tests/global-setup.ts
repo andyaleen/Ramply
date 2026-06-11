@@ -9,7 +9,8 @@ config({ path: path.resolve(process.cwd(), '.env.local') })
  * Global setup — authenticates admin and vendor once, saves storage state.
  * Tests reference these state files instead of logging in on every run.
  */
-async function globalSetup(_config: FullConfig) {
+async function globalSetup(config: FullConfig) {
+  const baseURL = String(config.projects[0]?.use?.baseURL ?? 'http://localhost:3000')
   const adminEmail = process.env.E2E_ADMIN_EMAIL
   const adminPassword = process.env.E2E_ADMIN_PASSWORD
   const vendorEmail = process.env.E2E_VENDOR_EMAIL
@@ -46,24 +47,29 @@ async function globalSetup(_config: FullConfig) {
     const context = await browser.newContext()
     const page = await context.newPage()
 
-    await page.goto('http://localhost:3000/login')
-    await page.waitForSelector('text=Welcome to Ramply', { timeout: 15_000 })
-    await page.locator('[role="tab"]', { hasText: 'Sign In' }).click()
-    await page.locator('#signin-email').fill(email)
-    await page.locator('#signin-password').fill(password)
-    await page.locator('form').filter({ has: page.locator('#signin-email') })
-      .getByRole('button', { name: /sign in/i })
-      .click()
+    try {
+      await page.goto(`${baseURL}/login`)
+      await page.getByRole('heading', { name: /welcome back to ramply/i }).waitFor({ timeout: 15_000 })
+      await page.locator('[role="tab"]', { hasText: 'Sign In' }).click()
+      await page.locator('#signin-email').fill(email)
+      await page.locator('#signin-password').fill(password)
+      await page.locator('form').filter({ has: page.locator('#signin-email') })
+        .getByRole('button', { name: /sign in/i })
+        .click()
 
-    // Wait for redirect away from login
-    await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 30_000 })
+      // Wait for redirect away from login
+      await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 30_000 })
 
-    // Wait for auth context to fully hydrate before saving cookies
-    await waitForPostLogin(page)
+      // Wait for auth context to fully hydrate before saving cookies
+      await waitForPostLogin(page)
 
-    await context.storageState({ path: stateFile })
-    await context.close()
-    console.log(`Saved auth state for ${email} → ${stateFile}`)
+      await context.storageState({ path: stateFile })
+      console.log(`Saved auth state for ${email} → ${stateFile}`)
+    } catch (error) {
+      console.warn(`Failed to save auth state for ${email}:`, error)
+    } finally {
+      await context.close()
+    }
   }
 
   await saveAuthState(adminEmail, adminPassword, 'playwright/.auth/admin.json')

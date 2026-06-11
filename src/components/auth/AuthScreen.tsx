@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
-const sansBody = "font-['DM_Sans',sans-serif]"
+const displayTitle = 'font-semibold tracking-tight'
 
 interface AuthScreenProps {
   children: React.ReactNode
@@ -16,7 +15,7 @@ export function AuthScreen({ children }: AuthScreenProps) {
   const router = useRouter()
 
   return (
-    <div className={`${sansBody} min-h-screen bg-[#F0EFE9] text-[#0F1F18]`}>
+    <div className="min-h-screen bg-[#F0EFE9] text-[#0F1F18]">
       <header className="border-b border-[#DDDCD5] bg-[#F0EFE9]">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6 md:px-12">
           <button
@@ -38,7 +37,7 @@ export function AuthScreen({ children }: AuthScreenProps) {
 
       <main className="mx-auto grid min-h-[calc(100vh-56px)] max-w-7xl grid-cols-1 gap-12 px-6 py-12 md:px-12 lg:grid-cols-[1.1fr_560px] lg:items-start">
         <section className="max-w-[520px]">
-          <h1 className={`${serifTitle} text-[42px] leading-[1.05] text-[#0F1F18] md:text-[60px]`}>
+          <h1 className={`${displayTitle} text-[42px] leading-[1.05] text-[#0F1F18] md:text-[60px]`}>
             Step back into Ramply without stepping back into paperwork.
           </h1>
           <p className="mt-6 max-w-[440px] text-[16px] leading-relaxed text-[#4A5C54]">

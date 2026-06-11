@@ -16,14 +16,23 @@ describe('profileUpdatesFromFulfillmentFields', () => {
     })
   })
 
-  it('ignores unknown keys', () => {
+  it('syncs structured address components from fulfillment', () => {
     expect(
-      profileUpdatesFromFulfillmentFields({
-        legal_name: 'Acme LLC',
-        not_a_field: 'ignored',
-      } as never)
+      profileUpdatesFromFulfillmentFields(
+        { legal_name: 'Acme LLC' },
+        {
+          address_line1: '123 Main St',
+          city: 'New York',
+          state: 'NY',
+          postal_code: '10001',
+        }
+      )
     ).toEqual({
       legal_name: 'Acme LLC',
+      address_line1: '123 Main St',
+      city: 'New York',
+      state: 'NY',
+      postal_code: '10001',
     })
   })
 })

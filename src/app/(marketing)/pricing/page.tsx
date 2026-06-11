@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { PricingPlanCards } from '@/components/marketing/PricingPlanCards'
 import { RamplyMarketingNav } from '@/components/marketing/RamplyMarketingNav'
-import { sansBody, serifTitle } from '@/components/marketing/marketing-styles'
+import { serifTitle } from '@/components/marketing/marketing-styles'
 
 /** Public pricing page at /pricing. */
 export default function PricingPage() {
@@ -13,7 +13,7 @@ export default function PricingPage() {
   const { user, loading } = useAuth()
 
   return (
-    <div className={`${sansBody} min-h-screen bg-[#F0EFE9] text-[#0F1F18]`}>
+    <div className="min-h-screen bg-[#F0EFE9] text-[#0F1F18]">
       <RamplyMarketingNav onLoginClick={() => router.push('/login')} />
 
       <main className="px-6 md:px-12 py-14 md:py-20">

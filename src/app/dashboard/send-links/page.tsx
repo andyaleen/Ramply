@@ -29,10 +29,10 @@ export default function SendLinksPage() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Send Requests</h1>
-        <Button onClick={openChooser} className="flex shrink-0 items-center gap-2">
+    <div className="flex-1 min-w-0 space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Send Requests</h1>
+        <Button onClick={openChooser} className="flex w-full shrink-0 items-center justify-center gap-2 sm:w-auto">
           <Plus className="h-4 w-4" />
           Create Share Request
         </Button>

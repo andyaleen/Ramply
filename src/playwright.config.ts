@@ -5,6 +5,9 @@ import path from 'path';
 // Load .env.local from the project root (cwd when running npm run test:e2e)
 config({ path: path.resolve(process.cwd(), '.env.local') });
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000'
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1'
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -18,23 +21,37 @@ export default defineConfig({
   workers: process.env.CI ? 3 : 6,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
-    viewport: { width: 1366, height: 768 },
   },
 
   // NB: only chromium will run in Docker (arm64).
   projects: [
     {
       name: 'chromium',
+      testIgnore: /mobile\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
-    }
+    },
+    {
+      name: 'iphone-14',
+      testMatch: [/smoke\.spec\.ts/, /mobile\.spec\.ts/],
+      use: {
+        ...devices['iPhone 14'],
+        // Emulate iPhone in Chromium so CI/Docker only needs `npx playwright install chromium`.
+        // For native WebKit: remove defaultBrowserType and run `npx playwright install webkit`.
+        defaultBrowserType: 'chromium',
+      },
+    },
   ],
 
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
-    timeout: 120 * 1000,
-  },
+  ...(skipWebServer
+    ? {}
+    : {
+        webServer: {
+          command: process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ?? 'npm run dev',
+          url: baseURL,
+          reuseExistingServer: !process.env.CI,
+          timeout: 120 * 1000,
+        },
+      }),
 });

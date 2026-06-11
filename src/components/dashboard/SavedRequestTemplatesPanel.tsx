@@ -8,7 +8,14 @@ import { PencilLine, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { RequestTemplateRow } from '@/lib/database.types'
 import { TemplateSchema, type TemplateFormValues } from '@/lib/validations'
-import { countTemplateSelections, fetchRequestTemplates, removeRequestTemplate, saveRequestTemplate } from '@/lib/request-templates'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  countTemplateSelections,
+  fetchRequestTemplates,
+  removeRequestTemplate,
+  requestTemplatesQueryKey,
+  saveRequestTemplate,
+} from '@/lib/request-templates'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -44,11 +51,14 @@ const emptyTemplate: TemplateFormValues = {
 export function SavedRequestTemplatesPanel({
   onUseTemplate,
 }: SavedRequestTemplatesPanelProps) {
+  const { company } = useAuth()
   const queryClient = useQueryClient()
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
-  const { data: templates = [], isLoading } = useQuery<RequestTemplateRow[]>({
-    queryKey: ['request-templates'],
+  const templatesQueryKey = requestTemplatesQueryKey(company?.id)
+  const { data: templates = [], isLoading, isError, error } = useQuery<RequestTemplateRow[]>({
+    queryKey: templatesQueryKey,
     queryFn: fetchRequestTemplates,
+    enabled: !!company?.id,
   })
 
   const editingTemplate = useMemo(
@@ -68,7 +78,7 @@ export function SavedRequestTemplatesPanel({
       return saveRequestTemplate(values, editingTemplate.id)
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+      await queryClient.invalidateQueries({ queryKey: templatesQueryKey })
       toast.success('Template updated')
       setEditingTemplateId(null)
     },
@@ -80,7 +90,7 @@ export function SavedRequestTemplatesPanel({
   const deleteMutation = useMutation({
     mutationFn: async (template: RequestTemplateRow) => removeRequestTemplate(template.id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+      await queryClient.invalidateQueries({ queryKey: templatesQueryKey })
       toast.success('Template deleted')
     },
     onError: () => {
@@ -108,9 +118,13 @@ export function SavedRequestTemplatesPanel({
             <div className="grid gap-3 md:grid-cols-2">
               {[0, 1].map((index) => <div key={index} className="h-32 animate-pulse rounded-lg bg-muted" />)}
             </div>
+          ) : isError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-800">
+              {error instanceof Error ? error.message : 'Failed to load saved templates. Please refresh and try again.'}
+            </div>
           ) : templates.length === 0 ? (
             <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-              No saved templates yet. Create one from a new request and it will show up here for reuse.
+              No saved templates for this account yet. Templates are saved per login — create one from a new request and it will show up here for reuse.
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
@@ -150,7 +164,7 @@ export function SavedRequestTemplatesPanel({
       </Card>
 
       <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplateId(null)}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto sm:w-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PencilLine className="h-5 w-5 text-blue-600" />

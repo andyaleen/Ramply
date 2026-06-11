@@ -11,10 +11,12 @@
     "test": "vitest run --config=src/vitest.config.ts",
     "test:watch": "vitest --config=src/vitest.config.ts",
     "test:e2e": "playwright test --config=src/playwright.config.ts",
+    "test:e2e:mobile": "playwright test --config=src/playwright.config.ts --project=iphone-14",
     "test:e2e:ui": "playwright test --config=src/playwright.config.ts --ui"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.87.0",
+    "@googlemaps/js-api-loader": "^2.1.1",
     "@hookform/resolvers": "^5.1.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -64,6 +66,7 @@
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
+    "@types/google.maps": "^3.65.1",
     "@types/node": "^20",
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",

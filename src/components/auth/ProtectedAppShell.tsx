@@ -13,16 +13,15 @@ interface ProtectedAppShellProps {
 /**
  * Keeps protected app routes session-first while centralizing role and profile
  * completion redirects in one place.
+ *
+ * Only the initial session check blocks the UI. Once a user is authenticated,
+ * the app shell and route content render immediately; individual pages show
+ * their own skeletons while profile/company data bootstraps in the background.
  */
 export function ProtectedAppShell({ children }: ProtectedAppShellProps) {
   const { user, userProfile, company, loading, profileLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-
-  const redirectPath =
-    !loading && user && !profileLoading && userProfile
-      ? getProtectedRouteRedirect(pathname, userProfile, company)
-      : null
 
   useEffect(() => {
     if (loading) return
@@ -36,10 +35,11 @@ export function ProtectedAppShell({ children }: ProtectedAppShellProps) {
       return
     }
 
+    const redirectPath = getProtectedRouteRedirect(pathname, userProfile, company)
     if (redirectPath) {
       router.replace(redirectPath)
     }
-  }, [loading, pathname, profileLoading, redirectPath, router, user, userProfile])
+  }, [company, loading, pathname, profileLoading, router, user, userProfile])
 
   if (loading || !user) {
     return (
@@ -47,32 +47,6 @@ export function ProtectedAppShell({ children }: ProtectedAppShellProps) {
         title="Checking Authentication"
         description="Please wait while we verify your session..."
         onRefresh={() => window.location.reload()}
-      />
-    )
-  }
-
-  // Only show the full-screen workspace loader on the *first* load when we
-  // genuinely don't have profile data yet. A background refresh (e.g. when
-  // Supabase fires TOKEN_REFRESHED as the tab regains focus) must not swap
-  // out the rendered page — that's what caused this screen to flash every
-  // time the user came back to the Ramply tab.
-  if (!userProfile) {
-    return (
-      <LoadingFallback
-        title="Preparing Your Workspace"
-        description="Loading your company profile and account access..."
-        onRefresh={() => window.location.reload()}
-        timeoutMs={12000}
-      />
-    )
-  }
-
-  if (redirectPath) {
-    return (
-      <LoadingFallback
-        title="Redirecting"
-        description="Taking you to the right part of Ramply..."
-        showTimeoutWarning={false}
       />
     )
   }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { RamplyMarketingNav } from '@/components/marketing/RamplyMarketingNav'
-import { sansBody, serifTitle } from '@/components/marketing/marketing-styles'
+import { serifTitle } from '@/components/marketing/marketing-styles'
 import {
   buildAuthConfirmPath,
   getAuthCallbackParamsFromLocation,
@@ -62,7 +62,7 @@ export default function Landing() {
   }, [user, loading, router])
 
   return (
-    <div className={`${sansBody} min-h-screen bg-[#F0EFE9] text-[#0F1F18]`}>
+    <div className="min-h-screen bg-[#F0EFE9] text-[#0F1F18]">
       <RamplyMarketingNav onLoginClick={() => router.push('/login')} />
       <Hero
         onPrimaryClick={() => router.push('/signup')}

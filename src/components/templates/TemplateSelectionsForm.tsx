@@ -63,14 +63,14 @@ function SelectionRow({
   onOptionalChange,
 }: SelectionRowProps) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-xs font-normal">{label}</span>
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1 text-xs">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <span className="min-w-0 text-xs font-normal">{label}</span>
+      <div className="flex shrink-0 items-center gap-3">
+        <label className="flex items-center gap-1 text-xs whitespace-nowrap">
           <Checkbox checked={isRequired} onCheckedChange={(checked) => onRequiredChange(!!checked)} />
           Required
         </label>
-        <label className="flex items-center gap-1 text-xs">
+        <label className="flex items-center gap-1 text-xs whitespace-nowrap">
           <Checkbox checked={isOptional} onCheckedChange={(checked) => onOptionalChange(!!checked)} />
           Optional
         </label>

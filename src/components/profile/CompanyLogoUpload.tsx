@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { useCompanyLogoUpload } from '@/hooks/useCompanyLogoUpload'
 import { useCompanyLogoUrl } from '@/hooks/useCompanyLogoUrl'
+import { maxLogoUploadSizeLabel } from '@/lib/company-logo-upload'
 import { ImagePlus, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -54,7 +55,7 @@ export function CompanyLogoUpload({ variant = 'default', showRemove = true }: Co
         <div>
           <p className="text-sm font-medium">Company Logo</p>
           <p className="text-xs text-muted-foreground">
-            Optional. Appears on exported PDFs and your profile. PNG, JPEG, WebP, or SVG up to 2MB.
+            Optional. Appears on exported PDFs and your profile. PNG, JPEG, WebP, or SVG up to {maxLogoUploadSizeLabel()}.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

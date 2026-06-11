@@ -1,6 +1,6 @@
 import { sanitizeStorageFileName } from '@/lib/document-upload'
 
-export const MAX_LOGO_UPLOAD_BYTES = 2 * 1024 * 1024
+export const MAX_LOGO_UPLOAD_BYTES = 8 * 1024 * 1024
 
 export const ALLOWED_LOGO_MIME_TYPES = new Set([
   'image/png',
@@ -16,6 +16,11 @@ const LOGO_EXTENSION_BY_MIME: Record<string, string> = {
   'image/svg+xml': 'svg',
 }
 
+/** Human-readable max logo size for UI copy (derived from MAX_LOGO_UPLOAD_BYTES). */
+export function maxLogoUploadSizeLabel(): string {
+  return `${MAX_LOGO_UPLOAD_BYTES / (1024 * 1024)}MB`
+}
+
 /** Validate a company logo file before upload. */
 export function validateLogoFile(file: File): string | null {
   const mime = file.type || 'application/octet-stream'
@@ -23,7 +28,7 @@ export function validateLogoFile(file: File): string | null {
     return 'Logo must be a PNG, JPEG, WebP, or SVG image.'
   }
   if (file.size > MAX_LOGO_UPLOAD_BYTES) {
-    return `Logo must be ${MAX_LOGO_UPLOAD_BYTES / (1024 * 1024)}MB or smaller.`
+    return `Logo must be ${maxLogoUploadSizeLabel()} or smaller.`
   }
   return null
 }
@@ -35,7 +40,21 @@ export function buildLogoStoragePath(userId: string, file: File): string {
   return `${userId}/logo/logo.${ext}`
 }
 
-/** True when a storage path is the signed-in user's logo folder. */
+const LOGO_FILE_PATTERN = /^logo\/logo\.(png|jpe?g|webp|svg)$/i
+
+/**
+ * True when a storage path is the signed-in user's canonical logo object.
+ * Rejects traversal, foreign prefixes, and non-logo filenames.
+ */
 export function isUserOwnedLogoPath(filePath: string, userId: string): boolean {
-  return filePath.startsWith(`${userId}/logo/`)
+  if (!filePath || filePath.includes('..') || filePath.includes('\\') || filePath.startsWith('/')) {
+    return false
+  }
+
+  const prefix = `${userId}/`
+  if (!filePath.startsWith(prefix) || filePath.length <= prefix.length) {
+    return false
+  }
+
+  return LOGO_FILE_PATTERN.test(filePath.slice(prefix.length))
 }

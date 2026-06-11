@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Dialog,
@@ -16,11 +16,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ShareRequestSchema, type ShareRequest } from '@/lib/validations'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Copy, Zap, BookTemplate, Send } from 'lucide-react'
+import { Copy, Zap, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import type { RequestTemplateRow } from '@/lib/database.types'
-import { fetchRequestTemplates, saveRequestTemplate } from '@/lib/request-templates'
+import { useAuth } from '@/contexts/AuthContext'
+import { fetchRequestTemplates, requestTemplatesQueryKey, saveRequestTemplate } from '@/lib/request-templates'
 import { TemplateSelectionsForm } from '@/components/templates/TemplateSelectionsForm'
 
 interface SendOnboardingRequestDialogProps {
@@ -36,8 +37,10 @@ export function SendOnboardingRequestDialog({
   onOpenChange,
   onSuccess,
 }: SendOnboardingRequestDialogProps) {
+  const { company } = useAuth()
   const queryClient = useQueryClient()
   const router = useRouter()
+  const templatesQueryKey = requestTemplatesQueryKey(company?.id)
   const [generatedLink, setGeneratedLink] = useState<string | null>(null)
   const [createdForEmail, setCreatedForEmail] = useState<string | null>(null)
   const [inviteEmailSent, setInviteEmailSent] = useState<boolean | null>(null)
@@ -48,9 +51,9 @@ export function SendOnboardingRequestDialog({
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
 
   const { data: templates = [] } = useQuery<RequestTemplateRow[]>({
-    queryKey: ['request-templates'],
+    queryKey: templatesQueryKey,
     queryFn: fetchRequestTemplates,
-    enabled: open,
+    enabled: open && !!company?.id,
   })
 
   const form = useForm<ShareRequest>({
@@ -138,11 +141,39 @@ export function SendOnboardingRequestDialog({
     if (generatedLink) onSuccess()
   }
 
-  /** Populate or reset the form when the dialog opens. */
-  useEffect(() => {
-    if (!open) return
+  const wasOpenRef = useRef(false)
+  const appliedTemplateIdRef = useRef<string | null>(null)
 
-    if (!initialTemplateId) {
+  /** Reset the form only when the dialog opens; apply a saved template once when it loads. */
+  useEffect(() => {
+    if (!open) {
+      wasOpenRef.current = false
+      appliedTemplateIdRef.current = null
+      return
+    }
+
+    const justOpened = !wasOpenRef.current
+    wasOpenRef.current = true
+
+    if (initialTemplateId) {
+      if (appliedTemplateIdRef.current === initialTemplateId) return
+
+      const template = templates.find((entry) => entry.id === initialTemplateId)
+      if (!template) return
+
+      form.reset({
+        request_type: template.name?.trim() ?? '',
+        recipient_email: '',
+        mandatory_fields: template.mandatory_fields ?? [],
+        optional_fields: template.optional_fields ?? [],
+        mandatory_documents: template.mandatory_documents ?? [],
+        optional_documents: template.optional_documents ?? [],
+      })
+      appliedTemplateIdRef.current = initialTemplateId
+      return
+    }
+
+    if (justOpened) {
       form.reset({
         request_type: '',
         recipient_email: '',
@@ -151,20 +182,7 @@ export function SendOnboardingRequestDialog({
         mandatory_documents: [],
         optional_documents: [],
       })
-      return
     }
-
-    const template = templates.find((entry) => entry.id === initialTemplateId)
-    if (!template) return
-
-    form.reset({
-      request_type: template.name?.trim() ?? '',
-      recipient_email: '',
-      mandatory_fields: template.mandatory_fields ?? [],
-      optional_fields: template.optional_fields ?? [],
-      mandatory_documents: template.mandatory_documents ?? [],
-      optional_documents: template.optional_documents ?? [],
-    })
   }, [form, open, initialTemplateId, templates])
 
   /** Save the current field/doc selection as a new template. */
@@ -186,12 +204,12 @@ export function SendOnboardingRequestDialog({
         mandatory_documents,
         optional_documents,
       })
-      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+      await queryClient.invalidateQueries({ queryKey: templatesQueryKey })
       toast.success(`Template "${name}" saved`)
       setTemplateName('')
       setShowSaveTemplate(false)
-    } catch {
-      toast.error('Failed to save template. Please try again.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save template. Please try again.')
     } finally {
       setSavingTemplate(false)
     }
@@ -229,7 +247,7 @@ export function SendOnboardingRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto sm:w-full">
         <DialogHeader>
           <DialogTitle>
             {generatedLink
@@ -251,9 +269,9 @@ export function SendOnboardingRequestDialog({
 
         {generatedLink ? (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input value={generatedLink} readOnly className="font-mono text-sm" />
-              <Button onClick={copyLink} variant="outline" size="icon">
+            <div className="flex min-w-0 gap-2">
+              <Input value={generatedLink} readOnly className="min-w-0 flex-1 font-mono text-sm" />
+              <Button onClick={copyLink} variant="outline" size="icon" className="shrink-0">
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
@@ -325,8 +343,8 @@ export function SendOnboardingRequestDialog({
                 </FormItem>
               )}
 
-              <DialogFooter className="gap-2 sm:gap-2">
-                <Button type="button" variant="outline" onClick={handleClose}>
+              <DialogFooter className="gap-2 sm:flex-wrap sm:justify-end">
+                <Button type="button" variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                   Cancel
                 </Button>
                 {!usingSavedTemplate && (
@@ -334,7 +352,7 @@ export function SendOnboardingRequestDialog({
                     type="button"
                     disabled={savingTemplate}
                     variant="outline"
-                    className="border-[#287253] text-[#287253] hover:bg-[#F7F8F4]"
+                    className="w-full border-[#287253] text-[#287253] hover:bg-[#F7F8F4] sm:w-auto"
                     onClick={() => {
                       if (!showSaveTemplate) {
                         setShowSaveTemplate(true)
@@ -343,14 +361,13 @@ export function SendOnboardingRequestDialog({
                       void saveAsTemplate()
                     }}
                   >
-                    <BookTemplate className="h-4 w-4 mr-2" />
                     {savingTemplate ? 'Saving…' : 'Save Template'}
                   </Button>
                 )}
                 <Button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className={usingSavedTemplate ? 'bg-[#287253] text-white hover:bg-[#1A4D38]' : undefined}
+                  className={`w-full sm:w-auto ${usingSavedTemplate ? 'bg-[#287253] text-white hover:bg-[#1A4D38]' : ''}`}
                 >
                   {usingSavedTemplate ? <Send className="h-4 w-4 mr-2" /> : null}
                   {submitLabel}

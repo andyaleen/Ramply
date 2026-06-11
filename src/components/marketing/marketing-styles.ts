@@ -1,2 +1,2 @@
-export const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
-export const sansBody = "font-['DM_Sans',sans-serif]"
+/** Display headings on marketing pages (requires marketing layout serif variable). */
+export const serifTitle = 'font-serif tracking-tight'

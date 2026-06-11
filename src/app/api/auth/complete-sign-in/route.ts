@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { completePasswordSignIn } from '@/lib/auth/complete-password-sign-in'
+import { bootstrapAppUser } from '@/lib/auth/bootstrap-app-user'
+import { seedAppSessionActivityCookie } from '@/lib/auth/require-app-session'
 import { AUTH_PASSWORD_MIN_LENGTH } from '@/lib/auth/session-policy'
 import { reportServerError } from '@/lib/monitoring'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -51,10 +53,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await seedAppSessionActivityCookie(user)
+    }
+
+    let bootstrap = null
+    try {
+      bootstrap = await bootstrapAppUser(supabase)
+    } catch (bootstrapError) {
+      reportServerError('complete-sign-in-bootstrap', bootstrapError)
+    }
+
     return withAuthCookies(
       NextResponse.json({
         ok: true,
         session: result.session,
+        bootstrap,
       })
     )
   } catch (error) {

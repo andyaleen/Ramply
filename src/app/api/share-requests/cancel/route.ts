@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { reportServerError } from '@/lib/monitoring'
 import { createClient } from '@/lib/supabase/server'
 
@@ -10,14 +11,8 @@ const CancelShareRequestSchema = z.object({
 /** Lets the requester cancel a pending share request they sent. */
 export async function POST(req: Request) {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
 
   let body: unknown
   try {

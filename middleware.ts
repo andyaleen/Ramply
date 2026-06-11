@@ -1,33 +1,38 @@
 import { createClient } from '@/lib/supabase/middleware'
 import { getAuthConfirmNextPath } from '@/lib/auth/auth-redirect'
-import { applyPasswordRecoveryRoutingHints } from '@/lib/auth/password-recovery-pending'
-import { isProtectedAppPath, isSafeRedirectPath, normalizeRequestedPath } from '@/lib/auth/routing'
 import {
-  AUTH_SESSION_ABSOLUTE_TIMEOUT_MS,
-  AUTH_REDIRECT_REASON_SESSION_EXPIRED,
-} from '@/lib/auth/session-policy'
+  APP_SESSION_ACTIVITY_COOKIE,
+  clearAppSessionActivityOnResponse,
+  writeAppSessionActivityOnResponse,
+} from '@/lib/auth/app-session-cookie'
+import { shouldSkipMiddlewareAuth } from '@/lib/auth/middleware-session-cookie'
+import { applyPasswordRecoveryRoutingHints } from '@/lib/auth/password-recovery-pending'
+import { evaluateAppSessionForRequest } from '@/lib/auth/require-app-session'
+import { isProtectedAppPath, isSafeRedirectPath, normalizeRequestedPath } from '@/lib/auth/routing'
+import { AUTH_REDIRECT_REASON_SESSION_EXPIRED } from '@/lib/auth/session-policy'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-/**
- * Returns true when the authenticated session has exceeded the absolute
- * lifetime limit, based on the user's last sign-in timestamp.
- */
-function isSessionExpired(user: { last_sign_in_at?: string | null }): boolean {
-  const lastSignIn = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : 0
-  if (!lastSignIn) return false
-  return Date.now() - lastSignIn > AUTH_SESSION_ABSOLUTE_TIMEOUT_MS
-}
-
 export async function middleware(request: NextRequest) {
+  const { pathname, search } = request.nextUrl
+  const searchParams = request.nextUrl.searchParams
+
+  const hasAuthCallback =
+    searchParams.has('code')
+    || searchParams.has('token_hash')
+    || searchParams.has('access_token')
+  const hasAuthError =
+    searchParams.has('error') || searchParams.has('error_description')
+
+  if (shouldSkipMiddlewareAuth(pathname, request, hasAuthCallback, hasAuthError)) {
+    return NextResponse.next()
+  }
+
   try {
     const { supabase, response } = createClient(request)
     const {
       data: { user },
     } = await supabase.auth.getUser()
-
-    const { pathname, search } = request.nextUrl
-    const searchParams = request.nextUrl.searchParams
 
     // Legacy Supabase redirects may still target /auth/confirm?code=… — exchange on the server.
     if (
@@ -40,12 +45,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(callbackUrl)
     }
 
-    const hasAuthCallback =
-      searchParams.has('code')
-      || searchParams.has('token_hash')
-      || searchParams.has('access_token')
-    const hasAuthError =
-      searchParams.has('error') || searchParams.has('error_description')
     const isProtectedRoute = isProtectedAppPath(pathname)
     const isAuthPage = pathname === '/login' || pathname === '/signup'
     const isAuthCallbackHandler =
@@ -69,16 +68,27 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(confirmUrl)
     }
 
-    if (user && isSessionExpired(user)) {
-      await supabase.auth.signOut()
-      const loginUrl = request.nextUrl.clone()
-      loginUrl.pathname = '/login'
-      loginUrl.search = ''
-      loginUrl.searchParams.set('reason', AUTH_REDIRECT_REASON_SESSION_EXPIRED)
-      if (isProtectedRoute) {
-        loginUrl.searchParams.set('redirect', `${pathname}${search}`)
+    if (user) {
+      const sessionState = evaluateAppSessionForRequest(user, request)
+      if (!sessionState.ok) {
+        await supabase.auth.signOut()
+        const loginUrl = request.nextUrl.clone()
+        loginUrl.pathname = '/login'
+        loginUrl.search = ''
+        loginUrl.searchParams.set('reason', AUTH_REDIRECT_REASON_SESSION_EXPIRED)
+        if (isProtectedRoute) {
+          loginUrl.searchParams.set('redirect', `${pathname}${search}`)
+        }
+        const redirectResponse = NextResponse.redirect(loginUrl)
+        clearAppSessionActivityOnResponse(redirectResponse)
+        return redirectResponse
       }
-      return NextResponse.redirect(loginUrl)
+
+      if (sessionState.refreshMetadata) {
+        writeAppSessionActivityOnResponse(response, sessionState.refreshMetadata)
+      } else if (!request.cookies.get(APP_SESSION_ACTIVITY_COOKIE)) {
+        writeAppSessionActivityOnResponse(response, sessionState.metadata)
+      }
     }
 
     if (pathname === '/' && user && !hasAuthCallback) {
@@ -109,6 +119,10 @@ export async function middleware(request: NextRequest) {
       )
       redirectUrl.search = ''
       return NextResponse.redirect(redirectUrl)
+    }
+
+    if (!user && request.cookies.get(APP_SESSION_ACTIVITY_COOKIE)) {
+      clearAppSessionActivityOnResponse(response)
     }
 
     return response

@@ -17,8 +17,10 @@ import { normalizeRequestedPath } from '@/lib/auth/routing'
 import { extractShareRequestToken } from '@/lib/auth/share-recipient-signup'
 import { AUTH_PASSWORD_MIN_LENGTH, getSessionExpiryMessage } from '@/lib/auth/session-policy'
 import { applyClientAuthSession } from '@/lib/auth/apply-client-auth-session'
+import type { BootstrapAppUserResult } from '@/lib/auth/bootstrap-app-user'
 import type { CompletePasswordSignInSession } from '@/lib/auth/complete-password-sign-in'
 import { startGoogleAuth } from '@/lib/auth/startGoogleAuth'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -87,6 +89,7 @@ export function AuthForm({
   const [forgotLoading, setForgotLoading] = useState(false)
   const [activeTab, setActiveTab] = useState(initialTab)
   const router = useRouter()
+  const { seedBootstrapState } = useAuth()
   const supabase = createClient()
 
   useEffect(() => {
@@ -157,6 +160,7 @@ export function AuthForm({
       error?: string
       code?: 'incorrect_password' | 'oauth_only' | 'user_not_found'
       session?: CompletePasswordSignInSession | null
+      bootstrap?: BootstrapAppUserResult | null
     }
     if (!res.ok) {
       if (payload.code === 'incorrect_password') {
@@ -174,6 +178,9 @@ export function AuthForm({
     }
 
     try {
+      if (payload.bootstrap) {
+        seedBootstrapState(payload.bootstrap)
+      }
       await applyClientAuthSession(supabase, payload.session)
     } catch (sessionError) {
       console.error('Failed to establish client session after sign-in:', sessionError)

@@ -8,7 +8,14 @@ import { toast } from 'sonner'
 import { BookTemplate, Plus, Save, Trash2 } from 'lucide-react'
 import { TemplateSchema, type TemplateFormValues } from '@/lib/validations'
 import type { RequestTemplateRow } from '@/lib/database.types'
-import { countTemplateSelections, fetchRequestTemplates, removeRequestTemplate, saveRequestTemplate } from '@/lib/request-templates'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  countTemplateSelections,
+  fetchRequestTemplates,
+  removeRequestTemplate,
+  requestTemplatesQueryKey,
+  saveRequestTemplate,
+} from '@/lib/request-templates'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,13 +45,16 @@ function templateToForm(template: RequestTemplateRow): TemplateFormValues {
 
 /** Templates manager UI for creating and editing request templates. */
 export function TemplatesManager() {
+  const { company } = useAuth()
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'new' | 'edit'>('edit')
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null)
+  const templatesQueryKey = requestTemplatesQueryKey(company?.id)
 
   const { data: templates = [], isLoading } = useQuery<RequestTemplateRow[]>({
-    queryKey: ['request-templates'],
+    queryKey: templatesQueryKey,
     queryFn: fetchRequestTemplates,
+    enabled: !!company?.id,
   })
 
   const activeTemplate = useMemo(
@@ -94,7 +104,7 @@ export function TemplatesManager() {
       return saveRequestTemplate(values, mode === 'edit' ? activeTemplate?.id : undefined)
     },
     onSuccess: async (data) => {
-      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+      await queryClient.invalidateQueries({ queryKey: templatesQueryKey })
       setMode('edit')
       setActiveTemplateId(data.id)
       toast.success('Template saved')
@@ -110,7 +120,7 @@ export function TemplatesManager() {
       return template.id
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['request-templates'] })
+      await queryClient.invalidateQueries({ queryKey: templatesQueryKey })
       toast.success('Template deleted')
     },
     onError: () => {

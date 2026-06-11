@@ -232,6 +232,10 @@ DROP POLICY IF EXISTS "company_documents_select_requester" ON company_documents;
 DROP POLICY IF EXISTS "document_extractions_all_own" ON document_extractions;
 
 DROP POLICY IF EXISTS "request_templates_all_own" ON request_templates;
+DROP POLICY IF EXISTS "request_templates_select_own" ON request_templates;
+DROP POLICY IF EXISTS "request_templates_insert_own" ON request_templates;
+DROP POLICY IF EXISTS "request_templates_update_own" ON request_templates;
+DROP POLICY IF EXISTS "request_templates_delete_own" ON request_templates;
 
 DROP POLICY IF EXISTS "share_requests_all_requester" ON share_requests;
 DROP POLICY IF EXISTS "share_requests_select_recipient" ON share_requests;
@@ -268,7 +272,14 @@ CREATE POLICY "companies_insert_own" ON companies
   FOR INSERT WITH CHECK (auth.uid() = owner_user_id);
 
 CREATE POLICY "companies_update_own" ON companies
-  FOR UPDATE USING (auth.uid() = owner_user_id);
+  FOR UPDATE USING (auth.uid() = owner_user_id)
+  WITH CHECK (
+    auth.uid() = owner_user_id
+    AND (
+      logo_path IS NULL
+      OR logo_path ~ ('^' || auth.uid()::text || '/logo/logo\.(png|jpe?g|webp|svg)$')
+    )
+  );
 
 -- Requesters can see the company profile of companies that fulfilled their requests.
 -- Uses JOIN instead of subquery on companies to avoid infinite RLS recursion.
@@ -325,8 +336,38 @@ CREATE POLICY "document_extractions_all_own" ON document_extractions
 -- share_requests policies
 -- Requesters have full access to requests they created
 -- Templates are fully owned by the company that created them
-CREATE POLICY "request_templates_all_own" ON request_templates
-  FOR ALL USING (
+CREATE POLICY "request_templates_select_own" ON request_templates
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM companies WHERE companies.id = request_templates.company_id
+        AND companies.owner_user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "request_templates_insert_own" ON request_templates
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM companies WHERE companies.id = request_templates.company_id
+        AND companies.owner_user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "request_templates_update_own" ON request_templates
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM companies WHERE companies.id = request_templates.company_id
+        AND companies.owner_user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM companies WHERE companies.id = request_templates.company_id
+        AND companies.owner_user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "request_templates_delete_own" ON request_templates
+  FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM companies WHERE companies.id = request_templates.company_id
         AND companies.owner_user_id = auth.uid()
@@ -1086,18 +1127,100 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION set_user_role(UUID, TEXT) TO authenticated;
 
+CREATE OR REPLACE FUNCTION bootstrap_app_user()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_email TEXT;
+  v_user users%ROWTYPE;
+  v_company companies%ROWTYPE;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  SELECT email INTO v_email
+  FROM auth.users
+  WHERE id = v_uid;
+
+  IF v_email IS NULL THEN
+    RAISE EXCEPTION 'auth_user_not_found';
+  END IF;
+
+  INSERT INTO users (id, email, role)
+  VALUES (v_uid, v_email, 'external')
+  ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        updated_at = NOW()
+  RETURNING * INTO v_user;
+
+  INSERT INTO companies (owner_user_id)
+  VALUES (v_uid)
+  ON CONFLICT (owner_user_id) DO NOTHING;
+
+  SELECT * INTO v_company
+  FROM companies
+  WHERE owner_user_id = v_uid;
+
+  IF v_company.id IS NULL THEN
+    RAISE EXCEPTION 'company_bootstrap_failed';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'user', to_jsonb(v_user),
+    'company', to_jsonb(v_company)
+  );
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO users (id, email)
   VALUES (NEW.id, NEW.email)
   ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO companies (owner_user_id)
+  VALUES (NEW.id)
+  ON CONFLICT (owner_user_id) DO NOTHING;
+
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+GRANT EXECUTE ON FUNCTION bootstrap_app_user() TO authenticated;
+
+-- Block self-service role/id changes; admins use set_user_role() instead.
+CREATE OR REPLACE FUNCTION prevent_self_user_privilege_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.id = auth.uid() THEN
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+      RAISE EXCEPTION 'users cannot change their own role';
+    END IF;
+
+    IF NEW.id IS DISTINCT FROM OLD.id THEN
+      RAISE EXCEPTION 'users cannot change their own id';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS users_prevent_self_privilege_change ON users;
+
+CREATE TRIGGER users_prevent_self_privilege_change
+  BEFORE UPDATE ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_self_user_privilege_change();
 

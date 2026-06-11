@@ -1,12 +1,20 @@
 import type { RequestTemplateRow } from '@/lib/database.types'
 import type { TemplateFormValues } from '@/lib/validations'
 
+/** React Query key scoped to the signed-in company so account switches never reuse cache. */
+export function requestTemplatesQueryKey(companyId: string | undefined) {
+  return ['request-templates', companyId] as const
+}
+
 /**
  * Load all saved request templates for the current company.
  */
 export async function fetchRequestTemplates(): Promise<RequestTemplateRow[]> {
-  const res = await fetch('/api/templates')
-  if (!res.ok) return []
+  const res = await fetch('/api/templates', { credentials: 'include' })
+  if (!res.ok) {
+    const err = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(err?.error ?? 'Failed to load templates')
+  }
   return res.json() as Promise<RequestTemplateRow[]>
 }
 
@@ -22,6 +30,7 @@ export async function saveRequestTemplate(
   const res = await fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(values),
   })
 
@@ -37,7 +46,10 @@ export async function saveRequestTemplate(
  * Delete a request template by ID.
  */
 export async function removeRequestTemplate(templateId: string) {
-  const res = await fetch(`/api/templates?id=${templateId}`, { method: 'DELETE' })
+  const res = await fetch(`/api/templates?id=${templateId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as { error?: string }
     throw new Error(typeof err.error === 'string' ? err.error : 'Failed to delete template')

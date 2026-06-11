@@ -1,27 +1,37 @@
 'use client'
 
+import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { Sidebar, useSidebar } from '@/components/ui/sidebar'
 
 /**
- * Fixed 200px sidebar rendered in dark forest green (#1A4D38). Displays
- * the Ramply brand header, grouped nav (Main / Account), and a pinned
- * user footer with an initials avatar.
+ * Dashboard sidebar in dark forest green (#1A4D38). Fixed 200px column on
+ * desktop; off-canvas sheet drawer on mobile via shadcn Sidebar.
  */
 export function AppSidebar() {
   const { userProfile, company } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
+  const { isMobile, setOpenMobile } = useSidebar()
 
   const contactName = company?.contact_name?.trim() || 'Account'
   const initials = getInitials(contactName)
   const email = company?.contact_email || userProfile?.email || ''
   const legalName = company?.legal_name || 'Ramply LLC'
 
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [pathname, isMobile, setOpenMobile])
+
+  function navigate(url: string) {
+    router.push(url)
+    if (isMobile) setOpenMobile(false)
+  }
+
   return (
-    <aside
-      className="flex flex-col h-screen w-[200px] shrink-0 sticky top-0 bg-[#1A4D38] text-white font-['DM_Sans',sans-serif]"
-    >
+    <Sidebar collapsible="offcanvas" className="border-none">
+      <div className="flex h-full flex-col bg-[#1A4D38] text-white">
       {/* Brand header */}
       <div className="px-4 pt-5 pb-4 border-b border-white/[0.08]">
         <div className="text-[17px] font-semibold leading-none">Ramply</div>
@@ -42,7 +52,7 @@ export function AppSidebar() {
                   <li key={item.title}>
                     <button
                       type="button"
-                      onClick={() => router.push(item.url)}
+                      onClick={() => navigate(item.url)}
                       className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-[13.5px] transition-colors ${
                         active
                           ? 'bg-white/[0.12] text-white'
@@ -70,7 +80,7 @@ export function AppSidebar() {
       <div className="border-t border-white/[0.08] px-3 py-3">
         <button
           type="button"
-          onClick={() => router.push('/dashboard/profile')}
+          onClick={() => navigate('/dashboard/profile')}
           className="w-full flex items-center gap-2.5 rounded-md px-2 py-2 hover:bg-white/[0.07] transition-colors"
         >
           <span className="h-[30px] w-[30px] rounded-full bg-[#3A9068] flex items-center justify-center text-white text-[11px] font-semibold shrink-0">
@@ -82,7 +92,8 @@ export function AppSidebar() {
           </span>
         </button>
       </div>
-    </aside>
+      </div>
+    </Sidebar>
   )
 }
 

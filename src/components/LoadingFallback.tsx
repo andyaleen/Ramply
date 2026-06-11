@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
-const serifTitle = "font-['Instrument_Serif',serif] tracking-tight"
-const sansBody = "font-['DM_Sans',sans-serif]"
+const displayTitle = 'font-semibold tracking-tight'
 
 interface LoadingFallbackProps {
   title?: string
@@ -16,10 +15,7 @@ interface LoadingFallbackProps {
 }
 
 /**
- * Full-page loading state that matches the April 2026 Ramply palette:
- * warm-gray background, serif headline, muted sage secondary text, and a
- * single brand-green progress spinner. Kept intentionally minimal so any
- * brief flash between route transitions feels on-brand instead of jarring.
+ * Full-page loading state that matches the Ramply palette.
  */
 export function LoadingFallback({
   title = 'Loading',
@@ -41,9 +37,7 @@ export function LoadingFallback({
   }, [showTimeoutWarning, timeoutMs])
 
   return (
-    <div
-      className={`${sansBody} min-h-screen flex items-center justify-center bg-[#F0EFE9] text-[#0F1F18] px-6`}
-    >
+    <div className="min-h-screen flex items-center justify-center bg-[#F0EFE9] text-[#0F1F18] px-6">
       <div className="w-full max-w-sm text-center">
         <div className="flex items-center justify-center">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#DDDCD5] bg-white">
@@ -52,11 +46,11 @@ export function LoadingFallback({
         </div>
 
         <h1
-          className={`${serifTitle} mt-6 text-[32px] leading-tight text-[#0F1F18]`}
+          className={`${displayTitle} mt-6 text-[32px] leading-tight text-[#0F1F18]`}
         >
           {title}
         </h1>
-        <p className="mt-3 text-[14px] font-light leading-relaxed text-[#4A5C54]">
+        <p className="mt-3 text-[14px] leading-relaxed text-[#4A5C54]">
           {description}
         </p>
 
