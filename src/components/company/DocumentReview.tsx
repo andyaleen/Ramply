@@ -16,8 +16,8 @@ import { Label } from '@/components/ui/label'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
 import { useVaultDocuments } from '@/hooks/useVaultDocuments'
 import { getUploadErrorMessage } from '@/lib/document-upload'
+import { fetchSharedDocumentDownloadUrl } from '@/lib/shared-document-download'
 import {
-  createVaultDocumentSignedUrl,
   fetchVaultDocumentById,
   fetchVaultDocumentFieldOverrides,
 } from '@/lib/vault-documents'
@@ -108,13 +108,16 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
 
     if (docData.file_path) {
       setPreviewLoading(true)
-      const signedUrl = await createVaultDocumentSignedUrl(supabase, docData.file_path)
-      if (signedUrl) {
+      try {
+        const { signedUrl } = await fetchSharedDocumentDownloadUrl(documentId, {
+          ttlSeconds: 3600,
+        })
         setPreviewUrl(signedUrl)
-      } else {
+      } catch {
         setPreviewError('Could not load a preview for this file.')
+      } finally {
+        setPreviewLoading(false)
       }
-      setPreviewLoading(false)
     }
 
     const fieldOverrides = await fetchVaultDocumentFieldOverrides(supabase, company.id, documentId)
@@ -153,6 +156,56 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
     loadDocument()
   }, [company, loadDocument])
 
+  /** Poll for async OCR results after a W-9 upload. */
+  useEffect(() => {
+    if (!company || loading || docType !== 'W9' || extraction) return
+
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 10
+
+    const pollExtraction = async () => {
+      const { data } = await supabase
+        .from('document_extractions')
+        .select('id, company_id, company_document_id, provider, status, raw_text, structured_data, metadata, error_message, created_at, updated_at')
+        .eq('company_document_id', documentId)
+        .eq('company_id', company.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (cancelled || !data) return
+
+      setExtraction(data as ExtractionPayload)
+
+      const nextFields = emptyFields()
+      if (data.metadata && typeof data.metadata === 'object') {
+        const metadata = data.metadata as Record<string, unknown>
+        applyFields(nextFields, metadata.extracted_fields)
+      }
+      setFields((prev) => {
+        const merged = { ...nextFields }
+        for (const key of FIELD_KEYS) {
+          if (!merged[key] && prev[key]) merged[key] = prev[key]
+        }
+        return merged
+      })
+    }
+
+    const intervalId = window.setInterval(() => {
+      attempts += 1
+      void pollExtraction()
+      if (attempts >= maxAttempts) {
+        window.clearInterval(intervalId)
+      }
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [company, documentId, docType, extraction, loading, supabase])
+
   const { inputRef, uploading, pick, handleFileChange } = useDocumentUpload({
     user,
     company,
@@ -185,40 +238,50 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
     setSaving(true)
     setError(null)
 
-    const payload = FIELD_KEYS.reduce((acc, key) => {
-      acc[key] = fields[key] ?? ''
-      return acc
-    }, {} as Record<string, string>)
+    const approvedAt = new Date().toISOString()
+    const isW9Doc = documentRow.document_type === 'W9'
 
     try {
+      const updatePayload = isW9Doc
+        ? {
+            approved_fields: FIELD_KEYS.reduce((acc, key) => {
+              acc[key] = fields[key] ?? ''
+              return acc
+            }, {} as Record<string, string>),
+            approved_at: approvedAt,
+          }
+        : { approved_at: approvedAt }
+
       const { error: updateError } = await supabase
         .from('company_documents')
-        .update({
-          approved_fields: payload,
-          approved_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', documentRow.id)
 
       if (updateError) throw updateError
 
-      if (extraction) {
+      if (isW9Doc && extraction) {
+        const payload = FIELD_KEYS.reduce((acc, key) => {
+          acc[key] = fields[key] ?? ''
+          return acc
+        }, {} as Record<string, string>)
+
         const nextMetadata = {
           ...(extraction.metadata ?? {}),
           extracted_fields: fields,
           approved_fields: payload,
-          approved_at: new Date().toISOString(),
+          approved_at: approvedAt,
         }
 
         await supabase
           .from('document_extractions')
-          .update({ metadata: nextMetadata, updated_at: new Date().toISOString() })
+          .update({ metadata: nextMetadata, updated_at: approvedAt })
           .eq('id', extraction.id)
       }
 
-      toast.success('Fields approved and saved')
+      toast.success(isW9Doc ? 'Fields approved and saved' : 'Document confirmed')
       router.push('/dashboard/documents')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save fields'
+      const message = err instanceof Error ? err.message : 'Failed to save document'
       setError(message)
       toast.error(message)
     } finally {
@@ -226,9 +289,10 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
     }
   }, [company, documentRow, extraction, fields, router, supabase])
 
-  const hasExtraction = Boolean(extraction)
   const isW9 = docType === 'W9'
   const isReplacing = Boolean(docType && uploading === docType)
+  const canApprove = Boolean(documentRow) && !loading
+  const approveLabel = isW9 ? 'Approve and Save' : 'Confirm and Save'
 
   return (
     <div className="space-y-6">
@@ -280,12 +344,17 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
         </Card>
       )}
 
-      {!loading && hasExtraction ? (
+      {!loading && isW9 ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Extracted fields</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!extraction ? (
+              <p className="text-sm text-muted-foreground">
+                Reading document details… You can edit fields below or confirm once the preview looks correct.
+              </p>
+            ) : null}
             {FIELD_KEYS.map((key) => (
               <div key={key} className="space-y-2">
                 <Label htmlFor={key}>{FIELD_LABELS[key]}</Label>
@@ -302,9 +371,9 @@ export function DocumentReview({ documentId }: DocumentReviewProps) {
         </Card>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={handleApprove} disabled={saving || !hasExtraction || !isW9}>
-          {saving ? 'Saving...' : 'Approve and Save'}
+      <div className="flex flex-wrap gap-3 pt-1">
+        <Button onClick={handleApprove} disabled={saving || !canApprove}>
+          {saving ? 'Saving...' : approveLabel}
         </Button>
         <Button
           variant="outline"

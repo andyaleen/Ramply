@@ -12,6 +12,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import {
+  applySelectionMode,
+  getSelectionMode,
+  type SelectionMode,
+} from '@/lib/template-selections'
 
 export type TemplateSelectionValues = {
   mandatory_fields: string[]
@@ -24,54 +29,50 @@ interface TemplateSelectionsFormProps<T extends TemplateSelectionValues> {
   form: UseFormReturn<T>
 }
 
-/** Toggle a value on/off in a string list. */
-function toggleValue(current: string[], value: string, add: boolean): string[] {
-  return add ? [...current, value] : current.filter((k) => k !== value)
-}
-
-/** Ensure a value is only in one of the two lists. */
-function toggleExclusive<T extends TemplateSelectionValues>(
+/** Set required/optional/none for one catalog or custom key. */
+function setSelectionMode<T extends TemplateSelectionValues>(
   form: UseFormReturn<T>,
-  listKey: keyof TemplateSelectionValues,
-  otherKey: keyof TemplateSelectionValues,
+  mandatoryKey: keyof TemplateSelectionValues,
+  optionalKey: keyof TemplateSelectionValues,
   value: string,
-  add: boolean
+  mode: SelectionMode
 ) {
-  const current = form.getValues(listKey as Path<T>) as string[]
-  const other = form.getValues(otherKey as Path<T>) as string[]
-  const nextCurrent = toggleValue(current, value, add)
-  const nextOther = add ? other.filter((v) => v !== value) : other
-  form.setValue(listKey as Path<T>, nextCurrent as never, { shouldDirty: true, shouldValidate: true })
-  if (add) {
-    form.setValue(otherKey as Path<T>, nextOther as never, { shouldDirty: true, shouldValidate: true })
-  }
+  const mandatory = form.getValues(mandatoryKey as Path<T>) as string[]
+  const optional = form.getValues(optionalKey as Path<T>) as string[]
+  const next = applySelectionMode(mandatory, optional, value, mode)
+  form.setValue(mandatoryKey as Path<T>, next.mandatory as never, {
+    shouldDirty: true,
+    shouldValidate: true,
+  })
+  form.setValue(optionalKey as Path<T>, next.optional as never, {
+    shouldDirty: true,
+    shouldValidate: true,
+  })
 }
 
 interface SelectionRowProps {
   label: string
-  isRequired: boolean
-  isOptional: boolean
-  onRequiredChange: (checked: boolean) => void
-  onOptionalChange: (checked: boolean) => void
+  mode: SelectionMode
+  onModeChange: (mode: SelectionMode) => void
 }
 
-function SelectionRow({
-  label,
-  isRequired,
-  isOptional,
-  onRequiredChange,
-  onOptionalChange,
-}: SelectionRowProps) {
+function SelectionRow({ label, mode, onModeChange }: SelectionRowProps) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <span className="min-w-0 text-xs font-normal">{label}</span>
       <div className="flex shrink-0 items-center gap-3">
         <label className="flex items-center gap-1 text-xs whitespace-nowrap">
-          <Checkbox checked={isRequired} onCheckedChange={(checked) => onRequiredChange(!!checked)} />
+          <Checkbox
+            checked={mode === 'required'}
+            onCheckedChange={(checked) => onModeChange(checked ? 'required' : 'none')}
+          />
           Required
         </label>
         <label className="flex items-center gap-1 text-xs whitespace-nowrap">
-          <Checkbox checked={isOptional} onCheckedChange={(checked) => onOptionalChange(!!checked)} />
+          <Checkbox
+            checked={mode === 'optional'}
+            onCheckedChange={(checked) => onModeChange(checked ? 'optional' : 'none')}
+          />
           Optional
         </label>
       </div>
@@ -81,16 +82,16 @@ function SelectionRow({
 
 interface OtherSelectionRowProps {
   draftLabel: string
+  mode: SelectionMode
   onDraftLabelChange: (value: string) => void
-  onRequiredChange: (checked: boolean) => void
-  onOptionalChange: (checked: boolean) => void
+  onModeChange: (mode: SelectionMode) => void
 }
 
 function OtherSelectionRow({
   draftLabel,
+  mode,
   onDraftLabelChange,
-  onRequiredChange,
-  onOptionalChange,
+  onModeChange,
 }: OtherSelectionRowProps) {
   return (
     <div className="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
@@ -105,11 +106,17 @@ function OtherSelectionRow({
       </div>
       <div className="flex items-center gap-3 sm:shrink-0">
         <label className="flex items-center gap-1 text-xs">
-          <Checkbox onCheckedChange={(checked) => onRequiredChange(!!checked)} />
+          <Checkbox
+            checked={mode === 'required'}
+            onCheckedChange={(checked) => onModeChange(checked ? 'required' : 'none')}
+          />
           Required
         </label>
         <label className="flex items-center gap-1 text-xs">
-          <Checkbox onCheckedChange={(checked) => onOptionalChange(!!checked)} />
+          <Checkbox
+            checked={mode === 'optional'}
+            onCheckedChange={(checked) => onModeChange(checked ? 'optional' : 'none')}
+          />
           Optional
         </label>
       </div>
@@ -123,6 +130,8 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
 }: TemplateSelectionsFormProps<T>) {
   const [otherFieldDraft, setOtherFieldDraft] = useState('')
   const [otherDocumentDraft, setOtherDocumentDraft] = useState('')
+  const [otherFieldMode, setOtherFieldMode] = useState<SelectionMode>('none')
+  const [otherDocumentMode, setOtherDocumentMode] = useState<SelectionMode>('none')
 
   const mandatoryFields = form.watch('mandatory_fields' as Path<T>) as string[] | undefined
   const optionalFields = form.watch('optional_fields' as Path<T>) as string[] | undefined
@@ -136,7 +145,7 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
   const customFieldKeys = listCustomSelectionKeys(mandatoryFields, optionalFields)
   const customDocumentKeys = listCustomSelectionKeys(mandatoryDocuments, optionalDocuments)
 
-  function addCustomField(required: boolean) {
+  function addCustomField(required: boolean): boolean {
     try {
       const key = buildCustomSelectionKey(otherFieldDraft)
       const mandatory = form.getValues('mandatory_fields' as Path<T>) as string[]
@@ -144,7 +153,7 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
 
       if (mandatory.includes(key) || optional.includes(key)) {
         toast.error('That custom field is already added')
-        return
+        return false
       }
 
       if (required) {
@@ -159,12 +168,16 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
         })
       }
       setOtherFieldDraft('')
+      setOtherFieldMode('none')
+      return true
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Enter a custom field name')
+      setOtherFieldMode('none')
+      return false
     }
   }
 
-  function addCustomDocument(required: boolean) {
+  function addCustomDocument(required: boolean): boolean {
     try {
       const key = buildCustomSelectionKey(otherDocumentDraft)
       const mandatory = form.getValues('mandatory_documents' as Path<T>) as string[]
@@ -172,7 +185,7 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
 
       if (mandatory.includes(key) || optional.includes(key)) {
         toast.error('That custom document is already added')
-        return
+        return false
       }
 
       if (required) {
@@ -187,8 +200,34 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
         })
       }
       setOtherDocumentDraft('')
+      setOtherDocumentMode('none')
+      return true
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Enter a custom document name')
+      setOtherDocumentMode('none')
+      return false
+    }
+  }
+
+  function handleOtherFieldModeChange(mode: SelectionMode) {
+    if (mode === 'none') {
+      setOtherFieldMode('none')
+      return
+    }
+    setOtherFieldMode(mode)
+    if (!addCustomField(mode === 'required')) {
+      setOtherFieldMode('none')
+    }
+  }
+
+  function handleOtherDocumentModeChange(mode: SelectionMode) {
+    if (mode === 'none') {
+      setOtherDocumentMode('none')
+      return
+    }
+    setOtherDocumentMode(mode)
+    if (!addCustomDocument(mode === 'required')) {
+      setOtherDocumentMode('none')
     }
   }
 
@@ -202,13 +241,9 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
             <SelectionRow
               key={key}
               label={label}
-              isRequired={mandatoryFields?.includes(key) ?? false}
-              isOptional={optionalFields?.includes(key) ?? false}
-              onRequiredChange={(checked) =>
-                toggleExclusive(form, 'mandatory_fields', 'optional_fields', key, checked)
-              }
-              onOptionalChange={(checked) =>
-                toggleExclusive(form, 'optional_fields', 'mandatory_fields', key, checked)
+              mode={getSelectionMode(mandatoryFields, optionalFields, key)}
+              onModeChange={(mode) =>
+                setSelectionMode(form, 'mandatory_fields', 'optional_fields', key, mode)
               }
             />
           ))}
@@ -216,25 +251,17 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
             <SelectionRow
               key={key}
               label={customSelectionLabel(key)}
-              isRequired={mandatoryFields?.includes(key) ?? false}
-              isOptional={optionalFields?.includes(key) ?? false}
-              onRequiredChange={(checked) =>
-                toggleExclusive(form, 'mandatory_fields', 'optional_fields', key, checked)
-              }
-              onOptionalChange={(checked) =>
-                toggleExclusive(form, 'optional_fields', 'mandatory_fields', key, checked)
+              mode={getSelectionMode(mandatoryFields, optionalFields, key)}
+              onModeChange={(mode) =>
+                setSelectionMode(form, 'mandatory_fields', 'optional_fields', key, mode)
               }
             />
           ))}
           <OtherSelectionRow
             draftLabel={otherFieldDraft}
+            mode={otherFieldMode}
             onDraftLabelChange={setOtherFieldDraft}
-            onRequiredChange={(checked) => {
-              if (checked) addCustomField(true)
-            }}
-            onOptionalChange={(checked) => {
-              if (checked) addCustomField(false)
-            }}
+            onModeChange={handleOtherFieldModeChange}
           />
         </div>
         {fieldsError ? <p className="text-sm text-destructive">{fieldsError}</p> : null}
@@ -248,13 +275,9 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
             <SelectionRow
               key={key}
               label={label}
-              isRequired={mandatoryDocuments?.includes(key) ?? false}
-              isOptional={optionalDocuments?.includes(key) ?? false}
-              onRequiredChange={(checked) =>
-                toggleExclusive(form, 'mandatory_documents', 'optional_documents', key, checked)
-              }
-              onOptionalChange={(checked) =>
-                toggleExclusive(form, 'optional_documents', 'mandatory_documents', key, checked)
+              mode={getSelectionMode(mandatoryDocuments, optionalDocuments, key)}
+              onModeChange={(mode) =>
+                setSelectionMode(form, 'mandatory_documents', 'optional_documents', key, mode)
               }
             />
           ))}
@@ -262,25 +285,17 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
             <SelectionRow
               key={key}
               label={customSelectionLabel(key)}
-              isRequired={mandatoryDocuments?.includes(key) ?? false}
-              isOptional={optionalDocuments?.includes(key) ?? false}
-              onRequiredChange={(checked) =>
-                toggleExclusive(form, 'mandatory_documents', 'optional_documents', key, checked)
-              }
-              onOptionalChange={(checked) =>
-                toggleExclusive(form, 'optional_documents', 'mandatory_documents', key, checked)
+              mode={getSelectionMode(mandatoryDocuments, optionalDocuments, key)}
+              onModeChange={(mode) =>
+                setSelectionMode(form, 'mandatory_documents', 'optional_documents', key, mode)
               }
             />
           ))}
           <OtherSelectionRow
             draftLabel={otherDocumentDraft}
+            mode={otherDocumentMode}
             onDraftLabelChange={setOtherDocumentDraft}
-            onRequiredChange={(checked) => {
-              if (checked) addCustomDocument(true)
-            }}
-            onOptionalChange={(checked) => {
-              if (checked) addCustomDocument(false)
-            }}
+            onModeChange={handleOtherDocumentModeChange}
           />
         </div>
         {documentsError ? <p className="text-sm text-destructive">{documentsError}</p> : null}

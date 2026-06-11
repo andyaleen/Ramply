@@ -3,14 +3,24 @@ export interface SharedDocumentDownloadPayload {
   fileName: string
 }
 
+export interface SharedDocumentDownloadOptions {
+  /** Signed URL lifetime in seconds (server caps at 3600). */
+  ttlSeconds?: number
+}
+
 /** Request a signed download URL for a company document the user may access. */
 export async function fetchSharedDocumentDownloadUrl(
-  documentId: string
+  documentId: string,
+  options: SharedDocumentDownloadOptions = {}
 ): Promise<SharedDocumentDownloadPayload> {
-  const response = await fetch(
-    `/api/documents/shared/download?document_id=${encodeURIComponent(documentId)}`,
-    { credentials: 'include' }
-  )
+  const params = new URLSearchParams({ document_id: documentId })
+  if (options.ttlSeconds != null) {
+    params.set('ttl', String(options.ttlSeconds))
+  }
+
+  const response = await fetch(`/api/documents/shared/download?${params.toString()}`, {
+    credentials: 'include',
+  })
 
   const payload = (await response.json().catch(() => ({}))) as SharedDocumentDownloadPayload & {
     error?: string

@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 
 const DownloadQuerySchema = z.object({
   document_id: z.string().uuid(),
+  ttl: z.coerce.number().int().min(60).max(3600).optional(),
 })
 
 /**
@@ -19,6 +20,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const parsed = DownloadQuerySchema.safeParse({
     document_id: url.searchParams.get('document_id'),
+    ttl: url.searchParams.get('ttl') ?? undefined,
   })
 
   if (!parsed.success) {
@@ -47,9 +49,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Document not found or not accessible' }, { status: 403 })
   }
 
+  const expiresInSeconds = parsed.data.ttl ?? 120
+
   const { data, error: signedUrlError } = await admin.storage
     .from(DOCUMENTS_STORAGE_BUCKET)
-    .createSignedUrl(doc.file_path, 120)
+    .createSignedUrl(doc.file_path, expiresInSeconds)
 
   if (signedUrlError || !data?.signedUrl) {
     reportServerError(

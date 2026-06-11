@@ -6,5 +6,11 @@ interface DocumentReviewPageProps {
 
 export default async function DocumentReviewPage({ params }: DocumentReviewPageProps) {
   const { documentId } = await params
-  return <DocumentReview documentId={documentId} />
+  return (
+    <div className="flex-1 min-w-0 p-4 sm:p-6 md:p-10">
+      <div className="mx-auto w-full max-w-4xl">
+        <DocumentReview documentId={documentId} />
+      </div>
+    </div>
+  )
 }
