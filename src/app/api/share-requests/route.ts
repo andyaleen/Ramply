@@ -1,10 +1,12 @@
 import { randomBytes } from 'crypto'
 import { NextResponse } from 'next/server'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 import { ShareRequestSchema } from '@/lib/validations'
 import { reportServerError } from '@/lib/monitoring'
 import { getShareLinkOrigin } from '@/lib/share-link-origin'
 import { sendShareRequestInvite } from '@/lib/email/share-request-invite'
+import { resolveUserBillingEmail } from '@/lib/billing'
 import { checkSendRequestLimit } from '@/lib/plan-limits'
 import { getShareRequestCounts } from '@/lib/request-usage'
 
@@ -15,11 +17,9 @@ function generateToken(): string {
 
 export async function POST(req: Request) {
   const supabase = await createClient()
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
+  const { user } = session
 
   let body: unknown
   try {
@@ -43,10 +43,12 @@ export async function POST(req: Request) {
   }
 
   const counts = await getShareRequestCounts(supabase, company.id)
+  const billingEmail = await resolveUserBillingEmail(supabase, user)
   const limit = checkSendRequestLimit(
     company.subscription_status,
     company.subscription_price_id,
     counts,
+    billingEmail,
   )
 
   if (!limit.allowed && limit.error) {

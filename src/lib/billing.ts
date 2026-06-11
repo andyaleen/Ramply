@@ -1,3 +1,4 @@
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import {
   checkSendRequestLimit,
@@ -5,13 +6,32 @@ import {
   FREE_REQUEST_LIMIT,
   getPlanFromPriceId,
   isActiveSubscription,
+  isBillingExemptEmail,
   type SubscriptionPlan,
 } from '@/lib/plan-limits'
 import { getShareRequestCounts } from '@/lib/request-usage'
 
+/** Resolve the email used for billing exemptions (auth email, then app users row). */
+export async function resolveUserBillingEmail(
+  supabase: SupabaseClient,
+  user: Pick<User, 'id' | 'email'>
+): Promise<string | null> {
+  const authEmail = user.email?.trim()
+  if (authEmail) return authEmail
+
+  const { data } = await supabase
+    .from('users')
+    .select('email')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  return data?.email?.trim() ?? null
+}
+
 export interface BillingStatus {
   plan: SubscriptionPlan
   isSubscribed: boolean
+  isBillingExempt: boolean
   totalSent: number
   monthlySent: number
   isAtLimit: boolean
@@ -37,17 +57,25 @@ export async function getBillingStatus(): Promise<BillingStatus | null> {
   if (!company) return null
 
   const counts = await getShareRequestCounts(supabase, company.id)
+  const billingEmail = await resolveUserBillingEmail(supabase, user)
+  const isBillingExempt = isBillingExemptEmail(billingEmail)
   const subscribed = isActiveSubscription(company.subscription_status)
-  const plan = subscribed ? getPlanFromPriceId(company.subscription_price_id) : 'free'
   const limit = checkSendRequestLimit(
     company.subscription_status,
     company.subscription_price_id,
     counts,
+    billingEmail,
   )
+  const plan = isBillingExempt
+    ? 'pro'
+    : subscribed
+      ? getPlanFromPriceId(company.subscription_price_id)
+      : 'free'
 
   return {
     plan,
     isSubscribed: subscribed,
+    isBillingExempt,
     totalSent: counts.totalSent,
     monthlySent: counts.monthlySent,
     isAtLimit: !limit.allowed,

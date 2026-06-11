@@ -5,6 +5,7 @@ import {
   FREE_REQUEST_LIMIT,
   getPlanFromPriceId,
   isActiveSubscription,
+  isBillingExemptEmail,
 } from './plan-limits'
 
 describe('isActiveSubscription', () => {
@@ -79,5 +80,17 @@ describe('checkSendRequestLimit', () => {
       monthlySent: 200,
     })
     expect(result).toEqual({ allowed: true, plan: 'pro' })
+  })
+
+  test('allows unlimited requests for billing-exempt emails', () => {
+    process.env.BILLING_EXEMPT_EMAILS = 'Tester@Example.com, other@example.com'
+    const result = checkSendRequestLimit(null, null, {
+      totalSent: FREE_REQUEST_LIMIT + 10,
+      monthlySent: CLASSIC_MONTHLY_LIMIT + 10,
+    }, 'tester@example.com')
+    expect(result).toEqual({ allowed: true, plan: 'pro' })
+    expect(isBillingExemptEmail('other@example.com')).toBe(true)
+    expect(isBillingExemptEmail('not-listed@example.com')).toBe(false)
+    delete process.env.BILLING_EXEMPT_EMAILS
   })
 })

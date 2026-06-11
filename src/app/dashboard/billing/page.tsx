@@ -4,13 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
-import { createClient } from '@/lib/supabase/client'
 import {
   CLASSIC_MONTHLY_LIMIT,
   FREE_REQUEST_LIMIT,
-  getMonthStartUtc,
-  getPlanFromPriceId,
-  isActiveSubscription,
   type SubscriptionPlan,
 } from '@/lib/plan-limits'
 import type { CheckoutPlan } from '@/lib/stripe'
@@ -23,6 +19,7 @@ import { toast } from 'sonner'
 interface BillingInfo {
   plan: SubscriptionPlan
   isSubscribed: boolean
+  isBillingExempt: boolean
   subscriptionStatus: string | null
   totalSent: number
   monthlySent: number
@@ -41,7 +38,6 @@ export default function BillingPage() {
   const searchParams = useSearchParams()
   const [checkoutPending, setCheckoutPending] = useState<CheckoutPlan | null>(null)
   const [portalPending, setPortalPending] = useState(false)
-  const supabase = createClient()
 
   useEffect(() => {
     if (searchParams.get('success') === '1') {
@@ -56,49 +52,11 @@ export default function BillingPage() {
   const { data: billing, isLoading } = useQuery<BillingInfo>({
     queryKey: ['billing', company?.id],
     queryFn: async () => {
-      if (!company) {
-        return {
-          plan: 'free' as const,
-          isSubscribed: false,
-          subscriptionStatus: null,
-          totalSent: 0,
-          monthlySent: 0,
-          periodEnd: null,
-        }
+      const res = await fetch('/api/billing/status', { credentials: 'include' })
+      if (!res.ok) {
+        throw new Error('Failed to load billing status')
       }
-
-      const { data: co } = await supabase
-        .from('companies')
-        .select('subscription_status, subscription_price_id, subscription_current_period_end')
-        .eq('id', company.id)
-        .single()
-
-      const monthStart = getMonthStartUtc().toISOString()
-
-      const [{ count: totalSent }, { count: monthlySent }] = await Promise.all([
-        supabase
-          .from('share_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('requester_company_id', company.id),
-        supabase
-          .from('share_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('requester_company_id', company.id)
-          .gte('created_at', monthStart),
-      ])
-
-      const status = co?.subscription_status ?? null
-      const subscribed = isActiveSubscription(status)
-      const plan = subscribed ? getPlanFromPriceId(co?.subscription_price_id) : 'free'
-
-      return {
-        plan,
-        isSubscribed: subscribed,
-        subscriptionStatus: status,
-        totalSent: totalSent ?? 0,
-        monthlySent: monthlySent ?? 0,
-        periodEnd: co?.subscription_current_period_end ?? null,
-      }
+      return res.json() as Promise<BillingInfo>
     },
     enabled: !!company,
   })
@@ -145,11 +103,13 @@ export default function BillingPage() {
     )
   }
 
-  const usageLabel = billing?.plan === 'free'
-    ? `${billing?.totalSent ?? 0} / ${FREE_REQUEST_LIMIT} free requests used`
-    : billing?.plan === 'classic'
-      ? `${billing?.monthlySent ?? 0} / ${CLASSIC_MONTHLY_LIMIT} requests this month`
-      : `${billing?.monthlySent ?? 0} requests sent this month`
+  const usageLabel = billing?.isBillingExempt
+    ? `${billing?.monthlySent ?? 0} requests sent this month (unlimited team account)`
+    : billing?.plan === 'free'
+      ? `${billing?.totalSent ?? 0} / ${FREE_REQUEST_LIMIT} free requests used`
+      : billing?.plan === 'classic'
+        ? `${billing?.monthlySent ?? 0} / ${CLASSIC_MONTHLY_LIMIT} requests this month`
+        : `${billing?.monthlySent ?? 0} requests sent this month`
 
   return (
     <div className="p-6 space-y-6 max-w-2xl">
@@ -168,14 +128,19 @@ export default function BillingPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Current Plan</CardTitle>
-            <Badge className={billing?.isSubscribed ? 'bg-green-100 text-green-800' : ''} variant={billing?.isSubscribed ? 'default' : 'secondary'}>
-              {planLabels[billing?.plan ?? 'free']}
+            <Badge
+              className={billing?.isSubscribed || billing?.isBillingExempt ? 'bg-green-100 text-green-800' : ''}
+              variant={billing?.isSubscribed || billing?.isBillingExempt ? 'default' : 'secondary'}
+            >
+              {billing?.isBillingExempt ? 'Team (Unlimited)' : planLabels[billing?.plan ?? 'free']}
             </Badge>
           </div>
           <CardDescription>
-            {billing?.isSubscribed
-              ? `Your subscription renews on ${billing.periodEnd ? new Date(billing.periodEnd).toLocaleDateString() : '—'}.`
-              : `Includes ${FREE_REQUEST_LIMIT} free share requests to get started.`}
+            {billing?.isBillingExempt
+              ? 'This account has unlimited share requests and is not billed.'
+              : billing?.isSubscribed
+                ? `Your subscription renews on ${billing.periodEnd ? new Date(billing.periodEnd).toLocaleDateString() : '—'}.`
+                : `Includes ${FREE_REQUEST_LIMIT} free share requests to get started.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -186,7 +151,7 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {billing?.plan !== 'pro' && (
+      {!billing?.isBillingExempt && billing?.plan !== 'pro' && (
         <div className="space-y-4">
           <PlanOffer
             title="Ramply Pro"
