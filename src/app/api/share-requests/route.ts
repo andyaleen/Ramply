@@ -1,6 +1,5 @@
 import { randomBytes } from 'crypto'
 import { NextResponse } from 'next/server'
-import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 import { ShareRequestSchema } from '@/lib/validations'
 import { reportServerError } from '@/lib/monitoring'
@@ -17,9 +16,14 @@ function generateToken(): string {
 
 export async function POST(req: Request) {
   const supabase = await createClient()
-  const session = await requireAppSession(supabase)
-  if (!session.ok) return session.response
-  const { user } = session
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   let body: unknown
   try {
