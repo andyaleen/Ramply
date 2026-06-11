@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { AddressComponents } from '@/lib/address-fields'
-import { isGooglePlacesConfigured, loadGooglePlacesLibrary } from '@/lib/google-maps-loader'
+import { loadGooglePlacesLibrary, resolveGooglePlacesApiKey } from '@/lib/google-maps-loader'
 import {
   isStreetLevelAddress,
   mergeAddressComponents,
@@ -47,23 +47,25 @@ export function AddressAutocompleteInput({
   const clearedForSearchRef = useRef(false)
   const userEditingRef = useRef(false)
 
-  const [mode, setMode] = useState<InputMode>(() =>
-    isGooglePlacesConfigured() ? 'loading' : 'manual'
-  )
+  const [mode, setMode] = useState<InputMode>('loading')
 
   valueRef.current = value
   onChangeRef.current = onChange
 
   useEffect(() => {
-    if (!isGooglePlacesConfigured()) {
-      setMode('manual')
-      return
-    }
-
     let active = true
 
-    loadGooglePlacesLibrary()
-      .then((placesLibrary) => {
+    const mountWidget = async () => {
+      const apiKey = await resolveGooglePlacesApiKey()
+      if (!active) return
+
+      if (!apiKey) {
+        setMode('manual')
+        return
+      }
+
+      try {
+        const placesLibrary = await loadGooglePlacesLibrary()
         if (!active || !hostRef.current) return
 
         const PlaceAutocompleteElement = placesLibrary.PlaceAutocompleteElement
@@ -102,16 +104,24 @@ export function AddressAutocompleteInput({
           }
         }
 
+        const handleError = (event: Event) => {
+          console.error('Google Places autocomplete error:', event)
+        }
+
         widget.addEventListener('gmp-select', handleSelect)
         widget.addEventListener('input', handleInput)
+        widget.addEventListener('gmp-error', handleError)
 
         hostRef.current.replaceChildren(widget)
         widgetRef.current = widget
         setMode('widget')
-      })
-      .catch(() => {
+      } catch (error) {
+        console.error('Failed to load Google Places autocomplete:', error)
         if (active) setMode('manual')
-      })
+      }
+    }
+
+    void mountWidget()
 
     return () => {
       active = false

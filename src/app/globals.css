@@ -141,6 +141,8 @@
 /* Google Places autocomplete widget and legacy dropdown */
 .address-autocomplete-host {
   width: 100%;
+  position: relative;
+  z-index: 0;
 }
 
 .address-autocomplete-host gmp-place-autocomplete {
@@ -149,7 +151,12 @@
   color-scheme: light;
 }
 
+/* Prediction list renders in a top-layer dialog; keep above form cards/dialogs */
+.address-autocomplete-host gmp-place-autocomplete::part(prediction-list) {
+  z-index: 10050;
+}
+
 /* Legacy Places dropdown (manual fallback path) */
 .pac-container {
-  z-index: 9999;
+  z-index: 10050;
 }
