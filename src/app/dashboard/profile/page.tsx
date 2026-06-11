@@ -7,9 +7,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { CompanyLogoUpload } from '@/components/profile/CompanyLogoUpload'
-import { useCompanyLogoUrl } from '@/hooks/useCompanyLogoUrl'
+import { EditableCompanyLogoAvatar } from '@/components/profile/EditableCompanyLogoAvatar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,11 +20,6 @@ import { US_STATES, US_STATE_VALUES } from '@/lib/us-states'
 import { maskEin, maskSensitiveValue } from '@/lib/sensitive-fields'
 import { User, Building2, MapPin, Landmark, Shield, Edit3, Phone, Globe, Mail, LogOut } from 'lucide-react'
 
-/** Helper: first letter of each word, up to 2 chars */
-function getInitials(name: string) {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-}
-
 /** Helper: display a field value or a fallback */
 function val(v: string | null | undefined) {
   return v || <span className="text-muted-foreground/50 italic">Not provided</span>
@@ -36,7 +29,6 @@ export default function ProfilePage() {
   const { user, company, updateCompany, loading } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const router = useRouter()
-  const { logoUrl } = useCompanyLogoUrl(company?.logo_path)
 
   const form = useForm<CompanyProfile>({
     resolver: zodResolver(CompanyProfileSchema),
@@ -99,14 +91,7 @@ export default function ProfilePage() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-6">
-            <Avatar className="h-20 w-20">
-              {logoUrl ? (
-                <AvatarImage src={logoUrl} alt="Company logo" className="object-contain p-2" />
-              ) : null}
-              <AvatarFallback className="text-lg">
-                {company.contact_name ? getInitials(company.contact_name) : 'UN'}
-              </AvatarFallback>
-            </Avatar>
+            <EditableCompanyLogoAvatar editable={isEditing} />
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold">{company.contact_name || 'Unknown User'}</h2>
               <p className="text-muted-foreground">{company.legal_name || 'No company'}</p>
@@ -119,15 +104,6 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Brand Logo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CompanyLogoUpload />
         </CardContent>
       </Card>
 
