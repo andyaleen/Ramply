@@ -386,14 +386,18 @@ CREATE POLICY "share_requests_all_requester" ON share_requests
 CREATE POLICY "share_requests_select_recipient" ON share_requests
   FOR SELECT USING (
     recipient_email IS NOT NULL
-    AND recipient_email = (SELECT email FROM users WHERE id = auth.uid())
+    AND LOWER(recipient_email) = LOWER((
+      SELECT email FROM users WHERE id = auth.uid()
+    ))
   );
 
 -- Recipients can update status to 'completed'
 CREATE POLICY "share_requests_update_recipient" ON share_requests
   FOR UPDATE USING (
     recipient_email IS NOT NULL
-    AND recipient_email = (SELECT email FROM users WHERE id = auth.uid())
+    AND LOWER(recipient_email) = LOWER((
+      SELECT email FROM users WHERE id = auth.uid()
+    ))
   );
 
 -- shared_data policies
@@ -1143,11 +1147,11 @@ BEGIN
     RAISE EXCEPTION 'not_authenticated';
   END IF;
 
-  SELECT email INTO v_email
+  SELECT LOWER(TRIM(email)) INTO v_email
   FROM auth.users
   WHERE id = v_uid;
 
-  IF v_email IS NULL THEN
+  IF v_email IS NULL OR v_email = '' THEN
     RAISE EXCEPTION 'auth_user_not_found';
   END IF;
 

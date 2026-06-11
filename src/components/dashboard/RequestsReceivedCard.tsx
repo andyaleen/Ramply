@@ -15,10 +15,12 @@ export function RequestsReceivedCard() {
   const router = useRouter()
   const supabase = createClient()
 
-  const { data: pendingRequests = [], isLoading } = useQuery({
-    queryKey: ['pending-received-requests', user?.email],
-    queryFn: async () => fetchPendingReceivedShareRequests(supabase, user?.email),
-    enabled: !!user?.email,
+  const recipientEmail = user?.email?.trim().toLowerCase() ?? ''
+
+  const { data: pendingRequests = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['pending-received-requests', recipientEmail],
+    queryFn: async () => fetchPendingReceivedShareRequests(supabase, recipientEmail),
+    enabled: Boolean(recipientEmail),
   })
 
   return (
@@ -33,6 +35,19 @@ export function RequestsReceivedCard() {
             {[...Array(3)].map((_, index) => (
               <div key={index} className="h-14 rounded-lg bg-[#F0EFE9] animate-pulse" />
             ))}
+          </div>
+        ) : error ? (
+          <div className="px-6 py-12 text-center">
+            <p className="mb-3 text-[14px] font-light text-[#7A8C84]">
+              Failed to load incoming requests.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="rounded-lg border border-[#DDDCD5] bg-white px-4 py-2 text-[13px] font-medium text-[#287253] hover:bg-[#F0EFE9] transition-colors"
+            >
+              Try again
+            </button>
           </div>
         ) : pendingRequests.length === 0 ? (
           <div className="px-6 py-12 text-center">

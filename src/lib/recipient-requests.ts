@@ -102,25 +102,53 @@ export async function fetchReceivedShareRequests(
   return (data ?? []) as RecipientRequest[]
 }
 
+/** Load pending received requests via table query when the RPC is unavailable. */
+async function fetchPendingReceivedShareRequestsFromTable(
+  supabase: ReceivedRequestsClient,
+  userEmail: string
+): Promise<PendingReceivedShareRequest[]> {
+  const { data, error } = await supabase
+    .from('share_requests')
+    .select('id, token, created_at')
+    .eq('recipient_email', userEmail)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    token: row.token,
+    created_at: row.created_at,
+    companyName: 'Incoming request',
+    requesterEmail: '',
+    showEmailInSubtitle: false,
+  }))
+}
+
 /** Load pending share requests sent to the signed-in user for dashboard review. */
 export async function fetchPendingReceivedShareRequests(
   supabase: ReceivedRequestsClient,
   userEmail: string | null | undefined
 ): Promise<PendingReceivedShareRequest[]> {
-  if (!safeLowerCase(userEmail)) return []
+  const recipientEmail = safeLowerCase(userEmail)
+  if (!recipientEmail) return []
 
   const { data, error } = await supabase.rpc('get_pending_received_share_requests')
-  if (error) throw error
 
-  return (data ?? []).map((row: PendingReceivedShareRequestRow) => {
-    const request = row
-    const display = buildPendingReceivedRequestDisplay(request)
+  if (!error) {
+    return (data ?? []).map((row: PendingReceivedShareRequestRow) => {
+      const request = row
+      const display = buildPendingReceivedRequestDisplay(request)
 
-    return {
-      id: request.id,
-      token: request.token,
-      created_at: request.created_at,
-      ...display,
-    }
-  })
+      return {
+        id: request.id,
+        token: request.token,
+        created_at: request.created_at,
+        ...display,
+      }
+    })
+  }
+
+  return fetchPendingReceivedShareRequestsFromTable(supabase, recipientEmail)
 }

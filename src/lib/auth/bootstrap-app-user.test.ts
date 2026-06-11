@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { parseBootstrapAppUserPayload } from '@/lib/auth/bootstrap-app-user'
+import {
+  isBootstrapRpcUnavailable,
+  parseBootstrapAppUserPayload,
+} from '@/lib/auth/bootstrap-app-user'
 import type { CompanyRow, UserRow } from '@/lib/database.types'
 
 const sampleUser: UserRow = {
@@ -66,5 +69,19 @@ describe('parseBootstrapAppUserPayload', () => {
     expect(() => parseBootstrapAppUserPayload({ user: sampleUser })).toThrow(
       'Missing user or company in bootstrap payload'
     )
+  })
+})
+
+describe('isBootstrapRpcUnavailable', () => {
+  test('detects missing RPC errors', () => {
+    expect(isBootstrapRpcUnavailable({ code: 'PGRST202', message: 'Could not find function bootstrap_app_user' }))
+      .toBe(true)
+    expect(isBootstrapRpcUnavailable({ code: '42883', message: 'function bootstrap_app_user() does not exist' }))
+      .toBe(true)
+  })
+
+  test('ignores unrelated errors', () => {
+    expect(isBootstrapRpcUnavailable({ code: '42501', message: 'permission denied' })).toBe(false)
+    expect(isBootstrapRpcUnavailable(null)).toBe(false)
   })
 })

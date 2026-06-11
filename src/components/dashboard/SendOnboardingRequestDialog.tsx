@@ -72,6 +72,7 @@ export function SendOnboardingRequestDialog({
     mutationFn: async (data: ShareRequest) => {
       const res = await fetch('/api/share-requests', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
@@ -104,6 +105,8 @@ export function SendOnboardingRequestDialog({
       setInviteEmailError(data.email_error ?? null)
       if (data.email_sent) {
         toast.success(`Invite email sent to ${data.recipient_email}`)
+      } else if (data.email_error) {
+        toast.warning(`Request created, but email was not sent: ${data.email_error}`)
       } else {
         toast.success('Share request created!')
       }

@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!silent) setProfileLoading(true)
         try {
           const { userProfile: resolvedUser, company: resolvedCompany } =
-            await bootstrapAppUser(supabase)
+            await bootstrapAppUser(supabase, authUser)
 
           setUserProfile(resolvedUser)
           setCompany(resolvedCompany)
