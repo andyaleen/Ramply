@@ -18,6 +18,7 @@ import {
   resolvePendingRequestDisplayStatus,
 } from '@/lib/pending-request-status'
 import { filterPendingSentRequests } from '@/lib/pending-request-search'
+import { PendingRequestActionMenu } from '@/components/dashboard/PendingRequestActionMenu'
 import {
   fetchPendingSentShareRequests,
   type PendingSentRequest,
@@ -72,6 +73,41 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
       toast.error(err.message)
     },
   })
+
+  const remindMutation = useMutation({
+    mutationFn: async (shareRequestId: string) => {
+      const response = await fetch('/api/share-requests/remind', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ share_request_id: shareRequestId }),
+      })
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to send reminder')
+      }
+    },
+    onSuccess: (_data, shareRequestId) => {
+      const request = requests.find((item) => item.id === shareRequestId)
+      const recipient = request?.recipient_email || 'the recipient'
+      toast.success(`Reminder sent to ${recipient}`)
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
+  function isActingOnRequest(requestId: string) {
+    return (
+      (cancelMutation.isPending && cancelMutation.variables === requestId)
+      || (remindMutation.isPending && remindMutation.variables === requestId)
+    )
+  }
+
+  function handleRemind(request: PendingSentRequest) {
+    remindMutation.mutate(request.id)
+  }
 
   function handleCancel(request: PendingSentRequest) {
     const recipient = request.recipient_email || 'this recipient'
@@ -157,16 +193,13 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
                         {PENDING_REQUEST_STATUS_LABELS[status]}
                       </Badge>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
-                      disabled={cancelMutation.isPending}
-                      onClick={() => handleCancel(request)}
-                    >
-                      Cancel
-                    </Button>
+                    <PendingRequestActionMenu
+                      request={request}
+                      disabled={isActingOnRequest(request.id)}
+                      onRemind={handleRemind}
+                      onCancel={handleCancel}
+                      className="w-full"
+                    />
                   </div>
                 )
               })}
@@ -201,16 +234,12 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
-                            disabled={cancelMutation.isPending}
-                            onClick={() => handleCancel(request)}
-                          >
-                            Cancel
-                          </Button>
+                          <PendingRequestActionMenu
+                            request={request}
+                            disabled={isActingOnRequest(request.id)}
+                            onRemind={handleRemind}
+                            onCancel={handleCancel}
+                          />
                         </TableCell>
                       </TableRow>
                     )
