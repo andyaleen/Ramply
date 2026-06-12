@@ -94,6 +94,24 @@ export function normalizeRequestedPath(requestedPath: string | null | undefined,
   return rewriteLegacyAdminPath(requestedPath)
 }
 
+/** Splits a normalized redirect target into pathname and search (query string). */
+export function resolveRedirectTarget(
+  requestedRedirect: string | null | undefined,
+  fallbackPath: string
+): { pathname: string; search: string } {
+  const normalized = normalizeRequestedPath(requestedRedirect, fallbackPath)
+  const queryIndex = normalized.indexOf('?')
+
+  if (queryIndex >= 0) {
+    return {
+      pathname: normalized.slice(0, queryIndex),
+      search: normalized.slice(queryIndex),
+    }
+  }
+
+  return { pathname: normalized, search: '' }
+}
+
 export function getAuthorizedAppPath(requestedPath: string | null | undefined, userProfile: MinimalUserProfile): string {
   const fallbackPath = getDefaultAuthenticatedPath(userProfile)
   return normalizeRequestedPath(requestedPath, fallbackPath)

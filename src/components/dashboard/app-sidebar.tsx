@@ -118,6 +118,7 @@ type IconName =
   | 'briefcase'
   | 'user'
   | 'settings'
+  | 'referral'
 
 interface NavItem {
   title: string
@@ -146,6 +147,7 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Billing', url: '/dashboard/billing', icon: 'briefcase' },
       { title: 'Profile', url: '/dashboard/profile', icon: 'user' },
       { title: 'Settings', url: '/dashboard/settings', icon: 'settings' },
+      { title: 'Referral', url: '/dashboard/referral', icon: 'referral' },
     ],
   },
 ]
@@ -232,6 +234,13 @@ function NavIcon({ name }: { name: IconName }) {
         <svg {...common}>
           <circle cx="8" cy="8" r="2" />
           <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.3 3.3l1.4 1.4M11.3 11.3l1.4 1.4M3.3 12.7l1.4-1.4M11.3 4.7l1.4-1.4" />
+        </svg>
+      )
+    case 'referral':
+      return (
+        <svg {...common}>
+          <path d="M11 2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM3 13.5c0-2 1.8-3.5 4-3.5M13 13.5c0-2 1.8-3.5 4-3.5" />
+          <path d="M8 10.5l2.5 2.5L14 9.5" />
         </svg>
       )
   }

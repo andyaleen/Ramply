@@ -4,6 +4,7 @@ import {
   isCompanyProfileComplete,
   isSafeRedirectPath,
   normalizeRequestedPath,
+  resolveRedirectTarget,
 } from './routing'
 
 describe('isSafeRedirectPath', () => {
@@ -37,6 +38,15 @@ describe('normalizeRequestedPath', () => {
 
   test('still blocks other auth callback paths', () => {
     expect(normalizeRequestedPath('/auth/confirm', '/dashboard')).toBe('/dashboard')
+  })
+
+  test('preserves query strings on redirect targets', () => {
+    expect(
+      resolveRedirectTarget('/complete-profile?ref=v1.test-token', '/dashboard')
+    ).toEqual({
+      pathname: '/complete-profile',
+      search: '?ref=v1.test-token',
+    })
   })
 })
 

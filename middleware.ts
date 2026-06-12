@@ -8,7 +8,7 @@ import {
 import { shouldSkipMiddlewareAuth } from '@/lib/auth/middleware-session-cookie'
 import { applyPasswordRecoveryRoutingHints } from '@/lib/auth/password-recovery-pending'
 import { evaluateAppSessionForRequest } from '@/lib/auth/require-app-session'
-import { isProtectedAppPath, isSafeRedirectPath, normalizeRequestedPath } from '@/lib/auth/routing'
+import { isProtectedAppPath, isSafeRedirectPath, resolveRedirectTarget } from '@/lib/auth/routing'
 import { AUTH_REDIRECT_REASON_SESSION_EXPIRED } from '@/lib/auth/session-policy'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -113,11 +113,9 @@ export async function middleware(request: NextRequest) {
       // ProtectedAppShell, which covers profile completeness.
       const requestedRedirect = request.nextUrl.searchParams.get('redirect')
       const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = normalizeRequestedPath(
-        requestedRedirect?.split('?')[0] ?? null,
-        '/dashboard'
-      )
-      redirectUrl.search = ''
+      const { pathname, search } = resolveRedirectTarget(requestedRedirect, '/dashboard')
+      redirectUrl.pathname = pathname
+      redirectUrl.search = search
       return NextResponse.redirect(redirectUrl)
     }
 

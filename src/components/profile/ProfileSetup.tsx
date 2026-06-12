@@ -18,6 +18,8 @@ import { CompanyLogoUpload } from '@/components/profile/CompanyLogoUpload'
 
 interface ProfileSetupProps {
   onComplete: () => void
+  /** When set, replaces the default profile setup headline. */
+  inviteHeadline?: string
 }
 
 /** Marks a profile field as required in the setup form. */
@@ -42,7 +44,7 @@ function invalidFieldClass(hasError: boolean) {
     : undefined
 }
 
-export function ProfileSetup({ onComplete }: ProfileSetupProps) {
+export function ProfileSetup({ onComplete, inviteHeadline }: ProfileSetupProps) {
   const [loading, setLoading] = useState(false)
   const { company, updateCompany } = useAuth()
 
@@ -106,9 +108,13 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
               <Building2 className="h-8 w-8 text-white" aria-hidden />
             </div>
           </div>
-          <h1 className="text-3xl font-semibold text-[#0F1F18]">Complete Your Company Profile</h1>
+          <h1 className="text-3xl font-semibold text-[#0F1F18]">
+            {inviteHeadline ?? 'Complete Your Company Profile'}
+          </h1>
           <p className="text-[#4A5C54] mt-2">
-            Fill in your company details once — they&apos;ll be reused automatically for every share request.
+            {inviteHeadline
+              ? 'Create your company profile to start sharing onboarding information securely.'
+              : 'Fill in your company details once — they&apos;ll be reused automatically for every share request.'}
           </p>
         </div>
 

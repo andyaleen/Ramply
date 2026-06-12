@@ -1,0 +1,80 @@
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import { buildReferralSignupUrl } from '@/lib/referrals/referral-link'
+import { sendReferralInviteEmail } from '@/lib/email/referral-invite'
+import { reportServerError } from '@/lib/monitoring'
+import { getShareLinkOrigin } from '@/lib/share-link-origin'
+
+const SendReferralSchema = z.object({
+  recipient_email: z.string().email(),
+})
+
+/** Sends a referral invite email to a prospective Ramply user. */
+export async function POST(req: Request) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const parsed = SendReferralSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const { data: company, error: companyError } = await supabase
+    .from('companies')
+    .select('id, legal_name, contact_name')
+    .eq('owner_user_id', user.id)
+    .single()
+
+  if (companyError || !company) {
+    return NextResponse.json({ error: 'Company not found' }, { status: 400 })
+  }
+
+  const companyName = company.legal_name?.trim() || 'Ramply'
+  const referrerName = company.contact_name?.trim() || companyName
+  const recipientEmail = parsed.data.recipient_email.trim().toLowerCase()
+  const referralLink = buildReferralSignupUrl(getShareLinkOrigin(req), company.id)
+
+  const emailResult = await sendReferralInviteEmail({
+    recipientEmail,
+    referrerName,
+    companyName,
+    referralLink,
+  })
+
+  if (!emailResult.ok) {
+    reportServerError('referrals.send-email', new Error(emailResult.reason), {
+      recipientEmail,
+      companyId: company.id,
+    })
+    return NextResponse.json(
+      {
+        error: emailResult.reason,
+        link: referralLink,
+        email_sent: false,
+      },
+      { status: emailResult.reason === 'Email service not configured' ? 503 : 502 }
+    )
+  }
+
+  return NextResponse.json({
+    link: referralLink,
+    recipient_email: recipientEmail,
+    email_sent: true,
+    dev_logged: emailResult.devLogged ?? false,
+  })
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Layout } from '@/components/layout'
 import { LoadingFallback } from '@/components/LoadingFallback'
@@ -13,6 +13,34 @@ function CompleteProfileContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextPath = searchParams.get('next')
+  const referralToken = searchParams.get('ref')
+  const [inviteHeadline, setInviteHeadline] = useState<string | undefined>()
+
+  useEffect(() => {
+    if (!referralToken) {
+      setInviteHeadline(undefined)
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/referrals/resolve?ref=${encodeURIComponent(referralToken)}`)
+        if (!res.ok || cancelled) return
+        const payload = await res.json() as { invite_headline?: string }
+        if (!cancelled && payload.invite_headline) {
+          setInviteHeadline(payload.invite_headline)
+        }
+      } catch {
+        // Referral banner is optional; profile setup still works without it.
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [referralToken])
 
   useEffect(() => {
     if (loading) return
@@ -51,6 +79,7 @@ function CompleteProfileContent() {
   return (
     <Layout showAuth={false}>
       <ProfileSetup
+        inviteHeadline={inviteHeadline}
         onComplete={() => {
           const fallbackPath = getDefaultAuthenticatedPath(userProfile)
           const destination = getAuthorizedAppPath(nextPath, userProfile) || fallbackPath
