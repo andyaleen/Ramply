@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requestPasswordResetEmail } from '@/lib/auth/password-reset-email'
 import { reportServerError } from '@/lib/monitoring'
+import { enforceAuthRateLimit } from '@/lib/rate-limit/auth-rate-limits'
 
 const RequestPasswordResetSchema = z.object({
   email: z.string().trim().email(),
@@ -21,6 +22,13 @@ export async function POST(req: Request) {
   const parsed = RequestPasswordResetSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const rateLimit = await enforceAuthRateLimit(req, 'request-password-reset', {
+    email: parsed.data.email,
+  })
+  if (!rateLimit.ok) {
+    return rateLimit.response
   }
 
   try {

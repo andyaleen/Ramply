@@ -14,7 +14,10 @@ export async function startGoogleAuth(next = '/dashboard'): Promise<string | nul
     const redirectTo = buildSupabaseAuthRedirectUrl(next)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        queryParams: { prompt: 'select_account' },
+      },
     })
 
     if (error) return error.message

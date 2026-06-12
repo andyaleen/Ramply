@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import {
+  INVITE_CONFIRMATION_FAILURE_CODE,
+  INVITE_CONFIRMATION_FAILURE_MESSAGE,
+} from '@/lib/auth/sign-in-errors'
 import { confirmShareRecipientAccount } from '@/lib/auth/share-recipient-confirm'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { reportServerError } from '@/lib/monitoring'
+import { enforceAuthRateLimit } from '@/lib/rate-limit/auth-rate-limits'
 
 const ConfirmShareRecipientSchema = z.object({
   email: z.string().trim().email(),
@@ -27,6 +32,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
+  const rateLimit = await enforceAuthRateLimit(req, 'confirm-share-recipient', {
+    email: parsed.data.email,
+  })
+  if (!rateLimit.ok) {
+    return rateLimit.response
+  }
+
   try {
     const admin = createAdminClient()
     const result = await confirmShareRecipientAccount(admin, {
@@ -40,8 +52,13 @@ export async function POST(req: Request) {
         reportServerError('confirm-share-recipient', new Error(result.error), {
           userId: parsed.data.userId,
         })
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
       }
-      return NextResponse.json({ error: result.error }, { status: result.status })
+
+      return NextResponse.json(
+        { error: INVITE_CONFIRMATION_FAILURE_MESSAGE, code: INVITE_CONFIRMATION_FAILURE_CODE },
+        { status: 400 }
+      )
     }
 
     return NextResponse.json({ ok: true, alreadyConfirmed: result.alreadyConfirmed })

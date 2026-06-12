@@ -6,6 +6,7 @@ import { bootstrapAppUser } from '@/lib/auth/bootstrap-app-user'
 import { seedAppSessionActivityCookie } from '@/lib/auth/require-app-session'
 import { AUTH_PASSWORD_MIN_LENGTH } from '@/lib/auth/session-policy'
 import { reportServerError } from '@/lib/monitoring'
+import { enforceAuthRateLimit } from '@/lib/rate-limit/auth-rate-limits'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 
@@ -31,6 +32,13 @@ export async function POST(request: NextRequest) {
   const parsed = CompleteSignInSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const rateLimit = await enforceAuthRateLimit(request, 'complete-sign-in', {
+    email: parsed.data.email,
+  })
+  if (!rateLimit.ok) {
+    return rateLimit.response
   }
 
   try {

@@ -122,13 +122,13 @@ export function AuthForm({
       return 'Unable to connect. Please check your internet connection and try again.'
     }
     if (message.includes('Invalid login credentials')) {
-      return 'Incorrect password for this email. Use Forgot password below, or try magic link.'
+      return 'Incorrect email or password. If you use Google sign-in, choose Continue with Google instead.'
     }
     if (message.includes('Email not confirmed')) {
       return 'We could not sign you in yet. Try again or contact support if this continues.'
     }
     if (message.includes('User already registered')) {
-      return 'An account with this email already exists. Please sign in instead.'
+      return 'We could not create an account with those details. Try signing in, or use Continue with Google.'
     }
     if (message.includes('invalid') && message.includes('email')) {
       return 'The email address format is not accepted. Please try a different email address.'
@@ -158,22 +158,12 @@ export function AuthForm({
 
     const payload = (await res.json().catch(() => ({}))) as {
       error?: string
-      code?: 'incorrect_password' | 'oauth_only' | 'user_not_found'
+      code?: 'invalid_credentials'
       session?: CompletePasswordSignInSession | null
       bootstrap?: BootstrapAppUserResult | null
     }
     if (!res.ok) {
-      if (payload.code === 'incorrect_password') {
-        setError(
-          'Incorrect password for this email. If you signed up multiple times, use the password from your first sign-up, or reset it below.'
-        )
-      } else if (payload.code === 'oauth_only') {
-        setError('This email uses Google sign-in. Use Continue with Google instead.')
-      } else if (payload.code === 'user_not_found') {
-        setError('No account found for this email. Create an account on the Sign Up tab.')
-      } else {
-        setError(formatAuthError(payload.error))
-      }
+      setError(formatAuthError(payload.error))
       return false
     }
 
@@ -292,7 +282,7 @@ export function AuthForm({
         const identities = authData.user.identities ?? []
         if (identities.length === 0) {
           setError(
-            'An account with this email already exists. Sign in with your original password, or use Forgot password on the Sign In tab.'
+            'We could not create an account with those details. Try signing in, or use Continue with Google.'
           )
           setActiveTab('signin')
           setLoading(false)

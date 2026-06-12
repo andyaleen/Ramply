@@ -29,6 +29,8 @@ Open [http://localhost:3000](http://localhost:3000).
 
 See [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) for sensitive field handling.
 
+Before beta testers, complete [`docs/BETA_AUTH_SECURITY.md`](docs/BETA_AUTH_SECURITY.md) (Supabase/Vercel auth checklist).
+
 ## Environment variables
 
 Copy [`.env.example`](.env.example). Required for core app:

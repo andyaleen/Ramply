@@ -9,6 +9,13 @@ import {
   getAuthUserByEmail,
 } from '@/lib/auth/lookup-auth-user'
 import { confirmShareRecipientAccount } from '@/lib/auth/share-recipient-confirm'
+import {
+  INVALID_SIGN_IN_CREDENTIALS_CODE,
+  INVALID_SIGN_IN_CREDENTIALS_MESSAGE,
+  INVITE_CONFIRMATION_FAILURE_CODE,
+  INVITE_CONFIRMATION_FAILURE_MESSAGE,
+  type CompletePasswordSignInErrorCode,
+} from '@/lib/auth/sign-in-errors'
 
 export type CompletePasswordSignInParams = {
   email: string
@@ -17,11 +24,6 @@ export type CompletePasswordSignInParams = {
   /** From a fresh signUp() response — avoids listUsers race for new accounts. */
   userId?: string
 }
-
-export type CompletePasswordSignInErrorCode =
-  | 'incorrect_password'
-  | 'oauth_only'
-  | 'user_not_found'
 
 export type CompletePasswordSignInSession = {
   access_token: string
@@ -37,16 +39,16 @@ const SIGN_IN_MAX_ATTEMPTS = 4
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function invalidCredentialsMessage(signInError: AuthError): CompletePasswordSignInResult {
+type CompletePasswordSignInFailure = Extract<CompletePasswordSignInResult, { ok: false }>
+
+function invalidCredentialsFailure(): CompletePasswordSignInFailure {
   return {
     ok: false,
     status: 401,
-    error: signInError.message,
-    code: 'incorrect_password',
+    error: INVALID_SIGN_IN_CREDENTIALS_MESSAGE,
+    code: INVALID_SIGN_IN_CREDENTIALS_CODE,
   }
 }
-
-type CompletePasswordSignInFailure = Extract<CompletePasswordSignInResult, { ok: false }>
 
 /**
  * Confirms email when possible before the first sign-in attempt.
@@ -63,7 +65,15 @@ async function ensureAccountCanSignIn(
       token: params.shareToken,
       userId: params.userId,
     })
-    if (!shareResult.ok) return shareResult
+    if (!shareResult.ok) {
+      if (shareResult.status >= 500) return shareResult
+      return {
+        ok: false,
+        status: 400,
+        error: INVITE_CONFIRMATION_FAILURE_MESSAGE,
+        code: INVITE_CONFIRMATION_FAILURE_CODE,
+      }
+    }
     return null
   }
 
@@ -92,25 +102,6 @@ export async function completePasswordSignIn(
   }
 
   const authUser = await getAuthUserByEmail(admin, email, params.userId)
-
-  if (!authUser) {
-    return {
-      ok: false,
-      status: 404,
-      error: 'No account found for this email. Sign up first or check for typos.',
-      code: 'user_not_found',
-    }
-  }
-
-  if (!authUserHasPasswordProvider(authUser)) {
-    return {
-      ok: false,
-      status: 400,
-      error: 'This email uses Google sign-in. Continue with Google instead of a password.',
-      code: 'oauth_only',
-    }
-  }
-
   let signedInSession: CompletePasswordSignInSession | null = null
 
   const attemptSignIn = async (): Promise<AuthError | null> => {
@@ -124,8 +115,18 @@ export async function completePasswordSignIn(
     return error
   }
 
-  const emailAlreadyConfirmed = Boolean(authUser.email_confirmed_at)
+  const canRetryConfirmation = Boolean(authUser && authUserHasPasswordProvider(authUser))
 
+  if (!canRetryConfirmation) {
+    const signInError = await attemptSignIn()
+    if (!signInError) {
+      return { ok: true, session: signedInSession }
+    }
+
+    return invalidCredentialsFailure()
+  }
+
+  const emailAlreadyConfirmed = Boolean(authUser?.email_confirmed_at)
   let signInError: AuthError | null = null
 
   for (let attempt = 0; attempt < SIGN_IN_MAX_ATTEMPTS; attempt += 1) {
@@ -139,7 +140,7 @@ export async function completePasswordSignIn(
       .includes('invalid login credentials')
 
     if (emailAlreadyConfirmed && isInvalidCredentials) {
-      return invalidCredentialsMessage(signInError)
+      return invalidCredentialsFailure()
     }
 
     const canRetry = attempt < SIGN_IN_MAX_ATTEMPTS - 1
@@ -147,7 +148,7 @@ export async function completePasswordSignIn(
       break
     }
 
-    const confirmResult = await adminConfirmAuthUserEmail(admin, email, authUser.id)
+    const confirmResult = await adminConfirmAuthUserEmail(admin, email, authUser!.id)
     if (!confirmResult.ok && confirmResult.status !== 404) {
       return { ok: false, status: confirmResult.status, error: confirmResult.error }
     }
@@ -160,8 +161,13 @@ export async function completePasswordSignIn(
   }
 
   if (signInError.message.toLowerCase().includes('invalid login')) {
-    return invalidCredentialsMessage(signInError)
+    return invalidCredentialsFailure()
   }
 
   return { ok: false, status: 400, error: signInError.message }
 }
+
+export {
+  INVALID_SIGN_IN_CREDENTIALS_CODE,
+  INVALID_SIGN_IN_CREDENTIALS_MESSAGE,
+} from '@/lib/auth/sign-in-errors'
