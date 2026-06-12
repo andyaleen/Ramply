@@ -7,6 +7,7 @@ export const CATALOG_FIELDS = [
   { key: 'dba_name',             label: 'DBA / Trade Name' },
   { key: 'ein',                  label: 'EIN / Tax ID' },
   { key: 'business_type',        label: 'Business Type' },
+  { key: 'naics',                label: 'NAICS Classification' },
   { key: ADDRESS_CATALOG_KEY,    label: 'Business Address' },
   { key: 'contact_name',         label: 'Primary Contact Name' },
   { key: 'contact_email',        label: 'Contact Email' },

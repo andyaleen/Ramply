@@ -35,6 +35,7 @@ import {
 } from '@/lib/address-fields'
 import { profileUpdatesFromFulfillmentFields } from '@/lib/fulfillment-profile-sync'
 import { AddressFieldsSection } from '@/components/address/AddressFieldsSection'
+import { getFieldValueError } from '@/lib/field-inputs'
 
 type ShareRequestForFulfillment = Omit<ShareRequestRow, 'token'>
 
@@ -119,6 +120,19 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
 
     return missing
   }, [addressRequired, addressComponents, mandatoryNonAddress, fieldValues])
+
+  const fieldFormatErrors = useMemo(() => {
+    const errors: Record<string, string> = {}
+
+    for (const key of allRequestedFieldKeys) {
+      if (isCustomSelectionKey(key)) continue
+      if (key === ADDRESS_CATALOG_KEY || requestIncludesAddress([key])) continue
+      const error = getFieldValueError(key, fieldValues[key])
+      if (error) errors[key] = error
+    }
+
+    return errors
+  }, [allRequestedFieldKeys, fieldValues])
 
   const handleFieldChange = (key: string, value: string) => {
     setFieldValues((prev) => ({ ...prev, [key]: value }))
@@ -233,6 +247,11 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   })
 
   const handleShareInformation = () => {
+    if (Object.keys(fieldFormatErrors).length > 0) {
+      toast.error('Please fix the highlighted fields before sharing.')
+      return
+    }
+
     if (missingRequiredFields.length > 0 && !pendingBlankFieldConfirm) {
       setPendingBlankFieldConfirm(true)
       return
@@ -297,6 +316,8 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
                   {mandatoryNonAddress.map((key) => {
                     const isBlank = !fieldValues[key]?.trim()
                     const showBlankPrompt = pendingBlankFieldConfirm && isBlank
+                    const formatError = fieldFormatErrors[key]
+                    const showInvalid = showBlankPrompt || !!formatError
                     return (
                       <div key={key}>
                         <Label>{fieldLabel(key)}</Label>
@@ -304,10 +325,18 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
                           fieldKey={key}
                           value={fieldValues[key] ?? ''}
                           onChange={(value) => handleFieldChange(key, value)}
-                          aria-invalid={showBlankPrompt}
-                          className={showBlankPrompt ? 'border-amber-500 focus-visible:ring-amber-500' : undefined}
+                          aria-invalid={showInvalid}
+                          className={
+                            formatError
+                              ? 'border-red-500 focus-visible:ring-red-500'
+                              : showBlankPrompt
+                                ? 'border-amber-500 focus-visible:ring-amber-500'
+                                : undefined
+                          }
                         />
-                        {showBlankPrompt ? (
+                        {formatError ? (
+                          <p className="mt-1 text-xs text-red-700">{formatError}</p>
+                        ) : showBlankPrompt ? (
                           <p className="mt-1 text-xs text-amber-700">Leave this field blank?</p>
                         ) : null}
                       </div>
@@ -329,16 +358,24 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
                       />
                     </div>
                   ) : null}
-                  {optionalNonAddress.map((key) => (
-                    <div key={key}>
-                      <Label>{fieldLabel(key)}</Label>
-                      <CompanyFieldInput
-                        fieldKey={key}
-                        value={fieldValues[key] ?? ''}
-                        onChange={(value) => handleFieldChange(key, value)}
-                      />
-                    </div>
-                  ))}
+                  {optionalNonAddress.map((key) => {
+                    const formatError = fieldFormatErrors[key]
+                    return (
+                      <div key={key}>
+                        <Label>{fieldLabel(key)}</Label>
+                        <CompanyFieldInput
+                          fieldKey={key}
+                          value={fieldValues[key] ?? ''}
+                          onChange={(value) => handleFieldChange(key, value)}
+                          aria-invalid={!!formatError}
+                          className={formatError ? 'border-red-500 focus-visible:ring-red-500' : undefined}
+                        />
+                        {formatError ? (
+                          <p className="mt-1 text-xs text-red-700">{formatError}</p>
+                        ) : null}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

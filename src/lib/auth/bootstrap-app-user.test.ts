@@ -21,6 +21,7 @@ const sampleCompany: CompanyRow = {
   dba_name: null,
   ein: null,
   business_type: null,
+  naics: null,
   address_line1: null,
   address_line2: null,
   city: null,

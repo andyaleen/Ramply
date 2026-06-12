@@ -44,6 +44,7 @@ export type Database = {
           dba_name: string | null
           ein: string | null
           business_type: string | null
+          naics: string | null
           address_line1: string | null
           address_line2: string | null
           city: string | null
@@ -81,6 +82,7 @@ export type Database = {
           dba_name?: string | null
           ein?: string | null
           business_type?: string | null
+          naics?: string | null
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
@@ -118,6 +120,7 @@ export type Database = {
           dba_name?: string | null
           ein?: string | null
           business_type?: string | null
+          naics?: string | null
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null

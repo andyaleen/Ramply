@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS companies (
   dba_name TEXT,
   ein TEXT,
   business_type TEXT,
+  naics TEXT,
   address_line1 TEXT,
   address_line2 TEXT,
   city TEXT,

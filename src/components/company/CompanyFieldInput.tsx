@@ -9,7 +9,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { fieldLabel } from '@/lib/catalog'
-import { getFieldInputConfig, getFieldSelectValues } from '@/lib/field-inputs'
+import {
+  getFieldInputConfig,
+  getFieldSelectValues,
+  sanitizeFieldValue,
+} from '@/lib/field-inputs'
 
 interface CompanyFieldInputProps {
   fieldKey: string
@@ -64,12 +68,18 @@ export function CompanyFieldInput({
     )
   }
 
+  const handleChange = (nextValue: string) => {
+    onChange(sanitizeFieldValue(fieldKey, nextValue))
+  }
+
   return (
     <Input
       id={id}
       type={config.kind === 'text' ? 'text' : config.kind}
+      inputMode={config.digitsOnly ? 'numeric' : undefined}
+      maxLength={config.maxLength}
       value={value ?? ''}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => handleChange(event.target.value)}
       placeholder={resolvedPlaceholder}
       className={className}
       aria-invalid={ariaInvalid}
