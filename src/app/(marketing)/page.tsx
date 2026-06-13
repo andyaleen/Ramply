@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { RamplyMarketingFooter } from '@/components/marketing/RamplyMarketingFooter'
 import { RamplyMarketingNav } from '@/components/marketing/RamplyMarketingNav'
 import { serifTitle } from '@/components/marketing/marketing-styles'
 import {
@@ -68,7 +69,7 @@ export default function Landing() {
         onPrimaryClick={() => router.push('/signup')}
         onSecondaryClick={() => router.push('/signup')}
       />
-      <StatsBar />
+      <RamplyMarketingFooter />
     </div>
   )
 }
@@ -237,41 +238,6 @@ function HeroIllustration() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-/** Renders the lower stats bar with slightly larger desktop typography. */
-function StatsBar() {
-  return (
-    <section className="bg-white border-t border-[#DDDCD5]">
-      <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-14 md:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-y-10">
-          <Stat number="73%" label="of vendor onboarding is still done via email" dividerRight />
-          <Stat number="14 hrs" label="average time to onboard a single vendor" dividerRight />
-          <Stat number="$2.5B+" label="vendor onboarding software market in 2026" />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-interface StatProps {
-  number: string
-  label: string
-  dividerRight?: boolean
-}
-
-/** Displays one stat tile in the footer metrics row. */
-function Stat({ number, label, dividerRight }: StatProps) {
-  return (
-    <div className={`text-center px-6 ${dividerRight ? 'md:border-r md:border-[#DDDCD5]' : ''}`}>
-      <p className={`${serifTitle} text-[52px] md:text-[60px] leading-none text-[#287253]`}>
-        {number}
-      </p>
-      <p className="mt-3 text-[15px] md:text-[16px] leading-relaxed text-[#7A8C84] max-w-[280px] mx-auto">
-        {label}
-      </p>
     </div>
   )
 }

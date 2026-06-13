@@ -6,8 +6,8 @@ Use this before inviting beta testers. Code-side fixes from the security audit a
 
 ### URL configuration (Auth → URL Configuration)
 
-- [ ] **Site URL** matches production `NEXT_PUBLIC_APP_URL` (e.g. `https://www.ramply.org`)
-- [ ] **Redirect URLs** allowlist includes every auth callback origin you use:
+- [X] **Site URL** matches production `NEXT_PUBLIC_APP_URL` (e.g. `https://www.ramply.org`)
+- [X] **Redirect URLs** allowlist includes every auth callback origin you use:
   - `https://your-domain/auth/callback`
   - `https://your-domain/auth/confirm`
   - Local dev ports if needed (`http://localhost:3000/auth/callback`, etc.)
@@ -24,6 +24,9 @@ Use this before inviting beta testers. Code-side fixes from the security audit a
 - [ ] Google Cloud OAuth client **Authorized JavaScript origins** include your app domain(s)
 - [ ] **Authorized redirect URIs** include Supabase callback: `https://<project-ref>.supabase.co/auth/v1/callback`
 - [ ] OAuth client type is **Web application** (not desktop)
+- [ ] OAuth consent screen links to public legal pages:
+  - Privacy policy: `https://www.ramply.org/privacy`
+  - Terms of service: `https://www.ramply.org/terms`
 
 ### Database migrations (SQL editor)
 

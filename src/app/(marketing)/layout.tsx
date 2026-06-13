@@ -1,6 +1,6 @@
 import { instrumentSerif } from '@/lib/fonts/instrument-serif'
 
-/** Loads Instrument Serif only for public marketing routes (/ , /pricing). */
+/** Loads Instrument Serif only for public marketing routes (/ , /pricing, /privacy, /terms, /contact). */
 export default function MarketingLayout({
   children,
 }: {

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { PricingPlanCards } from '@/components/marketing/PricingPlanCards'
+import { RamplyMarketingFooter } from '@/components/marketing/RamplyMarketingFooter'
 import { RamplyMarketingNav } from '@/components/marketing/RamplyMarketingNav'
 import { serifTitle } from '@/components/marketing/marketing-styles'
 
@@ -38,6 +39,8 @@ export default function PricingPage() {
           Ramply Pro removes the monthly cap entirely.
         </p>
       </main>
+
+      <RamplyMarketingFooter />
     </div>
   )
 }

@@ -7,6 +7,8 @@ export interface ResendEmailPayload {
   html: string
   /** Used in dev console logs to identify the email type. */
   context?: string
+  /** Sets the Reply-To header so recipients can respond directly to the sender. */
+  replyTo?: string
 }
 
 export type ResendDeliveryResult =
@@ -90,6 +92,7 @@ export async function deliverResendEmail(
     to: [recipientEmail],
     subject: payload.subject,
     html: payload.html,
+    ...(payload.replyTo ? { reply_to: payload.replyTo } : {}),
   })
 
   if (error) {

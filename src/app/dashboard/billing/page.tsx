@@ -1,19 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
-import {
-  CLASSIC_MONTHLY_LIMIT,
-  FREE_REQUEST_LIMIT,
-  type SubscriptionPlan,
-} from '@/lib/plan-limits'
-import type { CheckoutPlan } from '@/lib/stripe'
+import type { SubscriptionPlan } from '@/lib/plan-limits'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, CheckCircle, Zap } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { CurrentPlanSummary } from '@/components/billing/CurrentPlanSummary'
 import { toast } from 'sonner'
 
 interface BillingInfo {
@@ -26,18 +20,10 @@ interface BillingInfo {
   periodEnd: string | null
 }
 
-const planLabels: Record<SubscriptionPlan, string> = {
-  free: 'Free',
-  classic: 'Classic',
-  pro: 'Ramply Pro',
-}
-
 export default function BillingPage() {
   const { company, profileLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [checkoutPending, setCheckoutPending] = useState<CheckoutPlan | null>(null)
-  const [portalPending, setPortalPending] = useState(false)
 
   useEffect(() => {
     if (searchParams.get('success') === '1') {
@@ -61,171 +47,45 @@ export default function BillingPage() {
     enabled: !!company,
   })
 
-  const handleUpgrade = async (plan: CheckoutPlan) => {
-    setCheckoutPending(plan)
-    try {
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      })
-      const json = await res.json() as { url?: string; error?: string }
-      if (!res.ok || !json.url) throw new Error(json.error ?? 'Failed to start checkout')
-      window.location.href = json.url
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Something went wrong')
-      setCheckoutPending(null)
-    }
-  }
-
-  const handleManage = async () => {
-    setPortalPending(true)
-    try {
-      const res = await fetch('/api/billing/portal', { method: 'POST' })
-      const json = await res.json() as { url?: string; error?: string }
-      if (!res.ok || !json.url) throw new Error(json.error ?? 'Failed to open portal')
-      window.location.href = json.url
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Something went wrong')
-      setPortalPending(false)
-    }
-  }
-
   if (profileLoading || isLoading) {
     return (
-      <div className="p-6 space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="h-24" />
-          </Card>
-        ))}
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="w-full max-w-2xl space-y-4">
+          {[...Array(2)].map((_, index) => (
+            <Card key={index} className="animate-pulse">
+              <CardContent className="h-32" />
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }
 
-  const usageLabel = billing?.isBillingExempt
-    ? `${billing?.monthlySent ?? 0} requests sent this month (unlimited team account)`
-    : billing?.plan === 'free'
-      ? `${billing?.totalSent ?? 0} / ${FREE_REQUEST_LIMIT} free requests used`
-      : billing?.plan === 'classic'
-        ? `${billing?.monthlySent ?? 0} / ${CLASSIC_MONTHLY_LIMIT} requests this month`
-        : `${billing?.monthlySent ?? 0} requests sent this month`
-
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')} className="flex items-center gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </Button>
-        <div>
+    <div className="flex flex-1 items-center justify-center p-6">
+      <div className="w-full max-w-2xl space-y-6">
+        <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Billing</h1>
           <p className="text-gray-600">Manage your Ramply subscription</p>
         </div>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Current Plan</CardTitle>
-            <Badge
-              className={billing?.isSubscribed || billing?.isBillingExempt ? 'bg-green-100 text-green-800' : ''}
-              variant={billing?.isSubscribed || billing?.isBillingExempt ? 'default' : 'secondary'}
-            >
-              {billing?.isBillingExempt ? 'Team (Unlimited)' : planLabels[billing?.plan ?? 'free']}
-            </Badge>
-          </div>
-          <CardDescription>
-            {billing?.isBillingExempt
-              ? 'This account has unlimited share requests and is not billed.'
-              : billing?.isSubscribed
-                ? `Your subscription renews on ${billing.periodEnd ? new Date(billing.periodEnd).toLocaleDateString() : '—'}.`
-                : `Includes ${FREE_REQUEST_LIMIT} free share requests to get started.`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600">{usageLabel}</p>
-          <Button variant="link" className="px-0 mt-2" onClick={() => router.push('/pricing')}>
-            View all plans
-          </Button>
-        </CardContent>
-      </Card>
+        <CurrentPlanSummary
+          plan={billing?.plan ?? 'free'}
+          isSubscribed={billing?.isSubscribed ?? false}
+          isBillingExempt={billing?.isBillingExempt ?? false}
+          totalSent={billing?.totalSent ?? 0}
+          monthlySent={billing?.monthlySent ?? 0}
+          periodEnd={billing?.periodEnd ?? null}
+        />
 
-      {!billing?.isBillingExempt && billing?.plan !== 'pro' && (
-        <div className="space-y-4">
-          <PlanOffer
-            title="Ramply Pro"
-            price="$45/mo plus taxes"
-            highlight="Unlimited share requests"
-            features={['Unlimited share requests', 'Priority email support']}
-            emphasized
-            onSelect={() => handleUpgrade('pro')}
-            pending={checkoutPending === 'pro'}
-          />
-          {billing?.plan !== 'classic' && (
-            <PlanOffer
-              title="Classic"
-              price="$18/mo plus taxes"
-              highlight="Up to 20 share requests a month"
-              features={['20 share requests per month', 'Email support']}
-              onSelect={() => handleUpgrade('classic')}
-              pending={checkoutPending === 'classic'}
-            />
-          )}
-        </div>
-      )}
-
-      {billing?.isSubscribed && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Manage Subscription</CardTitle>
-            <CardDescription>Update payment method, view invoices, or change plans.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={handleManage} disabled={portalPending}>
-              {portalPending ? 'Opening portal…' : 'Manage in Stripe'}
+        {!billing?.isBillingExempt && (
+          <div className="flex justify-center">
+            <Button onClick={() => router.push('/dashboard/billing/manage')}>
+              Modify / Cancel Subscription
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
     </div>
-  )
-}
-
-interface PlanOfferProps {
-  title: string
-  price: string
-  highlight: string
-  features: string[]
-  emphasized?: boolean
-  pending: boolean
-  onSelect: () => void
-}
-
-function PlanOffer({ title, price, highlight, features, emphasized, pending, onSelect }: PlanOfferProps) {
-  return (
-    <Card className={emphasized ? 'border-[#287253] bg-[#F8FAF9]' : undefined}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {emphasized && <Zap className="h-5 w-5 text-[#287253]" />}
-          {title}
-        </CardTitle>
-        <CardDescription>{price}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm font-medium text-[#287253]">{highlight}</p>
-        <ul className="space-y-2 text-sm">
-          {features.map((feature) => (
-            <li key={feature} className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-[#287253] shrink-0" />
-              {feature}
-            </li>
-          ))}
-        </ul>
-        <Button onClick={onSelect} disabled={pending} className="w-full">
-          {pending ? 'Redirecting to checkout…' : `Upgrade to ${title}`}
-        </Button>
-      </CardContent>
-    </Card>
   )
 }

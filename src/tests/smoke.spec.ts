@@ -46,4 +46,24 @@ test.describe('smoke — public pages', () => {
     await page.goto('/dashboard')
     await expect(page).toHaveURL(/login|\/dashboard/, { timeout: 8000 })
   })
+
+  test('privacy policy page renders public legal content', async ({ page }) => {
+    await page.goto('/privacy')
+    await expect(page.getByRole('heading', { level: 1, name: /privacy policy/i })).toBeVisible()
+    await expect(page.getByRole('article').getByRole('heading', { name: /information we collect/i })).toBeVisible()
+  })
+
+  test('terms of service page renders public legal content', async ({ page }) => {
+    await page.goto('/terms')
+    await expect(page.getByRole('heading', { level: 1, name: /terms of service/i })).toBeVisible()
+    await expect(page.getByRole('article').getByRole('heading', { name: /agreement to terms/i })).toBeVisible()
+  })
+
+  test('contact page renders public contact form', async ({ page }) => {
+    await page.goto('/contact')
+    await expect(page.getByRole('heading', { level: 1, name: /contact ramply/i })).toBeVisible()
+    await expect(page.getByLabel(/email/i)).toBeVisible()
+    await expect(page.getByLabel(/message/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: /^submit$/i })).toBeVisible()
+  })
 })
