@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import { bootstrapAppUser } from '@/lib/auth/bootstrap-app-user'
 import { requireAppSession } from '@/lib/auth/require-app-session'
 import { reportServerError } from '@/lib/monitoring'
+import { enforceAuthRateLimit } from '@/lib/rate-limit/auth-rate-limits'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
 
 /**
@@ -15,6 +16,13 @@ export async function POST(request: NextRequest) {
 
   if (!session.ok) {
     return session.response
+  }
+
+  const rateLimit = await enforceAuthRateLimit(request, 'auth-bootstrap', {
+    userId: session.user.id,
+  })
+  if (!rateLimit.ok) {
+    return rateLimit.response
   }
 
   try {

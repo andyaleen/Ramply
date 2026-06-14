@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 import { buildReferralSignupUrl } from '@/lib/referrals/referral-link'
 import { getShareLinkOrigin } from '@/lib/share-link-origin'
@@ -6,19 +7,13 @@ import { getShareLinkOrigin } from '@/lib/share-link-origin'
 /** Returns the authenticated user's referral signup link. */
 export async function GET(req: Request) {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
 
   const { data: company, error: companyError } = await supabase
     .from('companies')
     .select('id, legal_name, contact_name')
-    .eq('owner_user_id', user.id)
+    .eq('owner_user_id', session.user.id)
     .single()
 
   if (companyError || !company) {

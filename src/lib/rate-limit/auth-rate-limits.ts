@@ -9,10 +9,12 @@ export type AuthRateLimitBucket =
   | 'complete-sign-in'
   | 'request-password-reset'
   | 'confirm-share-recipient'
+  | 'auth-bootstrap'
+  | 'auth-sync-session'
 
 const AUTH_RATE_LIMITS: Record<
   AuthRateLimitBucket,
-  { ip: RateLimitConfig; email?: RateLimitConfig }
+  { ip: RateLimitConfig; email?: RateLimitConfig; user?: RateLimitConfig }
 > = {
   'complete-sign-in': {
     ip: { limit: 20, windowMs: 15 * 60 * 1000 },
@@ -26,10 +28,19 @@ const AUTH_RATE_LIMITS: Record<
     ip: { limit: 15, windowMs: 15 * 60 * 1000 },
     email: { limit: 10, windowMs: 15 * 60 * 1000 },
   },
+  'auth-bootstrap': {
+    ip: { limit: 30, windowMs: 15 * 60 * 1000 },
+    user: { limit: 30, windowMs: 15 * 60 * 1000 },
+  },
+  'auth-sync-session': {
+    ip: { limit: 60, windowMs: 15 * 60 * 1000 },
+    user: { limit: 30, windowMs: 15 * 60 * 1000 },
+  },
 }
 
 type EnforceAuthRateLimitOptions = {
   email?: string | null
+  userId?: string | null
 }
 
 type EnforceAuthRateLimitSuccess = { ok: true }
@@ -61,6 +72,14 @@ function buildRateLimitChecks(
     checks.push({
       key: `${bucket}:email:${email}`,
       config: limits.email,
+    })
+  }
+
+  const userId = options?.userId?.trim()
+  if (userId && limits.user) {
+    checks.push({
+      key: `${bucket}:user:${userId}`,
+      config: limits.user,
     })
   }
 

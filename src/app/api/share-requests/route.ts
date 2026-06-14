@@ -1,5 +1,7 @@
 import { randomBytes } from 'crypto'
 import { NextResponse } from 'next/server'
+import { EMAIL_DELIVERY_FAILED_MESSAGE } from '@/lib/api-error-response'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 import { ShareRequestSchema } from '@/lib/validations'
 import { reportServerError } from '@/lib/monitoring'
@@ -8,6 +10,7 @@ import { sendShareRequestInvite } from '@/lib/email/share-request-invite'
 import { resolveUserBillingEmail } from '@/lib/billing'
 import { checkSendRequestLimit } from '@/lib/plan-limits'
 import { getShareRequestCounts } from '@/lib/request-usage'
+import { enforceAuthenticatedRateLimit } from '@/lib/rate-limit/authenticated-rate-limits'
 
 /** Generate a URL-safe 32-byte hex token on the server. */
 function generateToken(): string {
@@ -16,13 +19,14 @@ function generateToken(): string {
 
 export async function POST(req: Request) {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
 
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const rateLimit = await enforceAuthenticatedRateLimit(req, 'share-request-create', {
+    userId: session.user.id,
+  })
+  if (!rateLimit.ok) {
+    return rateLimit.response
   }
 
   let body: unknown
@@ -39,7 +43,7 @@ export async function POST(req: Request) {
   const { data: company, error: companyError } = await supabase
     .from('companies')
     .select('id, subscription_status, subscription_price_id, legal_name')
-    .eq('owner_user_id', user.id)
+    .eq('owner_user_id', session.user.id)
     .single()
 
   if (companyError || !company) {
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
   }
 
   const counts = await getShareRequestCounts(supabase, company.id)
-  const billingEmail = await resolveUserBillingEmail(supabase, user)
+  const billingEmail = await resolveUserBillingEmail(supabase, session.user)
   const limit = checkSendRequestLimit(
     company.subscription_status,
     company.subscription_price_id,
@@ -118,6 +122,6 @@ export async function POST(req: Request) {
     recipient_email: recipientEmail,
     request_type: parsed.data.request_type,
     email_sent: inviteResult.ok,
-    email_error: inviteResult.ok ? undefined : inviteResult.reason,
+    email_error: inviteResult.ok ? undefined : EMAIL_DELIVERY_FAILED_MESSAGE,
   })
 }

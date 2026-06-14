@@ -3,12 +3,15 @@ import { readEnv } from '@/lib/env'
 
 const TOKEN_VERSION = 'v1'
 
+/** Returns the referral HMAC secret; throws if REFERRAL_TOKEN_SECRET is unset. */
 function getReferralSecret(): string {
-  return (
-    readEnv('REFERRAL_TOKEN_SECRET')
-    ?? readEnv('SUPABASE_SERVICE_ROLE_KEY')
-    ?? 'dev-referral-secret'
-  )
+  const secret = readEnv('REFERRAL_TOKEN_SECRET')
+  if (!secret) {
+    throw new Error(
+      'REFERRAL_TOKEN_SECRET is not configured. Set it in .env.local (dev) or Vercel env (production).',
+    )
+  }
+  return secret
 }
 
 /** Creates a signed referral token for a referrer company. */

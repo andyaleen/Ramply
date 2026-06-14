@@ -14,8 +14,11 @@ import {
   INVALID_SIGN_IN_CREDENTIALS_MESSAGE,
   INVITE_CONFIRMATION_FAILURE_CODE,
   INVITE_CONFIRMATION_FAILURE_MESSAGE,
+  SIGN_IN_FAILURE_CODE,
+  SIGN_IN_FAILURE_MESSAGE,
   type CompletePasswordSignInErrorCode,
 } from '@/lib/auth/sign-in-errors'
+import { reportServerError } from '@/lib/monitoring'
 
 export type CompletePasswordSignInParams = {
   email: string
@@ -164,7 +167,13 @@ export async function completePasswordSignIn(
     return invalidCredentialsFailure()
   }
 
-  return { ok: false, status: 400, error: signInError.message }
+  reportServerError('complete-password-sign-in', signInError)
+  return {
+    ok: false,
+    status: 400,
+    error: SIGN_IN_FAILURE_MESSAGE,
+    code: SIGN_IN_FAILURE_CODE,
+  }
 }
 
 export {

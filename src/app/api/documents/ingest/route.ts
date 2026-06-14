@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { runOcr } from '@/lib/ocr'
 import { extractW9Fields } from '@/lib/ocr/w9-extractor'
 import { classifyDocument } from '@/lib/ocr/classifier'
+import { reportServerError } from '@/lib/monitoring'
 
 const IngestSchema = z.object({
   company_document_id: z.string().uuid(),
@@ -144,7 +145,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ extraction, detected_document_type: detectedDocumentType })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown OCR error'
+    const internalMessage = error instanceof Error ? error.message : 'Unknown OCR error'
+    reportServerError('documents.ingest.ocr', error, {
+      companyDocumentId: documentRow.id,
+    })
 
     const { error: failedInsertError } = await supabase
       .from('document_extractions')
@@ -153,7 +157,7 @@ export async function POST(req: Request) {
         company_document_id: documentRow.id,
         provider: process.env.OCR_PROVIDER ?? 'google_document_ai',
         status: 'failed',
-        error_message: message,
+        error_message: internalMessage,
         metadata: {
           fileName: documentRow.file_name,
           mimeType,
@@ -161,10 +165,9 @@ export async function POST(req: Request) {
       })
 
     if (failedInsertError) {
-      console.error('Failed to record OCR failure:', failedInsertError)
+      reportServerError('documents.ingest.record-failure', failedInsertError)
     }
 
-    console.error('OCR failed:', error)
-    return NextResponse.json({ error: 'OCR failed', message }, { status: 500 })
+    return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
   }
 }

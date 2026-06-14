@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { EMAIL_DELIVERY_FAILED_MESSAGE } from '@/lib/api-error-response'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 import { buildReferralSignupUrl } from '@/lib/referrals/referral-link'
 import { sendReferralInviteEmail } from '@/lib/email/referral-invite'
 import { reportServerError } from '@/lib/monitoring'
 import { getShareLinkOrigin } from '@/lib/share-link-origin'
+import { enforceAuthenticatedRateLimit } from '@/lib/rate-limit/authenticated-rate-limits'
 
 const SendReferralSchema = z.object({
   recipient_email: z.string().email(),
@@ -13,14 +16,8 @@ const SendReferralSchema = z.object({
 /** Sends a referral invite email to a prospective Ramply user. */
 export async function POST(req: Request) {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
 
   let body: unknown
   try {
@@ -34,10 +31,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
+  const recipientEmail = parsed.data.recipient_email.trim().toLowerCase()
+  const rateLimit = await enforceAuthenticatedRateLimit(req, 'referral-send', {
+    userId: session.user.id,
+    email: recipientEmail,
+  })
+  if (!rateLimit.ok) {
+    return rateLimit.response
+  }
+
   const { data: company, error: companyError } = await supabase
     .from('companies')
     .select('id, legal_name, contact_name')
-    .eq('owner_user_id', user.id)
+    .eq('owner_user_id', session.user.id)
     .single()
 
   if (companyError || !company) {
@@ -46,7 +52,6 @@ export async function POST(req: Request) {
 
   const companyName = company.legal_name?.trim() || 'Ramply'
   const referrerName = company.contact_name?.trim() || companyName
-  const recipientEmail = parsed.data.recipient_email.trim().toLowerCase()
   const referralLink = buildReferralSignupUrl(getShareLinkOrigin(req), company.id)
 
   const emailResult = await sendReferralInviteEmail({
@@ -63,7 +68,7 @@ export async function POST(req: Request) {
     })
     return NextResponse.json(
       {
-        error: emailResult.reason,
+        error: EMAIL_DELIVERY_FAILED_MESSAGE,
         link: referralLink,
         email_sent: false,
       },

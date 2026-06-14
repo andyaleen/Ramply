@@ -8,6 +8,11 @@ export const INVITE_CONFIRMATION_FAILURE_MESSAGE =
 
 export const INVITE_CONFIRMATION_FAILURE_CODE = 'invite_confirmation_failed'
 
+export const SIGN_IN_FAILURE_MESSAGE = 'Unable to sign in. Please try again.'
+
+export const SIGN_IN_FAILURE_CODE = 'sign_in_failed'
+
 export type CompletePasswordSignInErrorCode =
   | typeof INVALID_SIGN_IN_CREDENTIALS_CODE
   | typeof INVITE_CONFIRMATION_FAILURE_CODE
+  | typeof SIGN_IN_FAILURE_CODE

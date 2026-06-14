@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { getStripe, getStripePriceId, type CheckoutPlan } from '@/lib/stripe'
 
 const CHECKOUT_PLANS = new Set<CheckoutPlan>(['classic', 'pro'])
@@ -21,15 +22,13 @@ export async function POST(req: Request) {
   }
 
   const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authSession = await requireAppSession(supabase)
+  if (!authSession.ok) return authSession.response
 
   const { data: company } = await supabase
     .from('companies')
     .select('id, stripe_customer_id')
-    .eq('owner_user_id', user.id)
+    .eq('owner_user_id', authSession.user.id)
     .single()
 
   if (!company) {
@@ -41,14 +40,14 @@ export async function POST(req: Request) {
   const stripe = getStripe()
   const priceId = getStripePriceId(plan)
 
-  const session = await stripe.checkout.sessions.create({
+  const checkoutSession = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
     // Pre-fill customer if they already have a Stripe record
     ...(company.stripe_customer_id
       ? { customer: company.stripe_customer_id }
-      : { customer_email: user.email }),
+      : { customer_email: authSession.user.email }),
     // Pass company ID so the webhook can link the subscription back
     client_reference_id: company.id,
     success_url: `${appUrl}/dashboard/billing?success=1&plan=${plan}`,
@@ -58,5 +57,5 @@ export async function POST(req: Request) {
     },
   })
 
-  return NextResponse.json({ url: session.url })
+  return NextResponse.json({ url: checkoutSession.url })
 }

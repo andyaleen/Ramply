@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { rpcErrorResponse } from '@/lib/api-error-response'
 import { requireAppSession } from '@/lib/auth/require-app-session'
 import { sendShareRequestDeniedEmail } from '@/lib/email/share-request-denied'
 import { reportServerError } from '@/lib/monitoring'
@@ -37,12 +38,11 @@ export async function POST(req: Request) {
   })
 
   if (denyError) {
-    const message = denyError.message ?? 'Failed to deny share request'
-    const status = message.includes('share_request_not_allowed') ? 403 : 500
-    if (status >= 500) {
-      reportServerError('share-requests.deny', denyError)
-    }
-    return NextResponse.json({ error: message }, { status })
+    return rpcErrorResponse(
+      'share-requests.deny',
+      denyError,
+      'Failed to decline share request.',
+    )
   }
 
   const admin = createAdminClient()

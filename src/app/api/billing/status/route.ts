@@ -1,18 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getBillingStatus } from '@/lib/billing'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { createClient } from '@/lib/supabase/server'
 
 /** Returns billing and usage status for the signed-in user's company. */
 export async function GET() {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const session = await requireAppSession(supabase)
+  if (!session.ok) return session.response
 
   const status = await getBillingStatus()
   if (!status) {
@@ -22,7 +17,7 @@ export async function GET() {
   const { data: company } = await supabase
     .from('companies')
     .select('subscription_status, subscription_current_period_end')
-    .eq('owner_user_id', user.id)
+    .eq('owner_user_id', session.user.id)
     .single()
 
   return NextResponse.json({

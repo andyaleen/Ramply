@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { requireAppSession } from '@/lib/auth/require-app-session'
 import { getStripe } from '@/lib/stripe'
 
 /**
@@ -9,15 +10,13 @@ import { getStripe } from '@/lib/stripe'
  */
 export async function POST() {
   const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authSession = await requireAppSession(supabase)
+  if (!authSession.ok) return authSession.response
 
   const { data: company } = await supabase
     .from('companies')
     .select('stripe_customer_id')
-    .eq('owner_user_id', user.id)
+    .eq('owner_user_id', authSession.user.id)
     .single()
 
   if (!company?.stripe_customer_id) {
@@ -27,10 +26,10 @@ export async function POST() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
   const stripe = getStripe()
-  const session = await stripe.billingPortal.sessions.create({
+  const portalSession = await stripe.billingPortal.sessions.create({
     customer: company.stripe_customer_id,
     return_url: `${appUrl}/dashboard/billing`,
   })
 
-  return NextResponse.json({ url: session.url })
+  return NextResponse.json({ url: portalSession.url })
 }

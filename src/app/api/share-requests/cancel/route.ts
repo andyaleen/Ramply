@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { rpcErrorResponse } from '@/lib/api-error-response'
 import { requireAppSession } from '@/lib/auth/require-app-session'
-import { reportServerError } from '@/lib/monitoring'
 import { createClient } from '@/lib/supabase/server'
 
 const CancelShareRequestSchema = z.object({
@@ -31,12 +31,11 @@ export async function POST(req: Request) {
   })
 
   if (cancelError) {
-    const message = cancelError.message ?? 'Failed to cancel share request'
-    const status = message.includes('share_request_not_allowed') ? 403 : 500
-    if (status >= 500) {
-      reportServerError('share-requests.cancel', cancelError)
-    }
-    return NextResponse.json({ error: message }, { status })
+    return rpcErrorResponse(
+      'share-requests.cancel',
+      cancelError,
+      'Failed to cancel share request.',
+    )
   }
 
   return NextResponse.json({ ok: true })

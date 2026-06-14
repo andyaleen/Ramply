@@ -295,6 +295,10 @@ export function ProfileSetup({ onComplete, inviteHeadline }: ProfileSetupProps) 
 
           </form>
         </Form>
+
+        <p className="mt-8 text-center text-sm text-[#4A5C54] leading-relaxed">
+          Your data is protected with encrypted connections (HTTPS), strict access controls, and private document storage. Sensitive fields like tax and banking info are only shared when you choose to share them.
+        </p>
       </div>
     </div>
   )

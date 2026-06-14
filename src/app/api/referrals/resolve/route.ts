@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { resolveReferralInvite } from '@/lib/referrals/resolve-referral'
+import { enforcePublicRateLimit } from '@/lib/rate-limit/public-rate-limits'
 
 /** Resolves public referrer details for a referral token. */
 export async function GET(req: Request) {
+  const rateLimit = await enforcePublicRateLimit(req, 'referrals-resolve')
+  if (!rateLimit.ok) {
+    return rateLimit.response
+  }
+
   const ref = new URL(req.url).searchParams.get('ref')?.trim()
   if (!ref) {
     return NextResponse.json({ error: 'Referral token is required' }, { status: 400 })

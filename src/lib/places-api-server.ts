@@ -1,8 +1,17 @@
 import { readEnv } from '@/lib/env'
+import { reportServerError } from '@/lib/monitoring'
 
 export type PlaceSuggestion = {
   placeResourceName: string
   label: string
+}
+
+/** Allowed Places API (New) resource names returned by autocomplete. */
+export const PLACE_RESOURCE_NAME_PATTERN = /^places\/[A-Za-z0-9_-]+$/
+
+/** Returns true when the value is a safe Places resource name for server-side lookup. */
+export function isValidPlaceResourceName(value: string): boolean {
+  return PLACE_RESOURCE_NAME_PATTERN.test(value.trim())
 }
 
 /** Server-side Places key. Falls back to the public key for local dev. */
@@ -63,7 +72,11 @@ export async function fetchPlaceAutocompleteSuggestions(input: string): Promise<
 
   const payload = await response.text()
   if (!response.ok) {
-    throw new Error(`Places autocomplete failed (${response.status}): ${payload}`)
+    reportServerError('places.autocomplete', new Error('Places autocomplete request failed'), {
+      status: response.status,
+      body: payload.slice(0, 500),
+    })
+    throw new Error('Places autocomplete failed')
   }
 
   const data = JSON.parse(payload) as {
@@ -87,12 +100,17 @@ export async function fetchPlaceAutocompleteSuggestions(input: string): Promise<
 
 /** Load structured address fields for a Places API (New) resource name. */
 export async function fetchPlaceAddressComponents(placeResourceName: string): Promise<unknown> {
+  const normalized = placeResourceName.trim()
+  if (!isValidPlaceResourceName(normalized)) {
+    throw new Error('Invalid place resource name')
+  }
+
   const apiKey = getServerPlacesApiKey()
   if (!apiKey) {
     throw new Error('Google Places API key is not configured')
   }
 
-  const response = await fetch(`https://places.googleapis.com/v1/${placeResourceName}`, {
+  const response = await fetch(`https://places.googleapis.com/v1/${normalized}`, {
     headers: {
       'X-Goog-Api-Key': apiKey,
       Referer: getPlacesServerReferer(),
@@ -102,7 +120,11 @@ export async function fetchPlaceAddressComponents(placeResourceName: string): Pr
 
   const payload = await response.text()
   if (!response.ok) {
-    throw new Error(`Places details failed (${response.status}): ${payload}`)
+    reportServerError('places.details', new Error('Places details request failed'), {
+      status: response.status,
+      body: payload.slice(0, 500),
+    })
+    throw new Error('Places details failed')
   }
 
   const data = JSON.parse(payload) as { addressComponents?: unknown }

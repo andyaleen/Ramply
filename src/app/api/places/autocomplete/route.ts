@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { fetchPlaceAutocompleteSuggestions, isServerPlacesConfigured } from '@/lib/places-api-server'
+import {
+  fetchPlaceAutocompleteSuggestions,
+  isServerPlacesConfigured,
+} from '@/lib/places-api-server'
+import { enforcePublicRateLimit } from '@/lib/rate-limit/public-rate-limits'
 
 const AutocompleteSchema = z.object({
   input: z.string().trim().min(3).max(200),
@@ -13,6 +17,11 @@ export async function GET() {
 
 /** Proxy Places autocomplete so browser referrer restrictions do not block www production. */
 export async function POST(req: Request) {
+  const rateLimit = await enforcePublicRateLimit(req, 'places-autocomplete')
+  if (!rateLimit.ok) {
+    return rateLimit.response
+  }
+
   if (!isServerPlacesConfigured()) {
     return NextResponse.json({ error: 'Places autocomplete is not configured' }, { status: 503 })
   }
@@ -32,8 +41,7 @@ export async function POST(req: Request) {
   try {
     const suggestions = await fetchPlaceAutocompleteSuggestions(parsed.data.input)
     return NextResponse.json({ suggestions })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Autocomplete failed'
-    return NextResponse.json({ error: message }, { status: 502 })
+  } catch {
+    return NextResponse.json({ error: 'Autocomplete failed' }, { status: 502 })
   }
 }

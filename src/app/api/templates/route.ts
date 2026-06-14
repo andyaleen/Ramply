@@ -1,4 +1,5 @@
 import { requireAppSession } from '@/lib/auth/require-app-session'
+import { databaseErrorResponse } from '@/lib/api-error-response'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { TemplateSchema } from '@/lib/validations'
@@ -26,7 +27,7 @@ export async function GET() {
     .maybeSingle()
 
   if (companyError) {
-    return NextResponse.json({ error: companyError.message }, { status: 500 })
+    return databaseErrorResponse('templates.load-company', companyError, 'Failed to load templates.')
   }
   if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 400 })
 
@@ -36,7 +37,9 @@ export async function GET() {
     .eq('company_id', company.id)
     .order('name')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    return databaseErrorResponse('templates.list', error, 'Failed to load templates.')
+  }
   return NextResponse.json(data ?? [])
 }
 
@@ -71,7 +74,9 @@ export async function POST(req: Request) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    return databaseErrorResponse('templates.create', error, 'Failed to create template.')
+  }
   return NextResponse.json(data, { status: 201 })
 }
 
@@ -103,7 +108,9 @@ export async function PUT(req: Request) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    return databaseErrorResponse('templates.update', error, 'Failed to update template.')
+  }
   return NextResponse.json(data)
 }
 
@@ -122,6 +129,8 @@ export async function DELETE(req: Request) {
     .delete()
     .eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    return databaseErrorResponse('templates.delete', error, 'Failed to delete template.')
+  }
   return new NextResponse(null, { status: 204 })
 }

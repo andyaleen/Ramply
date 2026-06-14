@@ -565,7 +565,7 @@ BEGIN
     LEFT JOIN companies rc ON rc.id = sr.requester_company_id
     WHERE sr.token = p_token;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION get_share_request_by_token(TEXT) TO anon, authenticated;
 
@@ -816,7 +816,7 @@ BEGIN
   WHERE id = p_share_request_id
     AND status = 'pending';
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION fulfill_share_request(UUID, JSONB, UUID[]) TO authenticated;
 
@@ -1005,7 +1005,7 @@ BEGIN
     AND cd.superseded_by IS NULL
   ORDER BY cd.document_type;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION get_my_active_vault_documents() TO authenticated;
 
@@ -1128,7 +1128,7 @@ BEGIN
       updated_at = NOW()
   WHERE id = p_user_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION set_user_role(UUID, TEXT) TO authenticated;
 
