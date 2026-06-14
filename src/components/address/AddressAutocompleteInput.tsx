@@ -80,8 +80,9 @@ export function AddressAutocompleteInput({
   }, [])
 
   useEffect(() => {
-    if (!userEditingRef.current || !inputRef.current) return
-    const nextValue = value.address_line1?.trim() ?? ''
+    // Sync external profile updates into the input; skip while the user is typing.
+    if (userEditingRef.current || !inputRef.current) return
+    const nextValue = value.address_line1 ?? ''
     if (inputRef.current.value !== nextValue) {
       inputRef.current.value = nextValue
     }
@@ -99,7 +100,8 @@ export function AddressAutocompleteInput({
   }, [])
 
   const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.trim().length < 3) {
+    const trimmed = query.trim()
+    if (trimmed.length < 3) {
       setSuggestions([])
       setOpen(false)
       return
@@ -111,7 +113,7 @@ export function AddressAutocompleteInput({
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: query }),
+        body: JSON.stringify({ input: trimmed }),
       })
 
       const payload = (await response.json()) as {
