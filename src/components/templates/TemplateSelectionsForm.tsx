@@ -13,8 +13,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import {
+  applyBulkOptionalSelection,
+  applyBulkRequiredSelection,
   applySelectionMode,
+  getBulkOptionalState,
+  getBulkRequiredState,
   getSelectionMode,
+  type BulkSelectionState,
   type SelectionMode,
 } from '@/lib/template-selections'
 
@@ -50,6 +55,46 @@ function setSelectionMode<T extends TemplateSelectionValues>(
   })
 }
 
+function setBulkRequiredMode<T extends TemplateSelectionValues>(
+  form: UseFormReturn<T>,
+  mandatoryKey: keyof TemplateSelectionValues,
+  optionalKey: keyof TemplateSelectionValues,
+  values: string[],
+  enabled: boolean
+) {
+  const mandatory = form.getValues(mandatoryKey as Path<T>) as string[]
+  const optional = form.getValues(optionalKey as Path<T>) as string[]
+  const next = applyBulkRequiredSelection(mandatory, optional, values, enabled)
+  form.setValue(mandatoryKey as Path<T>, next.mandatory as never, {
+    shouldDirty: true,
+    shouldValidate: true,
+  })
+  form.setValue(optionalKey as Path<T>, next.optional as never, {
+    shouldDirty: true,
+    shouldValidate: true,
+  })
+}
+
+function setBulkOptionalMode<T extends TemplateSelectionValues>(
+  form: UseFormReturn<T>,
+  mandatoryKey: keyof TemplateSelectionValues,
+  optionalKey: keyof TemplateSelectionValues,
+  values: string[],
+  enabled: boolean
+) {
+  const mandatory = form.getValues(mandatoryKey as Path<T>) as string[]
+  const optional = form.getValues(optionalKey as Path<T>) as string[]
+  const next = applyBulkOptionalSelection(mandatory, optional, values, enabled)
+  form.setValue(mandatoryKey as Path<T>, next.mandatory as never, {
+    shouldDirty: true,
+    shouldValidate: true,
+  })
+  form.setValue(optionalKey as Path<T>, next.optional as never, {
+    shouldDirty: true,
+    shouldValidate: true,
+  })
+}
+
 interface SelectionRowProps {
   label: string
   mode: SelectionMode
@@ -72,6 +117,40 @@ function SelectionRow({ label, mode, onModeChange }: SelectionRowProps) {
           <Checkbox
             checked={mode === 'optional'}
             onCheckedChange={(checked) => onModeChange(checked ? 'optional' : 'none')}
+          />
+          Optional
+        </label>
+      </div>
+    </div>
+  )
+}
+
+function SelectAllRow({
+  requiredState,
+  optionalState,
+  onRequiredChange,
+  onOptionalChange,
+}: {
+  requiredState: BulkSelectionState
+  optionalState: BulkSelectionState
+  onRequiredChange: (enabled: boolean) => void
+  onOptionalChange: (enabled: boolean) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-b pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <span className="min-w-0 text-xs font-medium text-muted-foreground">Select all</span>
+      <div className="flex shrink-0 items-center gap-3">
+        <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+          <Checkbox
+            checked={requiredState}
+            onCheckedChange={(checked) => onRequiredChange(checked === true)}
+          />
+          Required
+        </label>
+        <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+          <Checkbox
+            checked={optionalState}
+            onCheckedChange={(checked) => onOptionalChange(checked === true)}
           />
           Optional
         </label>
@@ -144,6 +223,8 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
 
   const customFieldKeys = listCustomSelectionKeys(mandatoryFields, optionalFields)
   const customDocumentKeys = listCustomSelectionKeys(mandatoryDocuments, optionalDocuments)
+  const fieldKeys = [...CATALOG_FIELDS.map(({ key }) => key), ...customFieldKeys]
+  const documentKeys = [...CATALOG_DOCUMENT_TYPES.map(({ key }) => key), ...customDocumentKeys]
 
   function addCustomField(required: boolean): boolean {
     try {
@@ -237,6 +318,16 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
         <Label>Information Fields</Label>
         <p className="text-xs text-muted-foreground">Mark each field as required or optional</p>
         <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3">
+          <SelectAllRow
+            requiredState={getBulkRequiredState(fieldKeys, mandatoryFields, optionalFields)}
+            optionalState={getBulkOptionalState(fieldKeys, mandatoryFields, optionalFields)}
+            onRequiredChange={(enabled) =>
+              setBulkRequiredMode(form, 'mandatory_fields', 'optional_fields', fieldKeys, enabled)
+            }
+            onOptionalChange={(enabled) =>
+              setBulkOptionalMode(form, 'mandatory_fields', 'optional_fields', fieldKeys, enabled)
+            }
+          />
           {CATALOG_FIELDS.map(({ key, label }) => (
             <SelectionRow
               key={key}
@@ -271,6 +362,28 @@ export function TemplateSelectionsForm<T extends TemplateSelectionValues>({
         <Label>Documents</Label>
         <p className="text-xs text-muted-foreground">Mark each document as required or optional</p>
         <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
+          <SelectAllRow
+            requiredState={getBulkRequiredState(documentKeys, mandatoryDocuments, optionalDocuments)}
+            optionalState={getBulkOptionalState(documentKeys, mandatoryDocuments, optionalDocuments)}
+            onRequiredChange={(enabled) =>
+              setBulkRequiredMode(
+                form,
+                'mandatory_documents',
+                'optional_documents',
+                documentKeys,
+                enabled
+              )
+            }
+            onOptionalChange={(enabled) =>
+              setBulkOptionalMode(
+                form,
+                'mandatory_documents',
+                'optional_documents',
+                documentKeys,
+                enabled
+              )
+            }
+          />
           {CATALOG_DOCUMENT_TYPES.map(({ key, label }) => (
             <SelectionRow
               key={key}

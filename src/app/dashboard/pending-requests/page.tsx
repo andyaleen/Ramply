@@ -38,7 +38,7 @@ export default function PendingRequestsPage() {
         </Button>
       </div>
 
-      <PendingSentRequestsPanel onCreateRequest={() => router.push('/dashboard/send-links')} />
+      <PendingSentRequestsPanel />
     </div>
   )
 }

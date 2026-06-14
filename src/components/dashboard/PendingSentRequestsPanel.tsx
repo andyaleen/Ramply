@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Clock, FileText, Plus, Search } from 'lucide-react'
+import { Clock, FileText, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
 import {
@@ -24,14 +24,10 @@ import {
   type PendingSentRequest,
 } from '@/lib/requester-pending-requests'
 
-interface PendingSentRequestsPanelProps {
-  onCreateRequest?: () => void
-}
-
 /**
  * Outgoing share requests awaiting recipient completion (matches dashboard pending count).
  */
-export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequestsPanelProps) {
+export function PendingSentRequestsPanel() {
   const { company } = useAuth()
   const supabase = createClient()
   const queryClient = useQueryClient()
@@ -158,13 +154,7 @@ export function PendingSentRequestsPanel({ onCreateRequest }: PendingSentRequest
         ) : requests.length === 0 ? (
           <div className="flex flex-col items-center py-10 text-gray-500">
             <FileText className="mb-3 h-10 w-10" />
-            <p className="mb-4">No pending requests right now.</p>
-            {onCreateRequest ? (
-              <Button onClick={onCreateRequest}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Request
-              </Button>
-            ) : null}
+            <p>No pending requests right now.</p>
           </div>
         ) : filteredRequests.length === 0 ? (
           <div className="flex flex-col items-center py-10 text-gray-500">

@@ -1,5 +1,7 @@
 export type SelectionMode = 'none' | 'required' | 'optional'
 
+export type BulkSelectionState = boolean | 'indeterminate'
+
 /** Derive how a catalog/custom key is selected in mandatory vs optional lists. */
 export function getSelectionMode(
   mandatory: string[] | undefined,
@@ -9,6 +11,34 @@ export function getSelectionMode(
   if (mandatory?.includes(value)) return 'required'
   if (optional?.includes(value)) return 'optional'
   return 'none'
+}
+
+/** Bulk required/optional checkbox state for a list of keys. */
+export function getBulkRequiredState(
+  keys: string[],
+  mandatory: string[] | undefined,
+  optional: string[] | undefined
+): BulkSelectionState {
+  if (keys.length === 0) return false
+
+  const requiredCount = keys.filter((key) => mandatory?.includes(key)).length
+  if (requiredCount === 0) return false
+  if (requiredCount === keys.length) return true
+  return 'indeterminate'
+}
+
+/** Bulk optional checkbox state for a list of keys. */
+export function getBulkOptionalState(
+  keys: string[],
+  mandatory: string[] | undefined,
+  optional: string[] | undefined
+): BulkSelectionState {
+  if (keys.length === 0) return false
+
+  const optionalCount = keys.filter((key) => optional?.includes(key)).length
+  if (optionalCount === 0) return false
+  if (optionalCount === keys.length) return true
+  return 'indeterminate'
 }
 
 /** Apply a single required/optional/none choice, keeping the two lists mutually exclusive. */
@@ -25,4 +55,44 @@ export function applySelectionMode(
   if (mode === 'optional') nextOptional.push(value)
 
   return { mandatory: nextMandatory, optional: nextOptional }
+}
+
+/** Mark every key required or clear required selections for those keys. */
+export function applyBulkRequiredSelection(
+  mandatory: string[],
+  optional: string[],
+  values: string[],
+  enabled: boolean
+): { mandatory: string[]; optional: string[] } {
+  if (enabled) {
+    return {
+      mandatory: [...new Set([...mandatory.filter((entry) => !values.includes(entry)), ...values])],
+      optional: optional.filter((entry) => !values.includes(entry)),
+    }
+  }
+
+  return {
+    mandatory: mandatory.filter((entry) => !values.includes(entry)),
+    optional,
+  }
+}
+
+/** Mark every key optional or clear optional selections for those keys. */
+export function applyBulkOptionalSelection(
+  mandatory: string[],
+  optional: string[],
+  values: string[],
+  enabled: boolean
+): { mandatory: string[]; optional: string[] } {
+  if (enabled) {
+    return {
+      mandatory: mandatory.filter((entry) => !values.includes(entry)),
+      optional: [...new Set([...optional.filter((entry) => !values.includes(entry)), ...values])],
+    }
+  }
+
+  return {
+    mandatory,
+    optional: optional.filter((entry) => !values.includes(entry)),
+  }
 }

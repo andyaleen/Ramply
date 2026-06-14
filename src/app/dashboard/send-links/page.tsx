@@ -40,7 +40,7 @@ export default function SendLinksPage() {
 
       <SavedRequestTemplatesPanel onUseTemplate={(templateId) => openNewRequest(templateId)} />
 
-      <PendingSentRequestsPanel onCreateRequest={openChooser} />
+      <PendingSentRequestsPanel />
 
       <CreateShareRequestChooserDialog
         open={showChooser}
