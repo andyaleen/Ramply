@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Copy, Gift, Send } from 'lucide-react'
+import { Copy, Send } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ReferralInfo {
@@ -107,10 +107,7 @@ export default function ReferralPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Gift className="h-5 w-5 text-[#287253]" aria-hidden />
-              Share Ramply with a partner
-            </CardTitle>
+            <CardTitle className="text-lg">Share Ramply with a partner</CardTitle>
             <CardDescription>
               Asked for information from someone not on Ramply? Send them this link to get started!
             </CardDescription>

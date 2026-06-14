@@ -78,13 +78,11 @@ export default function BillingPage() {
           periodEnd={billing?.periodEnd ?? null}
         />
 
-        {!billing?.isBillingExempt && (
-          <div className="flex justify-center">
-            <Button onClick={() => router.push('/dashboard/billing/manage')}>
-              Modify / Cancel Subscription
-            </Button>
-          </div>
-        )}
+        <div className="flex justify-center">
+          <Button onClick={() => router.push('/dashboard/billing/manage')}>
+            Modify / Cancel Subscription
+          </Button>
+        </div>
       </div>
     </div>
   )
