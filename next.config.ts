@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   // PDFKit reads Helvetica.afm from disk; keep it out of the server bundle.
-  serverExternalPackages: ['pdfkit'],
+  serverExternalPackages: ['pdfkit', 'archiver'],
   experimental: {
     serverActions: {
       bodySizeLimit: '15mb',

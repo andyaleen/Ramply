@@ -135,13 +135,23 @@ export function buildResponseDetailViewModel(response: ShareResponseInput): Resp
   }
 }
 
-/** Suggested download filename for a response summary PDF. */
-export function responsePdfFileName(viewModel: ResponseDetailViewModel): string {
-  const slug = viewModel.companyName
+/** URL-safe slug derived from the recipient company name for export filenames. */
+export function responseExportSlug(viewModel: ResponseDetailViewModel): string {
+  return viewModel.companyName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40)
+}
 
+/** Suggested download filename for a response summary PDF. */
+export function responsePdfFileName(viewModel: ResponseDetailViewModel): string {
+  const slug = responseExportSlug(viewModel)
   return `share-response-${slug || 'export'}.pdf`
+}
+
+/** Suggested download filename for a bundled attachments zip. */
+export function responseAttachmentsZipFileName(viewModel: ResponseDetailViewModel): string {
+  const slug = responseExportSlug(viewModel)
+  return `share-response-${slug || 'export'}-attachments.zip`
 }

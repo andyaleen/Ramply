@@ -8,13 +8,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CheckCircle, Clock, Download, FileDown, FileText, Loader2 } from 'lucide-react'
+import { CheckCircle, ChevronDown, Clock, Download, FileDown, FileText, Loader2, Paperclip } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { downloadDocument } from '@/lib/file-utils'
 import { documentTypeLabel } from '@/lib/catalog'
 import { buildResponseDetailViewModel } from '@/lib/response-detail-view-model'
-import { downloadResponsePdf } from '@/lib/export-response-pdf'
+import { downloadResponseAttachments, downloadResponsePdf } from '@/lib/export-response-pdf'
 import { toast } from 'sonner'
 import {
   fetchShareRequestsForRequester,
@@ -252,6 +258,7 @@ function ResponseDetailsDialog({
   onClose: () => void
 }) {
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [exportingAttachments, setExportingAttachments] = useState(false)
 
   if (!response) return null
 
@@ -259,6 +266,8 @@ function ResponseDetailsDialog({
   const companyName = viewModel.companyName
   const requiredFieldEntries = viewModel.requiredFields
   const optionalFieldEntries = viewModel.optionalFields
+  const attachmentCount = response.sharedDocs.filter((doc) => doc.file_path).length
+  const exporting = exportingPdf || exportingAttachments
 
   const sharedDocsByType = new Map(
     response.sharedDocs.map((doc) => [doc.document_type, doc])
@@ -268,7 +277,7 @@ function ResponseDetailsDialog({
     setExportingPdf(true)
     try {
       await downloadResponsePdf(response.id, viewModel)
-      toast.success('PDF exported')
+      toast.success('PDF downloaded')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to export PDF')
     } finally {
@@ -276,26 +285,57 @@ function ResponseDetailsDialog({
     }
   }
 
+  const handleExportAttachments = async () => {
+    setExportingAttachments(true)
+    try {
+      await downloadResponseAttachments(response.id, viewModel)
+      toast.success(
+        attachmentCount === 1 ? 'Attachment downloaded' : 'Attachments downloaded'
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to download attachments')
+    } finally {
+      setExportingAttachments(false)
+    }
+  }
+
   return (
     <Dialog open={!!response} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[80vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto sm:w-full">
-        <DialogHeader className="flex flex-col items-start gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <DialogHeader className="flex flex-col items-start gap-3 space-y-0 pr-10 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <DialogTitle className="text-left">Share Request - {response.request_type}</DialogTitle>
           {response.status === 'completed' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPdf}
-              disabled={exportingPdf}
-              className="w-full shrink-0 sm:w-auto"
-            >
-              {exportingPdf ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" />
-              )}
-              Export PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={exporting}
+                  className="w-full shrink-0 sm:w-auto"
+                >
+                  {exporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileDown className="mr-2 h-4 w-4" />
+                  )}
+                  Export
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem disabled={exportingPdf} onSelect={() => void handleExportPdf()}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  PDF Download
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exportingAttachments || attachmentCount === 0}
+                  onSelect={() => void handleExportAttachments()}
+                >
+                  <Paperclip className="mr-2 h-4 w-4" />
+                  With Attachments
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : null}
         </DialogHeader>
 

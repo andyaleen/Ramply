@@ -27,35 +27,12 @@ export async function generateResponsePdf(
 
     let y = PAGE_MARGIN
 
-    if (branding.logoBuffer && isEmbeddableLogo(branding.logoMimeType)) {
-      try {
-        doc.image(branding.logoBuffer, PAGE_MARGIN, y, { fit: [120, 48] })
-        y += 56
-      } catch {
-        y = PAGE_MARGIN
-      }
-    }
-
-    doc.font('Helvetica-Bold').fontSize(18).fillColor('#0F1F18')
-    doc.text('Share Request Response', PAGE_MARGIN, y, { width: CONTENT_WIDTH })
-    y = doc.y + 8
-
-    if (branding.requesterCompanyName) {
-      doc.font('Helvetica').fontSize(10).fillColor('#4A5C54')
-      doc.text(`Prepared by ${branding.requesterCompanyName}`, PAGE_MARGIN, y, { width: CONTENT_WIDTH })
-      y = doc.y + 16
-    } else {
-      y += 8
-    }
+    y = drawHeader(doc, y, branding)
 
     y = drawSectionHeading(doc, y, 'Request Summary')
     y = drawKeyValue(doc, y, 'Request Type', viewModel.requestType)
     y = drawKeyValue(doc, y, 'Company', viewModel.companyName)
     y = drawKeyValue(doc, y, 'Recipient Email', viewModel.recipientEmail)
-    y = drawKeyValue(doc, y, 'Status', formatStatus(viewModel.status))
-    if (viewModel.responseDate) {
-      y = drawKeyValue(doc, y, 'Response Date', viewModel.responseDate)
-    }
 
     if (viewModel.requiredFields.length > 0) {
       y = ensureSpace(doc, y, 40)
@@ -92,6 +69,11 @@ export async function generateResponsePdf(
       }
     }
 
+    if (viewModel.responseDate) {
+      y = ensureSpace(doc, y, 40)
+      y = drawKeyValue(doc, y, 'Response Date', viewModel.responseDate)
+    }
+
     doc.font('Helvetica').fontSize(8).fillColor('#8A9A92')
     doc.text(
       `Generated ${new Date().toLocaleString()} • Ramply`,
@@ -104,15 +86,33 @@ export async function generateResponsePdf(
   })
 }
 
-function isEmbeddableLogo(mimeType: string | null): boolean {
-  return mimeType === 'image/png' || mimeType === 'image/jpeg'
+const LOGO_WIDTH = 120
+const LOGO_HEIGHT = 48
+
+function drawHeader(doc: PdfDoc, y: number, branding: ResponsePdfBranding): number {
+  const hasLogo = Boolean(branding.logoBuffer && isEmbeddableLogo(branding.logoMimeType))
+  const titleWidth = hasLogo ? CONTENT_WIDTH - LOGO_WIDTH - 8 : CONTENT_WIDTH
+
+  doc.font('Helvetica-Bold').fontSize(18).fillColor('#0F1F18')
+  doc.text('Share Request Response', PAGE_MARGIN, y, { width: titleWidth })
+
+  let rowBottom = doc.y
+
+  if (hasLogo && branding.logoBuffer) {
+    try {
+      const logoX = PAGE_MARGIN + CONTENT_WIDTH - LOGO_WIDTH
+      doc.image(branding.logoBuffer, logoX, y, { fit: [LOGO_WIDTH, LOGO_HEIGHT] })
+      rowBottom = Math.max(rowBottom, y + LOGO_HEIGHT)
+    } catch {
+      // Skip invalid or unsupported logo data.
+    }
+  }
+
+  return rowBottom + 16
 }
 
-function formatStatus(status: ResponseDetailViewModel['status']): string {
-  if (status === 'completed') return 'Completed'
-  if (status === 'denied') return 'Declined'
-  if (status === 'expired') return 'Expired'
-  return 'Pending'
+function isEmbeddableLogo(mimeType: string | null): boolean {
+  return mimeType === 'image/png' || mimeType === 'image/jpeg'
 }
 
 function drawSectionHeading(doc: PdfDoc, y: number, title: string): number {
