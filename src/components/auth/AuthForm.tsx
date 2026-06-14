@@ -16,6 +16,11 @@ import {
 import { normalizeRequestedPath } from '@/lib/auth/routing'
 import { extractShareRequestToken } from '@/lib/auth/share-recipient-signup'
 import { AUTH_PASSWORD_MIN_LENGTH, getSessionExpiryMessage } from '@/lib/auth/session-policy'
+import {
+  normalizeDirectAuthErrorMessage,
+  resolvePasswordSignInApiError,
+  UNEXPECTED_AUTH_ERROR_MESSAGE,
+} from '@/lib/auth/sign-in-errors'
 import { applyClientAuthSession } from '@/lib/auth/apply-client-auth-session'
 import type { BootstrapAppUserResult } from '@/lib/auth/bootstrap-app-user'
 import type { CompletePasswordSignInSession } from '@/lib/auth/complete-password-sign-in'
@@ -116,25 +121,8 @@ export function AuthForm({
   /**
    * Formats common Supabase network errors into user-friendly messages.
    */
-  const formatAuthError = (message: string | undefined): string => {
-    if (!message) return 'An unexpected error occurred'
-    if (message === 'Failed to fetch' || message.includes('fetch') || message.includes('network')) {
-      return 'Unable to connect. Please check your internet connection and try again.'
-    }
-    if (message.includes('Invalid login credentials')) {
-      return 'Incorrect email or password. If you use Google sign-in, choose Continue with Google instead.'
-    }
-    if (message.includes('Email not confirmed')) {
-      return 'We could not sign you in yet. Try again or contact support if this continues.'
-    }
-    if (message.includes('User already registered')) {
-      return 'We could not create an account with those details. Try signing in, or use Continue with Google.'
-    }
-    if (message.includes('invalid') && message.includes('email')) {
-      return 'The email address format is not accepted. Please try a different email address.'
-    }
-    return message
-  }
+  const formatAuthError = (message: string | undefined): string =>
+    normalizeDirectAuthErrorMessage(message)
 
   /**
    * Server-side password sign-in that sets session cookies and skips email confirmation.
@@ -144,26 +132,33 @@ export function AuthForm({
 
     clearPasswordRecoveryPending()
 
-    const res = await fetch('/api/auth/complete-sign-in', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-        ...(inviteToken ? { shareToken: inviteToken } : {}),
-        ...(signupUserId ? { userId: signupUserId } : {}),
-      }),
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/auth/complete-sign-in', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          ...(inviteToken ? { shareToken: inviteToken } : {}),
+          ...(signupUserId ? { userId: signupUserId } : {}),
+        }),
+      })
+    } catch (err) {
+      console.error('Sign in request failed:', err)
+      setError(formatAuthError('Failed to fetch'))
+      return false
+    }
 
     const payload = (await res.json().catch(() => ({}))) as {
-      error?: string
-      code?: 'invalid_credentials'
+      error?: unknown
+      code?: string
       session?: CompletePasswordSignInSession | null
       bootstrap?: BootstrapAppUserResult | null
     }
     if (!res.ok) {
-      setError(formatAuthError(payload.error))
+      setError(resolvePasswordSignInApiError(payload, res.status))
       return false
     }
 
@@ -198,7 +193,7 @@ export function AuthForm({
       await completePasswordSignIn()
     } catch (err) {
       console.error('Sign in error:', err)
-      setError('An unexpected error occurred')
+      setError(UNEXPECTED_AUTH_ERROR_MESSAGE)
     } finally {
       setLoading(false)
     }
@@ -222,7 +217,7 @@ export function AuthForm({
       }
     } catch (err) {
       console.error('Continue after signup error:', err)
-      setError('An unexpected error occurred')
+      setError(UNEXPECTED_AUTH_ERROR_MESSAGE)
     } finally {
       setLoading(false)
     }
@@ -297,7 +292,7 @@ export function AuthForm({
       }
     } catch (err) {
       console.error('Sign up error:', err)
-      setError('An unexpected error occurred')
+      setError(UNEXPECTED_AUTH_ERROR_MESSAGE)
     } finally {
       setLoading(false)
     }

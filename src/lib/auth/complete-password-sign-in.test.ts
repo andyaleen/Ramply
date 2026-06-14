@@ -74,4 +74,28 @@ describe('completePasswordSignIn', () => {
       expect(result.code).toBe(INVALID_SIGN_IN_CREDENTIALS_CODE)
     }
   })
+
+  test('maps the newer Supabase invalid credentials message', async () => {
+    vi.mocked(getAuthUserByEmail).mockResolvedValue({
+      id: 'user-2',
+      email: 'user@example.com',
+      email_confirmed_at: '2026-01-01T00:00:00.000Z',
+      identities: [{ provider: 'email', id: '1' }],
+    } as never)
+    vi.mocked(authUserHasPasswordProvider).mockReturnValue(true)
+    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
+      data: { session: null, user: null },
+      error: { message: 'Invalid credentials', name: 'AuthApiError', status: 400 },
+    })
+
+    const result = await completePasswordSignIn(supabase as never, admin as never, {
+      email: 'user@example.com',
+      password: 'wrong-password-123',
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.code).toBe(INVALID_SIGN_IN_CREDENTIALS_CODE)
+    }
+  })
 })

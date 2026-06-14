@@ -16,6 +16,7 @@ import {
   INVITE_CONFIRMATION_FAILURE_MESSAGE,
   SIGN_IN_FAILURE_CODE,
   SIGN_IN_FAILURE_MESSAGE,
+  isInvalidCredentialsAuthError,
   type CompletePasswordSignInErrorCode,
 } from '@/lib/auth/sign-in-errors'
 import { reportServerError } from '@/lib/monitoring'
@@ -138,9 +139,7 @@ export async function completePasswordSignIn(
       return { ok: true, session: signedInSession }
     }
 
-    const isInvalidCredentials = signInError.message
-      .toLowerCase()
-      .includes('invalid login credentials')
+    const isInvalidCredentials = isInvalidCredentialsAuthError(signInError.message)
 
     if (emailAlreadyConfirmed && isInvalidCredentials) {
       return invalidCredentialsFailure()
@@ -163,7 +162,7 @@ export async function completePasswordSignIn(
     return { ok: true, session: signedInSession }
   }
 
-  if (signInError.message.toLowerCase().includes('invalid login')) {
+  if (isInvalidCredentialsAuthError(signInError.message)) {
     return invalidCredentialsFailure()
   }
 

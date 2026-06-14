@@ -51,7 +51,7 @@ describe('enforceAuthRateLimit', () => {
     const requestB = buildRequest('203.0.113.31')
     const email = 'attacker@example.com'
 
-    for (let attempt = 0; attempt < 10; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       expect(
         (await enforceAuthRateLimit(requestA, 'complete-sign-in', { email })).ok
       ).toBe(true)

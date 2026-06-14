@@ -9,6 +9,10 @@ import { reportServerError } from '@/lib/monitoring'
 import { enforceAuthRateLimit } from '@/lib/rate-limit/auth-rate-limits'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createRouteHandlerClient } from '@/lib/supabase/route-handler'
+import {
+  INVALID_SIGN_IN_CREDENTIALS_CODE,
+  INVALID_SIGN_IN_CREDENTIALS_MESSAGE,
+} from '@/lib/auth/sign-in-errors'
 
 const CompleteSignInSchema = z.object({
   email: z.string().trim().email(),
@@ -16,6 +20,12 @@ const CompleteSignInSchema = z.object({
   shareToken: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
   userId: z.string().uuid().optional(),
 })
+
+function readEmailForRateLimit(body: unknown): string | undefined {
+  if (!body || typeof body !== 'object' || !('email' in body)) return undefined
+  const email = (body as { email?: unknown }).email
+  return typeof email === 'string' ? email : undefined
+}
 
 /**
  * Password sign-in that sets the session cookie and bypasses Supabase email confirmation.
@@ -29,16 +39,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const parsed = CompleteSignInSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-  }
-
   const rateLimit = await enforceAuthRateLimit(request, 'complete-sign-in', {
-    email: parsed.data.email,
+    email: readEmailForRateLimit(body),
   })
   if (!rateLimit.ok) {
     return rateLimit.response
+  }
+
+  const parsed = CompleteSignInSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: INVALID_SIGN_IN_CREDENTIALS_MESSAGE,
+        code: INVALID_SIGN_IN_CREDENTIALS_CODE,
+      },
+      { status: 401 },
+    )
   }
 
   try {

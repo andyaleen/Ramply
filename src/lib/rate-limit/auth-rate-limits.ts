@@ -18,7 +18,7 @@ const AUTH_RATE_LIMITS: Record<
 > = {
   'complete-sign-in': {
     ip: { limit: 20, windowMs: 15 * 60 * 1000 },
-    email: { limit: 10, windowMs: 15 * 60 * 1000 },
+    email: { limit: 5, windowMs: 15 * 60 * 1000 },
   },
   'request-password-reset': {
     ip: { limit: 10, windowMs: 60 * 60 * 1000 },

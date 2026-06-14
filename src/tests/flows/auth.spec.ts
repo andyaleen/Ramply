@@ -24,7 +24,7 @@ test.describe('auth — form validation', () => {
     await page.getByLabel(/^email$/i).fill('notreal@example.com')
     await page.getByLabel(/^password$/i).fill('wrongpassword')
     await page.getByRole('button', { name: /^sign in$/i }).click()
-    await expect(page.getByText(/invalid email or password/i)).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(/invalid credentials/i)).toBeVisible({ timeout: 10_000 })
   })
 
   test('sign-up rejects mismatched passwords', async ({ page }) => {
