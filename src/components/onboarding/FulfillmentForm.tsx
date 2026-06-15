@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ShareRequestRow, CompanyDocumentRow } from '@/lib/database.types'
-import { fieldLabel, documentTypeLabel, orderRequestedDocuments } from '@/lib/catalog'
+import { fieldLabel, documentTypeLabel, orderRequestedDocuments, type DocumentTypeKey, type FieldKey } from '@/lib/catalog'
 import { isCustomSelectionKey } from '@/lib/custom-selections'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -73,7 +73,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
 
   const isFieldRequired = (key: string) => {
     if (key === ADDRESS_CATALOG_KEY) return requestIncludesAddress(mandatoryFieldKeys)
-    return mandatoryFieldKeys.includes(key)
+    return mandatoryFieldKeys.includes(key as FieldKey)
   }
 
   /** Pre-fill field values from the authenticated user's company profile */
@@ -392,7 +392,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
               <DocRow
                 key={docType}
                 docType={docType}
-                required={mandatoryDocTypes.includes(docType)}
+                required={mandatoryDocTypes.includes(docType as DocumentTypeKey)}
                 doc={getVaultDocument(vaultDocs, docType)}
                 vaultChecking={vaultChecking}
                 uploading={uploading === docType}
