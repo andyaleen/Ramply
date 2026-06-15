@@ -34,4 +34,44 @@ describe('generateResponsePdf', () => {
     expect(buffer.byteLength).toBeGreaterThan(500)
     expect(buffer.subarray(0, 4).toString()).toBe('%PDF')
   })
+
+  test('does not append a trailing blank page for a typical response', async () => {
+    const buffer = await generateResponsePdf(sampleViewModel, {
+      requesterCompanyName: 'Ramply Customer Inc',
+      logoBuffer: null,
+      logoMimeType: null,
+    })
+
+    const pageCount = (buffer.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length
+    expect(pageCount).toBe(1)
+  })
+
+  test('does not append a trailing blank page for long multi-page responses', async () => {
+    const longViewModel: ResponseDetailViewModel = {
+      ...sampleViewModel,
+      requiredFields: Array.from({ length: 24 }, (_, index) => ({
+        key: `field_${index}`,
+        label: `Required Field ${index + 1}`,
+        value: `Value ${index + 1} with enough text to wrap onto additional lines when needed`,
+      })),
+      documents: Array.from({ length: 8 }, (_, index) => ({
+        docType: `DOC_${index}`,
+        label: `Document ${index + 1}`,
+        required: true,
+        fileName: `document-${index + 1}.pdf`,
+        uploadedAt: 'Feb 1, 2026',
+        status: 'provided' as const,
+      })),
+    }
+
+    const buffer = await generateResponsePdf(longViewModel, {
+      requesterCompanyName: 'Ramply Customer Inc',
+      logoBuffer: null,
+      logoMimeType: null,
+    })
+
+    const pageCount = (buffer.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length
+    expect(pageCount).toBeGreaterThan(1)
+    expect(pageCount).toBeLessThanOrEqual(3)
+  })
 })

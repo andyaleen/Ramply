@@ -11,6 +11,7 @@ export type ResponsePdfBranding = {
 
 const PAGE_MARGIN = 48
 const CONTENT_WIDTH = 515
+const FOOTER_HEIGHT = 16
 
 /** Render a completed share response summary as a PDF buffer. */
 export async function generateResponsePdf(
@@ -74,11 +75,12 @@ export async function generateResponsePdf(
       y = drawKeyValue(doc, y, 'Response Date', viewModel.responseDate)
     }
 
+    y = ensureSpace(doc, y, FOOTER_HEIGHT + 8)
     doc.font('Helvetica').fontSize(8).fillColor('#8A9A92')
     doc.text(
       `Generated ${new Date().toLocaleString()} • Ramply`,
       PAGE_MARGIN,
-      doc.page.height - PAGE_MARGIN,
+      y,
       { width: CONTENT_WIDTH, align: 'center' }
     )
 
@@ -132,7 +134,7 @@ function drawKeyValue(doc: PdfDoc, y: number, label: string, value: string): num
 }
 
 function ensureSpace(doc: PdfDoc, y: number, needed: number): number {
-  const bottom = doc.page.height - PAGE_MARGIN - 24
+  const bottom = doc.page.height - PAGE_MARGIN
   if (y + needed > bottom) {
     doc.addPage()
     return PAGE_MARGIN
