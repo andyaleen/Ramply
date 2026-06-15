@@ -101,7 +101,7 @@ function Hero({ onPrimaryClick, onSecondaryClick }: HeroProps) {
             </h1>
 
             <p className="mt-7 text-[18px] md:text-[21px] leading-[1.6] text-[#4A5C54] max-w-[560px]">
-              Ramply replaces the endless cycle of vendor onboarding forms with a
+              Ramply replaces the endless cycle of onboarding forms with a
               single, secure profile you share in one click. Your W-9s,
               certificates, and company data, always ready.
             </p>
