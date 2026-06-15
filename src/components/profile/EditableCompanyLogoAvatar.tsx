@@ -44,39 +44,42 @@ export function EditableCompanyLogoAvatar({
       : 'CO'
 
   return (
-    <div className={cn('relative shrink-0', className)}>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+    <div className={cn('flex flex-col items-center gap-1.5', className)}>
+      <div className="relative shrink-0">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          className="hidden"
+          onChange={handleFileChange}
+        />
 
-      <Avatar className="h-20 w-20">
-        {logoUrl ? (
-          <AvatarImage src={logoUrl} alt="Company logo" className="object-contain p-2" />
+        <Avatar className="h-20 w-20">
+          {logoUrl ? (
+            <AvatarImage src={logoUrl} alt="Company logo" className="object-contain p-2" />
+          ) : null}
+          <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+        </Avatar>
+
+        {uploading ? (
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+            <Loader2 className="h-5 w-5 animate-spin text-white" />
+          </div>
         ) : null}
-        <AvatarFallback className="text-lg">{initials}</AvatarFallback>
-      </Avatar>
 
-      {uploading ? (
-        <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
-          <Loader2 className="h-5 w-5 animate-spin text-white" />
-        </div>
-      ) : null}
-
-      {editable ? (
-        <button
-          type="button"
-          onClick={pick}
-          disabled={uploading}
-          aria-label="Change company logo"
-          className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
-      ) : null}
+        {editable ? (
+          <button
+            type="button"
+            onClick={pick}
+            disabled={uploading}
+            aria-label="Change company logo"
+            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        ) : null}
+      </div>
+      <span className="text-xs text-muted-foreground">Logo</span>
     </div>
   )
 }

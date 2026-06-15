@@ -19,7 +19,7 @@ import { CompanyProfileSchema, type CompanyProfile } from '@/lib/validations'
 import { AddressProfileFields } from '@/components/address/AddressProfileFields'
 import { addressComponentsFromRecord, formatAddressFromComponents } from '@/lib/address-fields'
 import { maskEin, maskSensitiveValue } from '@/lib/sensitive-fields'
-import { User, Building2, MapPin, Landmark, Shield, Edit3, Phone, Globe, Mail, LogOut } from 'lucide-react'
+import { User, Building2, MapPin, Landmark, Edit3, Phone, Globe, Mail, LogOut } from 'lucide-react'
 
 /** Helper: display a field value or a fallback */
 function val(v: string | null | undefined) {
@@ -94,14 +94,13 @@ export default function ProfilePage() {
           <div className="flex items-center gap-6">
             <EditableCompanyLogoAvatar editable={isEditing} />
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold">{company.contact_name || 'Unknown User'}</h2>
-              <p className="text-muted-foreground">{company.legal_name || 'No company'}</p>
+              <h2 className="text-2xl font-semibold">{company.legal_name || 'No company'}</h2>
+              <p className="text-muted-foreground">{company.contact_name || 'Unknown User'}</p>
               <div className="flex gap-2">
                 <Badge variant="secondary">
                   <User className="h-3 w-3 mr-1" />
                   Since {user?.created_at ? new Date(user.created_at).getFullYear() : '—'}
                 </Badge>
-                <Badge variant="outline"><Shield className="h-3 w-3 mr-1" />Verified</Badge>
               </div>
             </div>
           </div>
