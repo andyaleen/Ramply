@@ -19,9 +19,12 @@ function requestWithCookies(
 }
 
 describe('isAnonymousPublicPath', () => {
-  test('matches landing, pricing, and login only', () => {
+  test('matches public marketing and auth entry routes', () => {
     expect(isAnonymousPublicPath('/')).toBe(true)
     expect(isAnonymousPublicPath('/pricing')).toBe(true)
+    expect(isAnonymousPublicPath('/contact')).toBe(true)
+    expect(isAnonymousPublicPath('/privacy')).toBe(true)
+    expect(isAnonymousPublicPath('/terms')).toBe(true)
     expect(isAnonymousPublicPath('/login')).toBe(true)
     expect(isAnonymousPublicPath('/signup')).toBe(false)
     expect(isAnonymousPublicPath('/dashboard')).toBe(false)

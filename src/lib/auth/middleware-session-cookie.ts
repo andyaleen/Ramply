@@ -1,6 +1,13 @@
 import type { NextRequest } from 'next/server'
 
-const ANONYMOUS_PUBLIC_PATHS = new Set(['/', '/pricing', '/login'])
+const ANONYMOUS_PUBLIC_PATHS = new Set([
+  '/',
+  '/pricing',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/login',
+])
 
 /** Marketing and auth entry routes that anonymous visitors can load without middleware auth. */
 export function isAnonymousPublicPath(pathname: string): boolean {

@@ -38,7 +38,7 @@ export function getPlacesServerReferer(): string {
     }
   }
 
-  return 'https://ramply.org/'
+  return 'https://www.ramply.org/'
 }
 
 function placesRequestHeaders(apiKey: string): HeadersInit {
