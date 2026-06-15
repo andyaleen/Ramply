@@ -13,6 +13,7 @@ interface AddressFieldsSectionProps {
   addressLabel?: string
   suiteLabel?: string
   addressInvalid?: boolean
+  hideLabel?: boolean
 }
 
 /** Address entry with Google autocomplete plus optional Suite / Unit field. */
@@ -24,11 +25,12 @@ export function AddressFieldsSection({
   addressLabel = 'Address',
   suiteLabel = 'Suite / Unit',
   addressInvalid = false,
+  hideLabel = false,
 }: AddressFieldsSectionProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>{addressLabel}</Label>
+        {hideLabel ? null : <Label>{addressLabel}</Label>}
         <AddressAutocompleteInput
           value={value}
           onChange={onChange}

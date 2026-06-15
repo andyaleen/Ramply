@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ShareRequestRow, CompanyDocumentRow } from '@/lib/database.types'
-import { fieldLabel, documentTypeLabel } from '@/lib/catalog'
+import { fieldLabel, documentTypeLabel, orderRequestedDocuments } from '@/lib/catalog'
 import { isCustomSelectionKey } from '@/lib/custom-selections'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ import {
   ADDRESS_COMPONENT_KEYS,
   buildShareAddressFieldPayload,
   isAddressComplete,
+  orderRequestedFields,
   partitionRequestFields,
   pickAddressComponents,
   requestIncludesAddress,
@@ -61,16 +62,19 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   const optionalFieldKeys = shareRequest.optional_fields ?? []
   const allRequestedFieldKeys = [...mandatoryFieldKeys, ...optionalFieldKeys]
 
+  const orderedRequestedFields = useMemo(
+    () => orderRequestedFields(allRequestedFieldKeys),
+    [allRequestedFieldKeys]
+  )
   const mandatoryNonAddress = useMemo(
     () => partitionRequestFields(mandatoryFieldKeys).nonAddressFields,
     [mandatoryFieldKeys]
   )
-  const optionalNonAddress = useMemo(
-    () => partitionRequestFields(optionalFieldKeys).nonAddressFields,
-    [optionalFieldKeys]
-  )
-  const addressRequired = requestIncludesAddress(mandatoryFieldKeys)
-  const addressOptional = requestIncludesAddress(optionalFieldKeys) && !addressRequired
+
+  const isFieldRequired = (key: string) => {
+    if (key === ADDRESS_CATALOG_KEY) return requestIncludesAddress(mandatoryFieldKeys)
+    return mandatoryFieldKeys.includes(key)
+  }
 
   /** Pre-fill field values from the authenticated user's company profile */
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => {
@@ -102,6 +106,10 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   const mandatoryDocTypes = shareRequest.mandatory_documents ?? []
   const optionalDocTypes = shareRequest.optional_documents ?? []
   const allDocTypes = [...mandatoryDocTypes, ...optionalDocTypes]
+  const orderedDocTypes = useMemo(
+    () => orderRequestedDocuments(allDocTypes),
+    [allDocTypes]
+  )
 
   const missingRequiredDocs = useMemo(
     () => missingVaultDocumentTypes(vaultDocs, mandatoryDocTypes),
@@ -111,7 +119,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   const missingRequiredFields = useMemo(() => {
     const missing: string[] = []
 
-    if (addressRequired && !isAddressComplete(addressComponents)) {
+    if (requestIncludesAddress(mandatoryFieldKeys) && !isAddressComplete(addressComponents)) {
       missing.push(ADDRESS_CATALOG_KEY)
     }
 
@@ -120,7 +128,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
     }
 
     return missing
-  }, [addressRequired, addressComponents, mandatoryNonAddress, fieldValues])
+  }, [mandatoryFieldKeys, addressComponents, mandatoryNonAddress, fieldValues])
 
   const fieldFormatErrors = useMemo(() => {
     const errors: Record<string, string> = {}
@@ -299,93 +307,72 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
           <CardHeader>
             <CardTitle className="text-base">Information Requested</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {(mandatoryFieldKeys.length > 0) && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Required</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {addressRequired ? (
-                    <div className="md:col-span-2">
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {orderedRequestedFields.map((key) => {
+                const required = isFieldRequired(key)
+
+                if (key === ADDRESS_CATALOG_KEY) {
+                  const showBlankPrompt =
+                    required
+                    && pendingBlankFieldConfirm
+                    && missingRequiredFields.includes(ADDRESS_CATALOG_KEY)
+                  return (
+                    <div key={key} className="md:col-span-2">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Label>{fieldLabel(ADDRESS_CATALOG_KEY)}</Label>
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide shrink-0">
+                          {required ? 'Required' : 'Optional'}
+                        </Badge>
+                      </div>
                       <AddressFieldsSection
                         value={addressComponents}
                         onChange={handleAddressChange}
                         addressLabel={fieldLabel(ADDRESS_CATALOG_KEY)}
-                        addressInvalid={
-                          pendingBlankFieldConfirm
-                          && missingRequiredFields.includes(ADDRESS_CATALOG_KEY)
-                        }
+                        addressInvalid={showBlankPrompt}
+                        hideLabel
                       />
-                      {pendingBlankFieldConfirm && missingRequiredFields.includes(ADDRESS_CATALOG_KEY) ? (
+                      {showBlankPrompt ? (
                         <p className="mt-1 text-xs text-amber-700">Leave this address blank?</p>
                       ) : null}
                     </div>
-                  ) : null}
-                  {mandatoryNonAddress.map((key) => {
-                    const isBlank = !fieldValues[key]?.trim()
-                    const showBlankPrompt = pendingBlankFieldConfirm && isBlank
-                    const formatError = fieldFormatErrors[key]
-                    const showInvalid = showBlankPrompt || !!formatError
-                    return (
-                      <div key={key}>
-                        <Label>{fieldLabel(key)}</Label>
-                        <CompanyFieldInput
-                          fieldKey={key}
-                          value={fieldValues[key] ?? ''}
-                          onChange={(value) => handleFieldChange(key, value)}
-                          aria-invalid={showInvalid}
-                          className={
-                            formatError
-                              ? 'border-red-500 focus-visible:ring-red-500'
-                              : showBlankPrompt
-                                ? 'border-amber-500 focus-visible:ring-amber-500'
-                                : undefined
-                          }
-                        />
-                        {formatError ? (
-                          <p className="mt-1 text-xs text-red-700">{formatError}</p>
-                        ) : showBlankPrompt ? (
-                          <p className="mt-1 text-xs text-amber-700">Leave this field blank?</p>
-                        ) : null}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-            {(optionalFieldKeys.length > 0) && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Optional</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {addressOptional ? (
-                    <div className="md:col-span-2">
-                      <AddressFieldsSection
-                        value={addressComponents}
-                        onChange={handleAddressChange}
-                        addressLabel={fieldLabel(ADDRESS_CATALOG_KEY)}
-                      />
+                  )
+                }
+
+                const isBlank = !fieldValues[key]?.trim()
+                const showBlankPrompt = required && pendingBlankFieldConfirm && isBlank
+                const formatError = fieldFormatErrors[key]
+                const showInvalid = showBlankPrompt || !!formatError
+                return (
+                  <div key={key}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <Label>{fieldLabel(key)}</Label>
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wide shrink-0">
+                        {required ? 'Required' : 'Optional'}
+                      </Badge>
                     </div>
-                  ) : null}
-                  {optionalNonAddress.map((key) => {
-                    const formatError = fieldFormatErrors[key]
-                    return (
-                      <div key={key}>
-                        <Label>{fieldLabel(key)}</Label>
-                        <CompanyFieldInput
-                          fieldKey={key}
-                          value={fieldValues[key] ?? ''}
-                          onChange={(value) => handleFieldChange(key, value)}
-                          aria-invalid={!!formatError}
-                          className={formatError ? 'border-red-500 focus-visible:ring-red-500' : undefined}
-                        />
-                        {formatError ? (
-                          <p className="mt-1 text-xs text-red-700">{formatError}</p>
-                        ) : null}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
+                    <CompanyFieldInput
+                      fieldKey={key}
+                      value={fieldValues[key] ?? ''}
+                      onChange={(value) => handleFieldChange(key, value)}
+                      aria-invalid={showInvalid}
+                      className={
+                        formatError
+                          ? 'border-red-500 focus-visible:ring-red-500'
+                          : showBlankPrompt
+                            ? 'border-amber-500 focus-visible:ring-amber-500'
+                            : undefined
+                      }
+                    />
+                    {formatError ? (
+                      <p className="mt-1 text-xs text-red-700">{formatError}</p>
+                    ) : showBlankPrompt ? (
+                      <p className="mt-1 text-xs text-amber-700">Leave this field blank?</p>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -401,22 +388,11 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {mandatoryDocTypes.map((docType) => (
+            {orderedDocTypes.map((docType) => (
               <DocRow
                 key={docType}
                 docType={docType}
-                required
-                doc={getVaultDocument(vaultDocs, docType)}
-                vaultChecking={vaultChecking}
-                uploading={uploading === docType}
-                onUpload={pick}
-              />
-            ))}
-            {optionalDocTypes.map((docType) => (
-              <DocRow
-                key={docType}
-                docType={docType}
-                required={false}
+                required={mandatoryDocTypes.includes(docType)}
                 doc={getVaultDocument(vaultDocs, docType)}
                 vaultChecking={vaultChecking}
                 uploading={uploading === docType}

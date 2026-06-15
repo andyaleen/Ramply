@@ -1,7 +1,10 @@
-import { fieldLabel } from '@/lib/catalog'
+import { fieldLabel, CATALOG_FIELDS, ADDRESS_CATALOG_KEY } from '@/lib/catalog'
 
-/** Single share-request / template catalog key for the full address. */
-export const ADDRESS_CATALOG_KEY = 'address' as const
+export { ADDRESS_CATALOG_KEY }
+
+function catalogFieldOrderIndex(): Map<string, number> {
+  return new Map(CATALOG_FIELDS.map((field, index) => [field.key, index]))
+}
 
 /** Legacy catalog keys replaced by {@link ADDRESS_CATALOG_KEY}. */
 export const LEGACY_ADDRESS_CATALOG_KEYS = [
@@ -117,6 +120,41 @@ export function partitionRequestFields(fields: readonly string[] | null | undefi
     includesAddress: requestIncludesAddress(input),
     nonAddressFields: input.filter((key) => !isAddressRelatedCatalogKey(key)),
   }
+}
+
+/**
+ * Order requested field keys to match the send-request catalog layout.
+ * Address appears after Business Type / NAICS, not at the top of the form.
+ */
+export function orderRequestedFields(fields: readonly string[] | null | undefined): string[] {
+  const input = fields ?? []
+  const deduped: string[] = []
+  const seen = new Set<string>()
+
+  for (const key of input) {
+    if (isAddressRelatedCatalogKey(key)) {
+      if (!seen.has(ADDRESS_CATALOG_KEY)) {
+        seen.add(ADDRESS_CATALOG_KEY)
+        deduped.push(ADDRESS_CATALOG_KEY)
+      }
+      continue
+    }
+    if (seen.has(key)) continue
+    seen.add(key)
+    deduped.push(key)
+  }
+
+  return deduped.sort((a, b) => {
+    const catalogOrder = catalogFieldOrderIndex()
+    const orderA = catalogOrder.get(a)
+    const orderB = catalogOrder.get(b)
+
+    if (orderA !== undefined && orderB !== undefined) return orderA - orderB
+    if (orderA !== undefined) return -1
+    if (orderB !== undefined) return 1
+
+    return input.indexOf(a) - input.indexOf(b)
+  })
 }
 
 /** Build the JSON payload sent to fulfill_share_request for address-aware requests. */

@@ -4,6 +4,7 @@ import {
   formatAddressFromComponents,
   isAddressComplete,
   normalizeFieldSelections,
+  orderRequestedFields,
   pickAddressComponents,
   requestIncludesAddress,
   resolveAddressDisplayValue,
@@ -19,6 +20,30 @@ describe('address-fields', () => {
 
   it('detects address in mixed legacy selections', () => {
     expect(requestIncludesAddress(['ein', 'postal_code'])).toBe(true)
+  })
+
+  it('orders requested fields to match the catalog layout', () => {
+    expect(
+      orderRequestedFields([
+        ADDRESS_CATALOG_KEY,
+        'contact_email',
+        'legal_name',
+        'ein',
+        'business_type',
+      ])
+    ).toEqual([
+      'legal_name',
+      'ein',
+      'business_type',
+      ADDRESS_CATALOG_KEY,
+      'contact_email',
+    ])
+  })
+
+  it('collapses legacy address keys into one ordered address field', () => {
+    expect(
+      orderRequestedFields(['legal_name', 'city', 'state', 'ein'])
+    ).toEqual(['legal_name', 'ein', ADDRESS_CATALOG_KEY])
   })
 
   it('formats structured components for sharing', () => {

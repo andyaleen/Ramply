@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { customSelectionLabel, isCustomSelectionKey } from '@/lib/custom-selections'
-import { ADDRESS_CATALOG_KEY } from '@/lib/address-fields'
+
+export const ADDRESS_CATALOG_KEY = 'address' as const
 
 export const CATALOG_FIELDS = [
   { key: 'legal_name',           label: 'Legal Business Name' },
@@ -70,4 +71,29 @@ export const fieldLabel = (key: FieldKey | string): string => {
 export const documentTypeLabel = (key: DocumentTypeKey | string): string => {
   if (isCustomSelectionKey(key)) return customSelectionLabel(key)
   return CATALOG_DOCUMENT_TYPES.find((d) => d.key === key)?.label ?? key
+}
+
+/** Order requested catalog keys to match the send-request picker layout. */
+export function orderCatalogKeys(
+  keys: readonly string[],
+  catalog: readonly { key: string }[]
+): string[] {
+  const catalogOrder = new Map(catalog.map((item, index) => [item.key, index]))
+  const deduped = [...new Set(keys)]
+
+  return deduped.sort((a, b) => {
+    const orderA = catalogOrder.get(a)
+    const orderB = catalogOrder.get(b)
+
+    if (orderA !== undefined && orderB !== undefined) return orderA - orderB
+    if (orderA !== undefined) return -1
+    if (orderB !== undefined) return 1
+
+    return keys.indexOf(a) - keys.indexOf(b)
+  })
+}
+
+/** Order requested document types to match the send-request picker layout. */
+export function orderRequestedDocuments(keys: readonly string[] | null | undefined): string[] {
+  return orderCatalogKeys(keys ?? [], CATALOG_DOCUMENT_TYPES)
 }
