@@ -32,6 +32,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
+import posthog from 'posthog-js'
+
 interface AuthFormProps {
   defaultTab?: 'signin' | 'signup'
   /** When set, overrides the `redirect` search param for post-auth navigation. */
@@ -173,6 +175,8 @@ export function AuthForm({
       return false
     }
 
+    posthog.capture('user_signed_in', { method: 'password' })
+
     router.replace(requestedPath)
     router.refresh()
     return true
@@ -284,6 +288,8 @@ export function AuthForm({
           return
         }
 
+        posthog.capture('user_signed_up', { method: 'password' })
+
         setSignupUserId(authData.user.id)
         if (await completePasswordSignIn()) {
           return
@@ -393,6 +399,8 @@ export function AuthForm({
   const handleGoogleSignIn = async () => {
     setLoading(true)
     setError('')
+
+    posthog.capture('google_auth_started')
 
     try {
       const authError = await startGoogleAuth(requestedPath)

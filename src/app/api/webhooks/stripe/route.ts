@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import type Stripe from 'stripe'
 import { getSubscriptionPeriodEnd } from '@/lib/stripe-subscription'
 import { reportServerError } from '@/lib/monitoring'
+import { getPostHogClient } from '@/lib/posthog-server'
 
 /**
  * POST /api/webhooks/stripe
@@ -66,6 +67,16 @@ export async function POST(req: NextRequest) {
         reportServerError('stripe.checkout.session.completed', checkoutUpdateError, { companyId })
         return NextResponse.json({ error: 'Database update failed' }, { status: 500 })
       }
+
+      const posthog = getPostHogClient()
+      posthog.capture({
+        distinctId: companyId,
+        event: 'subscription_started',
+        properties: {
+          plan: subscription.metadata.plan,
+          subscription_id: subscriptionId,
+        },
+      })
       break
     }
 

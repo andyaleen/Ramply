@@ -3,6 +3,7 @@ import { getOwnedBillingCompany } from '@/lib/billing-company'
 import { requireAppSession } from '@/lib/auth/require-app-session'
 import { isActiveSubscription } from '@/lib/plan-limits'
 import { getStripe } from '@/lib/stripe'
+import { getPostHogClient } from '@/lib/posthog-server'
 import { getSubscriptionPeriodEnd } from '@/lib/stripe-subscription'
 import { createClient } from '@/lib/supabase/server'
 
@@ -40,6 +41,13 @@ export async function POST() {
   if (updateError) {
     return NextResponse.json({ error: 'Failed to update subscription status' }, { status: 500 })
   }
+
+  const posthog = getPostHogClient()
+  posthog.capture({
+    distinctId: session.user.id,
+    event: 'subscription_canceled',
+    properties: { company_id: company.id },
+  })
 
   return NextResponse.json({ ok: true, plan: 'free' })
 }

@@ -2,6 +2,7 @@ import { requireAppSession } from '@/lib/auth/require-app-session'
 import { databaseErrorResponse } from '@/lib/api-error-response'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { TemplateSchema } from '@/lib/validations'
 
 async function requireTemplatesSession() {
@@ -70,7 +71,11 @@ export async function POST(req: Request) {
 
   const { data, error } = await supabase
     .from('request_templates')
-    .insert({ company_id: company.id, ...parsed.data })
+    .insert({
+      company_id: company.id,
+      public_token: randomBytes(16).toString('hex'),
+      ...parsed.data,
+    })
     .select()
     .single()
 

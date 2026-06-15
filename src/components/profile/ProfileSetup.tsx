@@ -12,6 +12,7 @@ import { CompanyFieldInput } from '@/components/company/CompanyFieldInput'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Building2, MapPin, User, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
+import posthog from 'posthog-js'
 import { cn } from '@/lib/utils'
 import { AddressProfileFields } from '@/components/address/AddressProfileFields'
 import { CompanyLogoUpload } from '@/components/profile/CompanyLogoUpload'
@@ -79,6 +80,7 @@ export function ProfileSetup({ onComplete, inviteHeadline }: ProfileSetupProps) 
     setLoading(true)
     try {
       await updateCompany(data)
+      posthog.capture('profile_completed', { business_type: data.business_type })
       onComplete()
     } catch (error) {
       console.error('Error saving company profile:', error)

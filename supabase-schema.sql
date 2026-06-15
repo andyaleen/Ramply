@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS share_requests (
   denied_at TIMESTAMPTZ,
   denied_by_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   opened_at TIMESTAMPTZ,
+  source_template_id UUID REFERENCES request_templates(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -175,6 +176,7 @@ CREATE TABLE IF NOT EXISTS request_templates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  public_token TEXT UNIQUE NOT NULL,
   mandatory_fields TEXT[] NOT NULL DEFAULT '{}',
   mandatory_documents TEXT[] NOT NULL DEFAULT '{}',
   optional_fields TEXT[] NOT NULL DEFAULT '{}',
@@ -568,6 +570,35 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION get_share_request_by_token(TEXT) TO anon, authenticated;
+
+-- Public metadata for permanent template submit links.
+CREATE OR REPLACE FUNCTION get_request_template_by_public_token(p_public_token TEXT)
+RETURNS TABLE (
+  id UUID,
+  name TEXT,
+  mandatory_fields TEXT[],
+  optional_fields TEXT[],
+  mandatory_documents TEXT[],
+  optional_documents TEXT[],
+  requester_company_legal_name TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+    SELECT
+      rt.id,
+      rt.name,
+      rt.mandatory_fields,
+      rt.optional_fields,
+      rt.mandatory_documents,
+      rt.optional_documents,
+      c.legal_name
+    FROM request_templates rt
+    JOIN companies c ON c.id = rt.company_id
+    WHERE rt.public_token = p_public_token;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION get_request_template_by_public_token(TEXT) TO anon, authenticated;
 
 -- List pending share requests addressed to the signed-in recipient.
 DROP FUNCTION IF EXISTS get_pending_received_share_requests();

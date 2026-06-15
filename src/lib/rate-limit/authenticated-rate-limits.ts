@@ -5,7 +5,10 @@ import type { RateLimitCheck, RateLimitConfig } from '@/lib/rate-limit/types'
 
 export const AUTHENTICATED_RATE_LIMITED_CODE = 'RATE_LIMITED'
 
-export type AuthenticatedRateLimitBucket = 'share-request-create' | 'referral-send'
+export type AuthenticatedRateLimitBucket =
+  | 'share-request-create'
+  | 'template-submission-ensure'
+  | 'referral-send'
 
 const AUTHENTICATED_RATE_LIMITS: Record<
   AuthenticatedRateLimitBucket,
@@ -14,6 +17,10 @@ const AUTHENTICATED_RATE_LIMITS: Record<
   'share-request-create': {
     ip: { limit: 30, windowMs: 15 * 60 * 1000 },
     user: { limit: 20, windowMs: 15 * 60 * 1000 },
+  },
+  'template-submission-ensure': {
+    ip: { limit: 60, windowMs: 15 * 60 * 1000 },
+    user: { limit: 30, windowMs: 15 * 60 * 1000 },
   },
   'referral-send': {
     ip: { limit: 20, windowMs: 60 * 60 * 1000 },

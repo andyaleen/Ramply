@@ -22,6 +22,7 @@ import {
   clearStoredSessionMetadata,
 } from '@/lib/auth/session-policy'
 import { useSessionTimeout } from '@/hooks/useSessionTimeout'
+import posthog from 'posthog-js'
 
 interface AuthContextType {
   user: User | null
@@ -201,7 +202,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserProfile(null)
         setCompany(null)
         setProfileLoading(false)
+        posthog.reset()
         return
+      }
+
+      if (event === 'SIGNED_IN' && sessionUser.email) {
+        posthog.identify(sessionUser.id, { email: sessionUser.email })
       }
 
       // TOKEN_REFRESHED (and sometimes SIGNED_IN) fires every time the tab

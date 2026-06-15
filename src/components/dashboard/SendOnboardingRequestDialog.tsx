@@ -18,11 +18,13 @@ import { ShareRequestSchema, type ShareRequest } from '@/lib/validations'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Copy, Zap, Send } from 'lucide-react'
 import { toast } from 'sonner'
+import posthog from 'posthog-js'
 import { useRouter } from 'next/navigation'
 import type { RequestTemplateRow } from '@/lib/database.types'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchRequestTemplates, requestTemplatesQueryKey, saveRequestTemplate } from '@/lib/request-templates'
 import { TemplateSelectionsForm } from '@/components/templates/TemplateSelectionsForm'
+import { buildTemplateSubmitUrl } from '@/lib/template-submit-link'
 
 interface SendOnboardingRequestDialogProps {
   open: boolean
@@ -103,6 +105,11 @@ export function SendOnboardingRequestDialog({
       setCreatedForEmail(data.recipient_email)
       setInviteEmailSent(data.email_sent ?? false)
       setInviteEmailError(data.email_error ?? null)
+      posthog.capture('share_request_created', {
+        request_type: data.request_type,
+        email_sent: data.email_sent ?? false,
+        used_template: Boolean(initialTemplateId),
+      })
       if (data.email_sent) {
         toast.success(`Invite email sent to ${data.recipient_email}`)
       } else if (data.email_error) {
@@ -125,7 +132,24 @@ export function SendOnboardingRequestDialog({
     if (!generatedLink) return
     try {
       await navigator.clipboard.writeText(generatedLink)
+      posthog.capture('share_request_link_copied')
       toast.success('Link copied to clipboard!')
+    } catch {
+      toast.error('Failed to copy link.')
+    }
+  }
+
+  const copyTemplateLink = async () => {
+    const template = templates.find((entry) => entry.id === initialTemplateId)
+    if (!template?.public_token) {
+      toast.error('Template link is not available yet.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(buildTemplateSubmitUrl(template.public_token))
+      posthog.capture('template_submit_link_copied', { template_id: template.id })
+      toast.success('Permanent link copied to clipboard!')
     } catch {
       toast.error('Failed to copy link.')
     }
@@ -208,7 +232,9 @@ export function SendOnboardingRequestDialog({
         optional_documents,
       })
       await queryClient.invalidateQueries({ queryKey: templatesQueryKey })
+      posthog.capture('template_saved', { template_name: name })
       toast.success(`Template "${name}" saved`)
+      form.setValue('request_type', name, { shouldDirty: true, shouldValidate: true })
       setTemplateName('')
       setShowSaveTemplate(false)
     } catch (error) {
@@ -219,6 +245,9 @@ export function SendOnboardingRequestDialog({
   }
 
   const usingSavedTemplate = Boolean(initialTemplateId)
+  const activeTemplate = usingSavedTemplate
+    ? templates.find((entry) => entry.id === initialTemplateId) ?? null
+    : null
   const submitLabel = createMutation.isPending ? 'Sending…' : 'Send Request'
 
   if (limitReason) {
@@ -266,7 +295,9 @@ export function SendOnboardingRequestDialog({
               ? inviteEmailSent
                 ? 'We emailed the recipient. You can also copy the link below if needed.'
                 : 'Share this link with the recipient to complete the request.'
-              : 'Set the type of request and choose what information you need from the recipient.'}
+              : usingSavedTemplate
+                ? 'Send a personalized invite to one recipient, or copy the permanent link for automated emails.'
+                : 'Set the type of request and choose what information you need from the recipient.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -350,7 +381,18 @@ export function SendOnboardingRequestDialog({
                 <Button type="button" variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                   Cancel
                 </Button>
-                {!usingSavedTemplate && (
+                {usingSavedTemplate ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    disabled={!activeTemplate?.public_token}
+                    onClick={() => void copyTemplateLink()}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Link
+                  </Button>
+                ) : (
                   <Button
                     type="button"
                     disabled={savingTemplate}

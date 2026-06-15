@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, FileText, Upload, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import posthog from 'posthog-js'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
 import { useVaultDocuments } from '@/hooks/useVaultDocuments'
 import { getUploadErrorMessage } from '@/lib/document-upload'
@@ -234,6 +235,11 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
     },
     onSuccess: () => {
       setPendingBlankFieldConfirm(false)
+      posthog.capture('share_request_fulfilled', {
+        field_count: mandatoryFieldKeys.length + optionalFieldKeys.length,
+        document_count: mandatoryDocTypes.length + optionalDocTypes.length,
+        request_type: shareRequest.request_type,
+      })
       toast.success('Information shared successfully!')
       onComplete()
     },
@@ -279,6 +285,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
       queryClient.invalidateQueries({ queryKey: ['share-responses'] }),
     ])
 
+    posthog.capture('share_request_denied', { request_type: shareRequest.request_type })
     toast.success('Request denied. The sender has been notified.')
     onDenied?.()
     router.push('/dashboard/responses')

@@ -248,6 +248,7 @@ export type Database = {
           id: string
           company_id: string
           name: string
+          public_token: string
           mandatory_fields: FieldKey[]
           mandatory_documents: DocumentTypeKey[]
           optional_fields: FieldKey[]
@@ -259,6 +260,7 @@ export type Database = {
           id?: string
           company_id: string
           name: string
+          public_token?: string
           mandatory_fields?: FieldKey[]
           mandatory_documents?: DocumentTypeKey[]
           optional_fields?: FieldKey[]
@@ -270,6 +272,7 @@ export type Database = {
           id?: string
           company_id?: string
           name?: string
+          public_token?: string
           mandatory_fields?: FieldKey[]
           mandatory_documents?: DocumentTypeKey[]
           optional_fields?: FieldKey[]
@@ -296,6 +299,7 @@ export type Database = {
           denied_at: string | null
           denied_by_company_id: string | null
           opened_at: string | null
+          source_template_id: string | null
           created_at: string
           updated_at: string
         }
@@ -316,6 +320,7 @@ export type Database = {
           denied_at?: string | null
           denied_by_company_id?: string | null
           opened_at?: string | null
+          source_template_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -336,6 +341,7 @@ export type Database = {
           denied_at?: string | null
           denied_by_company_id?: string | null
           opened_at?: string | null
+          source_template_id?: string | null
           created_at?: string
           updated_at?: string
         }

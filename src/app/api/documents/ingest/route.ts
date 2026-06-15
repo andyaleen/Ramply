@@ -100,7 +100,7 @@ export async function POST(req: Request) {
           ? extractW9Fields(ocrResult.documentJson, ocrResult.rawText)
           : null
       ),
-      classifyDocument(ocrResult.rawText),
+      classifyDocument(ocrResult.rawText, { distinctId: user.id }),
     ])
 
     if (extractedFields) {
