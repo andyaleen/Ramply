@@ -74,9 +74,11 @@ export async function persistRequestTemplate(
   try {
     return await createRequestTemplateViaRpc(supabase, values)
   } catch (rpcError) {
-    if (!isMissingCreateTemplateRpc(rpcError as { code?: string; message?: string })) {
+    const err = rpcError as { code?: string; message?: string }
+    if (err.message === 'rpc_invalid_response') {
       throw rpcError
     }
+    // RPC is best-effort (missing function, pgcrypto/search_path issues, etc.).
   }
 
   return createRequestTemplateDirect(supabase, companyId, values)

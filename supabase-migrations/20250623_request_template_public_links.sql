@@ -4,7 +4,7 @@ ALTER TABLE request_templates
   ADD COLUMN IF NOT EXISTS public_token TEXT UNIQUE;
 
 UPDATE request_templates
-SET public_token = encode(gen_random_bytes(16), 'hex')
+SET public_token = encode(extensions.gen_random_bytes(16), 'hex')
 WHERE public_token IS NULL;
 
 ALTER TABLE request_templates

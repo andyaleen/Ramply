@@ -1,14 +1,16 @@
 -- Reliable request template creation with public_token generation and RLS repair.
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
 ALTER TABLE request_templates
   ADD COLUMN IF NOT EXISTS public_token TEXT;
 
 UPDATE request_templates
-SET public_token = encode(gen_random_bytes(16), 'hex')
+SET public_token = encode(extensions.gen_random_bytes(16), 'hex')
 WHERE public_token IS NULL;
 
 ALTER TABLE request_templates
-  ALTER COLUMN public_token SET DEFAULT encode(gen_random_bytes(16), 'hex');
+  ALTER COLUMN public_token SET DEFAULT encode(extensions.gen_random_bytes(16), 'hex');
 
 ALTER TABLE request_templates
   ALTER COLUMN public_token SET NOT NULL;
@@ -98,7 +100,7 @@ BEGIN
   ) VALUES (
     v_company_id,
     p_name,
-    encode(gen_random_bytes(16), 'hex'),
+    encode(extensions.gen_random_bytes(16), 'hex'),
     COALESCE(p_mandatory_fields, '{}'),
     COALESCE(p_optional_fields, '{}'),
     COALESCE(p_mandatory_documents, '{}'),
