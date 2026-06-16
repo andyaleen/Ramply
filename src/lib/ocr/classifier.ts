@@ -12,7 +12,6 @@ const TYPE_DESCRIPTIONS: Record<DocumentTypeKey, string> = {
   bank_reference:            'Bank Reference Letter from a financial institution',
   insurance_cert:            'General Certificate of Insurance (non-liability)',
   articles_of_incorporation: 'Articles of Incorporation or Certificate of Formation',
-  business_license:          'Business License or business registration permit',
   voided_check:              'Voided check showing routing and account numbers',
 }
 

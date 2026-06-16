@@ -1,4 +1,3 @@
-import type { FieldKey } from '@/lib/catalog'
 import { fieldLabel } from '@/lib/catalog'
 
 export const BUSINESS_TYPES = [
@@ -57,7 +56,7 @@ export type FieldInputConfig = {
   exactLengthWhenNonBlank?: number
 }
 
-const FIELD_INPUT_CONFIG: Partial<Record<FieldKey, FieldInputConfig>> = {
+const FIELD_INPUT_CONFIG: Record<string, FieldInputConfig> = {
   ein: {
     kind: 'text',
     digitsOnly: true,
@@ -114,7 +113,7 @@ const FIELD_INPUT_CONFIG: Partial<Record<FieldKey, FieldInputConfig>> = {
 /** Returns input rules for a catalog field, defaulting to plain text. */
 export function getFieldInputConfig(fieldKey: string): FieldInputConfig {
   if (fieldKey in FIELD_INPUT_CONFIG) {
-    return FIELD_INPUT_CONFIG[fieldKey as FieldKey]!
+    return FIELD_INPUT_CONFIG[fieldKey]!
   }
 
   return {
