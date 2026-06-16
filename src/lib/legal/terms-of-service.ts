@@ -1,7 +1,7 @@
 import type { LegalSection } from '@/lib/legal/site'
 import { LEGAL_SITE } from '@/lib/legal/site'
 
-const { companyName, productName, supportEmail, websiteUrl } = LEGAL_SITE
+const { companyName, productName, contactEmail, websiteUrl } = LEGAL_SITE
 
 /** Boilerplate terms of service sections for the public /terms page. */
 export const TERMS_OF_SERVICE_SECTIONS: LegalSection[] = [
@@ -124,7 +124,7 @@ export const TERMS_OF_SERVICE_SECTIONS: LegalSection[] = [
     id: 'contact',
     title: 'Contact',
     paragraphs: [
-      `Questions about these Terms may be sent to ${supportEmail}.`,
+      `Questions about these Terms may be sent to ${contactEmail}.`,
     ],
   },
 ]

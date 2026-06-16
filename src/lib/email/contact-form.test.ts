@@ -14,11 +14,11 @@ describe('contact-form email', () => {
     expect(html).toContain('Line two')
   })
 
-  test('falls back to support email when CONTACT_FORM_TO_EMAIL is unset', () => {
+  test('falls back to contact email when CONTACT_FORM_TO_EMAIL is unset', () => {
     const previous = process.env.CONTACT_FORM_TO_EMAIL
     delete process.env.CONTACT_FORM_TO_EMAIL
 
-    expect(getContactFormRecipientEmail()).toBe('support@ramply.org')
+    expect(getContactFormRecipientEmail()).toBe('info@ramply.org')
 
     if (previous === undefined) {
       delete process.env.CONTACT_FORM_TO_EMAIL

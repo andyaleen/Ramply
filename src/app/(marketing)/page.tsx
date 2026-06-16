@@ -67,7 +67,7 @@ export default function Landing() {
       <RamplyMarketingNav onLoginClick={() => router.push('/login')} />
       <Hero
         onPrimaryClick={() => router.push('/signup')}
-        onSecondaryClick={() => router.push('/signup')}
+        onSecondaryClick={() => router.push('/about')}
       />
       <RamplyMarketingFooter />
     </div>

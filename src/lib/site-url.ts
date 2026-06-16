@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 export const DEFAULT_SITE_ORIGIN = 'https://www.ramply.org'
 
 /** Public marketing routes included in sitemap.xml. */
-export const MARKETING_PATHS = ['/', '/pricing', '/contact', '/privacy', '/terms'] as const
+export const MARKETING_PATHS = ['/', '/about', '/pricing', '/contact', '/privacy', '/terms'] as const
 
 /**
  * Normalize Ramply production origins to the canonical www host for SEO output.

@@ -5,7 +5,7 @@ import { canonicalMetadata } from '@/lib/site-url'
 
 export const metadata: Metadata = canonicalMetadata('/')
 
-/** Loads Instrument Serif only for public marketing routes (/ , /pricing, /privacy, /terms, /contact). */
+/** Loads Instrument Serif only for public marketing routes (/ , /about, /pricing, /privacy, /terms, /contact). */
 export default function MarketingLayout({
   children,
 }: {

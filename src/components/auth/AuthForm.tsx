@@ -54,13 +54,32 @@ function authCallbackUrl(nextPath: string): string {
 
 function AuthFormShell({
   embedded,
+  activeTab,
   children,
 }: {
   embedded?: boolean
+  activeTab?: 'signin' | 'signup'
   children: React.ReactNode
 }) {
   if (embedded) return <>{children}</>
-  return <AuthScreen>{children}</AuthScreen>
+
+  const isSignup = activeTab === 'signup'
+  return (
+    <AuthScreen
+      headline={isSignup ? 'Get onboarded without the back-and-forth.' : undefined}
+      highlights={
+        isSignup
+          ? [
+              'Sign in to reuse your verified company profile',
+              'Share documents in one click',
+              'Keep onboarding requests moving without the usual email chase',
+            ]
+          : undefined
+      }
+    >
+      {children}
+    </AuthScreen>
+  )
 }
 
 /**
@@ -414,7 +433,7 @@ export function AuthForm({
 
   if (magicLinkSent) {
     return (
-      <AuthFormShell embedded={embedded}>
+      <AuthFormShell embedded={embedded} activeTab={activeTab}>
         <StatusCard
           icon={<Mail className="h-6 w-6 text-white" />}
           title="Check your email"
@@ -434,7 +453,7 @@ export function AuthForm({
 
   if (success) {
     return (
-      <AuthFormShell embedded={embedded}>
+      <AuthFormShell embedded={embedded} activeTab={activeTab}>
         <StatusCard
           icon={<CheckCircle className="h-6 w-6 text-white" />}
           title="Account created"
@@ -464,7 +483,7 @@ export function AuthForm({
   }
 
   return (
-    <AuthFormShell embedded={embedded}>
+    <AuthFormShell embedded={embedded} activeTab={activeTab}>
       <Card className={`w-full border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)] ${embedded ? 'rounded-2xl' : 'rounded-[28px]'}`}>
         <CardHeader className="space-y-2 border-b border-[#EEECE5] px-8 pb-6 pt-8 text-center">
           <CardTitle className="text-3xl font-semibold tracking-tight text-[#0F1F18]">

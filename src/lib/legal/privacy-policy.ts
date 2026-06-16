@@ -1,7 +1,7 @@
 import type { LegalSection } from '@/lib/legal/site'
 import { LEGAL_SITE } from '@/lib/legal/site'
 
-const { companyName, productName, supportEmail, privacyEmail, websiteUrl } = LEGAL_SITE
+const { companyName, productName, contactEmail, websiteUrl } = LEGAL_SITE
 
 /** Boilerplate privacy policy sections for the public /privacy page. */
 export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
@@ -74,7 +74,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     title: 'Your Choices and Rights',
     paragraphs: [
       'Depending on where you live, you may have rights to access, correct, delete, or export certain personal information, or to object to or restrict certain processing.',
-      `To make a privacy request, contact us at ${privacyEmail}. We may need to verify your identity before responding.`,
+      `To make a privacy request, contact us at ${contactEmail}. We may need to verify your identity before responding.`,
     ],
   },
   {
@@ -109,7 +109,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     id: 'contact',
     title: 'Contact Us',
     paragraphs: [
-      `Questions about this Privacy Policy or our privacy practices may be sent to ${privacyEmail}. General support is available at ${supportEmail}.`,
+      `Questions about this Privacy Policy, privacy practices, or general support may be sent to ${contactEmail}.`,
     ],
   },
 ]

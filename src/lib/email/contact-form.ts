@@ -21,7 +21,7 @@ function escapeHtml(value: string): string {
 
 /** Resolves the inbox that receives public contact form submissions. */
 export function getContactFormRecipientEmail(): string {
-  return readEnv('CONTACT_FORM_TO_EMAIL') || LEGAL_SITE.supportEmail
+  return readEnv('CONTACT_FORM_TO_EMAIL') || LEGAL_SITE.contactEmail
 }
 
 /** Builds the HTML body for a contact form notification email. */
