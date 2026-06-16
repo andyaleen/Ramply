@@ -89,7 +89,7 @@ function FeaturePill({ stat, label, text }: FeaturePillProps) {
   return (
     <div className="rounded-2xl border border-[#DDDCD5] bg-white/80 p-4 shadow-[0_12px_40px_rgba(15,31,24,0.06)] backdrop-blur">
       {text ? (
-        <p className="text-sm leading-relaxed text-[#0F1F18]">{text}</p>
+        <p className="text-base leading-relaxed text-[#0F1F18]">{text}</p>
       ) : (
         <>
           <p className="text-sm font-semibold text-[#0F1F18]">{stat}</p>
