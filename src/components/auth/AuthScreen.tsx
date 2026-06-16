@@ -1,7 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-
 const displayTitle = 'font-semibold tracking-tight'
 
 interface AuthScreenProps {
@@ -30,30 +28,9 @@ export function AuthScreen({
   subheadline = DEFAULT_SUBHEADLINE,
   highlights,
 }: AuthScreenProps) {
-  const router = useRouter()
-
   return (
-    <div className="min-h-screen bg-[#F0EFE9] text-[#0F1F18]">
-      <header className="border-b border-[#DDDCD5] bg-[#F0EFE9]">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6 md:px-12">
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="text-[18px] font-semibold text-[#0F1F18]"
-          >
-            Ramply
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="rounded-lg px-3 py-1.5 text-sm text-[#4A5C54] transition-colors hover:text-[#0F1F18]"
-          >
-            Back to home
-          </button>
-        </div>
-      </header>
-
-      <main className="mx-auto grid min-h-[calc(100vh-56px)] max-w-7xl grid-cols-1 gap-12 px-6 py-12 md:px-12 lg:grid-cols-[1.1fr_560px] lg:items-start">
+    <main className="flex-1 px-6 md:px-12 py-12 md:py-12">
+      <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-12 lg:grid-cols-[1.1fr_560px] lg:items-start">
         <section className="max-w-[520px]">
           <h1 className={`${displayTitle} text-[42px] leading-[1.05] text-[#0F1F18] md:text-[60px]`}>
             {headline}
@@ -74,8 +51,8 @@ export function AuthScreen({
         </section>
 
         <section>{children}</section>
-      </main>
-    </div>
+      </div>
+    </main>
   )
 }
 

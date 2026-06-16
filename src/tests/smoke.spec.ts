@@ -12,18 +12,20 @@ test.describe('smoke — public pages', () => {
     await expect(page.getByRole('button', { name: /log in/i })).toBeVisible()
   })
 
-  test('login page renders auth form with sign-in and sign-up tabs', async ({ page }) => {
+  test('login page renders sign-in form only', async ({ page }) => {
     await page.goto('/login')
     await expect(page.getByRole('heading', { name: /welcome back to ramply/i })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /sign in/i })).toBeVisible()
-    await expect(page.getByRole('tab', { name: /sign up/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /sign up/i })).toHaveCount(0)
+    await expect(page.getByLabel(/confirm password/i)).toHaveCount(0)
   })
 
-  test('signup page renders with signup tab active', async ({ page }) => {
+  test('signup page renders sign-up form only', async ({ page }) => {
     await page.goto('/signup')
-    await expect(page.getByRole('heading', { name: /welcome back to ramply/i })).toBeVisible()
-    // Confirm password field is visible when signup tab is default
+    await expect(page.getByRole('heading', { name: /welcome to ramply/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /welcome back to ramply/i })).toHaveCount(0)
     await expect(page.getByLabel(/confirm password/i)).toBeVisible()
+    await expect(page.getByRole('tab', { name: /sign in/i })).toHaveCount(0)
   })
 
   test('invalid onboard token shows invalid link screen', async ({ page }) => {

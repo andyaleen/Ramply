@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle, Lock, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { AuthScreen } from '@/components/auth/AuthScreen'
+import { MarketingPublicShell } from '@/components/marketing/MarketingPublicShell'
 import {
   buildPasswordRecoveryRedirectUrl,
   buildSupabaseAuthRedirectUrl,
@@ -34,7 +35,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import posthog from 'posthog-js'
 
+type AuthFormMode = 'signin' | 'signup' | 'tabs'
+
 interface AuthFormProps {
+  /** Standalone pages use `signin` or `signup`; embedded flows use `tabs`. */
+  mode?: AuthFormMode
+  /** Initial tab when `mode` is `tabs`. */
   defaultTab?: 'signin' | 'signup'
   /** When set, overrides the `redirect` search param for post-auth navigation. */
   redirectPath?: string
@@ -44,9 +50,25 @@ interface AuthFormProps {
   suggestedEmail?: string
   /** Share-request onboard token; validated server-side during sign-in. */
   shareRequestToken?: string
-  /** Overrides the auth card headline for embedded flows. */
+  /** Overrides the auth card headline. */
   welcomeTitle?: string
+  /** Overrides the auth card description under the headline. */
+  welcomeDescription?: string
 }
+
+const SIGNIN_WELCOME_TITLE = 'Welcome back to Ramply'
+const SIGNIN_WELCOME_DESCRIPTION =
+  'Sign in to share company information, manage onboarding requests, and keep your verified profile moving.'
+const SIGNUP_WELCOME_TITLE = 'Welcome to Ramply'
+const SIGNUP_WELCOME_DESCRIPTION =
+  'Create an account to share company information, manage onboarding requests, and keep your verified profile moving.'
+
+const AUTH_SCREEN_HEADLINE = 'Get onboarded without the back-and-forth.'
+const AUTH_SCREEN_HIGHLIGHTS = [
+  'Build your verified company profile once',
+  'Share documents in one click',
+  'Keep onboarding requests moving without the usual email chase',
+]
 
 function authCallbackUrl(nextPath: string): string {
   return buildSupabaseAuthRedirectUrl(nextPath)
@@ -54,48 +76,54 @@ function authCallbackUrl(nextPath: string): string {
 
 function AuthFormShell({
   embedded,
-  activeTab,
   children,
 }: {
   embedded?: boolean
-  activeTab?: 'signin' | 'signup'
   children: React.ReactNode
 }) {
   if (embedded) return <>{children}</>
 
-  const isSignup = activeTab === 'signup'
   return (
-    <AuthScreen
-      headline={isSignup ? 'Get onboarded without the back-and-forth.' : undefined}
-      highlights={
-        isSignup
-          ? [
-              'Sign in to reuse your verified company profile',
-              'Share documents in one click',
-              'Keep onboarding requests moving without the usual email chase',
-            ]
-          : undefined
-      }
-    >
-      {children}
-    </AuthScreen>
+    <MarketingPublicShell>
+      <AuthScreen headline={AUTH_SCREEN_HEADLINE} highlights={AUTH_SCREEN_HIGHLIGHTS}>
+        {children}
+      </AuthScreen>
+    </MarketingPublicShell>
   )
+}
+
+function buildAuthPageUrl(
+  target: '/login' | '/signup',
+  searchParams: URLSearchParams
+): string {
+  const params = new URLSearchParams(searchParams.toString())
+  params.delete('tab')
+  const query = params.toString()
+  return query ? `${target}?${query}` : target
 }
 
 /**
  * Unified Ramply authentication surface for sign-in, sign-up, and magic-link fallback.
  */
 export function AuthForm({
+  mode = 'signin',
   defaultTab = 'signin',
   redirectPath,
   embedded = false,
   suggestedEmail,
   shareRequestToken,
-  welcomeTitle = 'Welcome back to Ramply',
+  welcomeTitle,
+  welcomeDescription,
 }: AuthFormProps) {
   const searchParams = useSearchParams()
-  const tabFromUrl = searchParams.get('tab') as 'signin' | 'signup' | null
-  const initialTab = tabFromUrl || defaultTab
+  const resolvedMode: AuthFormMode = embedded ? 'tabs' : mode
+  const initialTab = resolvedMode === 'tabs' ? defaultTab : resolvedMode
+  const resolvedWelcomeTitle =
+    welcomeTitle ??
+    (resolvedMode === 'signup' ? SIGNUP_WELCOME_TITLE : SIGNIN_WELCOME_TITLE)
+  const resolvedWelcomeDescription =
+    welcomeDescription ??
+    (resolvedMode === 'signup' ? SIGNUP_WELCOME_DESCRIPTION : SIGNIN_WELCOME_DESCRIPTION)
   const requestedPath = normalizeRequestedPath(
     redirectPath ?? searchParams.get('redirect'),
     redirectPath ?? '/dashboard'
@@ -137,6 +165,14 @@ export function AuthForm({
   const handleTabChange = (value: string) => {
     setActiveTab(value as 'signin' | 'signup')
     resetForm()
+  }
+
+  const goToSignIn = () => {
+    router.push(buildAuthPageUrl('/login', searchParams))
+  }
+
+  const goToSignUp = () => {
+    router.push(buildAuthPageUrl('/signup', searchParams))
   }
 
   /**
@@ -302,7 +338,11 @@ export function AuthForm({
           setError(
             'We could not create an account with those details. Try signing in, or use Continue with Google.'
           )
-          setActiveTab('signin')
+          if (resolvedMode === 'tabs') {
+            setActiveTab('signin')
+          } else {
+            goToSignIn()
+          }
           setLoading(false)
           return
         }
@@ -431,9 +471,149 @@ export function AuthForm({
     }
   }
 
+  const signInForm = (onSignUp: () => void) => (
+    <form onSubmit={handleSignIn} className="space-y-4">
+      <Field
+        id="signin-email"
+        label="Email"
+        type="email"
+        autoComplete="username"
+        placeholder="Enter your email"
+        value={email}
+        onChange={setEmail}
+        icon={<Mail className="h-4 w-4 text-muted-foreground" />}
+      />
+      <Field
+        id="signin-password"
+        label="Password"
+        type="password"
+        autoComplete="current-password"
+        placeholder="Enter your password"
+        value={password}
+        onChange={setPassword}
+        icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+      />
+
+      <ErrorBlock
+        error={error}
+        actionLabel="Sign up here"
+        showAction={error.includes('Invalid email or password')}
+        onAction={onSignUp}
+      />
+
+      <Button
+        type="submit"
+        className="w-full bg-[#0F1F18] text-white hover:bg-[#1D3329]"
+        disabled={loading}
+      >
+        {loading ? 'Signing In...' : 'Sign In'}
+      </Button>
+
+      <div className="space-y-2 text-center">
+        <button
+          type="button"
+          onClick={() => void handleForgotPassword()}
+          disabled={loading || forgotLoading}
+          className="text-sm text-[#287253] hover:text-[#1A4D38] hover:underline disabled:opacity-50"
+        >
+          {forgotLoading ? 'Sending reset link…' : 'Forgot password?'}
+        </button>
+        <div>
+          <button
+            type="button"
+            onClick={handleMagicLink}
+            disabled={loading}
+            className="text-sm text-[#287253] hover:text-[#1A4D38] hover:underline disabled:opacity-50"
+          >
+            Send magic link instead
+          </button>
+        </div>
+      </div>
+
+      {resolvedMode === 'signin' ? (
+        <p className="text-center text-sm text-[#5D6D66]">
+          Don&apos;t have an account?{' '}
+          <button
+            type="button"
+            onClick={onSignUp}
+            className="font-medium text-[#287253] underline hover:text-[#1A4D38]"
+          >
+            Sign up
+          </button>
+        </p>
+      ) : null}
+    </form>
+  )
+
+  const signUpForm = (onSignIn: () => void) => (
+    <form onSubmit={handleSignUp} className="space-y-4">
+      <Field
+        id="signup-email"
+        label="Email"
+        type="email"
+        autoComplete="email"
+        placeholder="Enter your email"
+        value={email}
+        onChange={setEmail}
+        icon={<Mail className="h-4 w-4 text-muted-foreground" />}
+      />
+      <Field
+        id="signup-password"
+        label="Password"
+        type="password"
+        autoComplete="new-password"
+        placeholder="Create a password"
+        value={password}
+        onChange={setPassword}
+        minLength={AUTH_PASSWORD_MIN_LENGTH}
+        helperText={`Use at least ${AUTH_PASSWORD_MIN_LENGTH} characters.`}
+        icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+      />
+      <Field
+        id="signup-confirm-password"
+        label="Confirm Password"
+        type="password"
+        autoComplete="new-password"
+        placeholder="Confirm your password"
+        value={confirmPassword}
+        onChange={setConfirmPassword}
+        minLength={AUTH_PASSWORD_MIN_LENGTH}
+        icon={<Lock className="h-4 w-4 text-muted-foreground" />}
+      />
+
+      <ErrorBlock
+        error={error}
+        actionLabel="Sign in here"
+        showAction={error.includes('already exists')}
+        onAction={onSignIn}
+      />
+
+      <Button
+        type="submit"
+        className="w-full bg-[#287253] text-white hover:bg-[#1A4D38]"
+        disabled={loading}
+      >
+        {loading ? 'Creating Account...' : 'Create Account'}
+      </Button>
+
+      {resolvedMode === 'signup' ? (
+        <p className="text-center text-sm text-[#5D6D66]">
+          Already have an account?{' '}
+          <button
+            type="button"
+            onClick={onSignIn}
+            className="font-medium text-[#287253] underline hover:text-[#1A4D38]"
+          >
+            Sign in
+          </button>
+        </p>
+      ) : null}
+    </form>
+  )
+
   if (magicLinkSent) {
     return (
-      <AuthFormShell embedded={embedded} activeTab={activeTab}>
+      <AuthFormShell embedded={embedded}>
         <StatusCard
           icon={<Mail className="h-6 w-6 text-white" />}
           title="Check your email"
@@ -453,7 +633,7 @@ export function AuthForm({
 
   if (success) {
     return (
-      <AuthFormShell embedded={embedded} activeTab={activeTab}>
+      <AuthFormShell embedded={embedded}>
         <StatusCard
           icon={<CheckCircle className="h-6 w-6 text-white" />}
           title="Account created"
@@ -464,7 +644,11 @@ export function AuthForm({
           primaryDisabled={loading}
           secondaryLabel="Back to Sign In"
           onSecondaryClick={() => {
-            setActiveTab('signin')
+            if (resolvedMode === 'tabs') {
+              setActiveTab('signin')
+            } else {
+              goToSignIn()
+            }
             setSuccess(false)
             setError('')
           }}
@@ -483,14 +667,14 @@ export function AuthForm({
   }
 
   return (
-    <AuthFormShell embedded={embedded} activeTab={activeTab}>
+    <AuthFormShell embedded={embedded}>
       <Card className={`w-full border-[#DDDCD5] bg-white shadow-[0_28px_80px_rgba(15,31,24,0.08)] ${embedded ? 'rounded-2xl' : 'rounded-[28px]'}`}>
         <CardHeader className="space-y-2 border-b border-[#EEECE5] px-8 pb-6 pt-8 text-center">
           <CardTitle className="text-3xl font-semibold tracking-tight text-[#0F1F18]">
-            {welcomeTitle}
+            {resolvedWelcomeTitle}
           </CardTitle>
           <CardDescription className="mx-auto max-w-md text-[15px] leading-relaxed text-[#5D6D66]">
-            Sign in to share company information, manage onboarding requests, and keep your verified profile moving.
+            {resolvedWelcomeDescription}
           </CardDescription>
         </CardHeader>
 
@@ -523,126 +707,21 @@ export function AuthForm({
             </div>
           </div>
 
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-[#F6F4EE]">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+          {resolvedMode === 'tabs' ? (
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-[#F6F4EE]">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <Field
-                  id="signin-email"
-                  label="Email"
-                  type="email"
-                  autoComplete="username"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={setEmail}
-                  icon={<Mail className="h-4 w-4 text-muted-foreground" />}
-                />
-                <Field
-                  id="signin-password"
-                  label="Password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={setPassword}
-                  icon={<Lock className="h-4 w-4 text-muted-foreground" />}
-                />
-
-                <ErrorBlock
-                  error={error}
-                  actionLabel="Sign up here"
-                  showAction={error.includes('Invalid email or password')}
-                  onAction={() => setActiveTab('signup')}
-                />
-
-                <Button
-                  type="submit"
-                  className="w-full bg-[#0F1F18] text-white hover:bg-[#1D3329]"
-                  disabled={loading}
-                >
-                  {loading ? 'Signing In...' : 'Sign In'}
-                </Button>
-
-                <div className="space-y-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => void handleForgotPassword()}
-                    disabled={loading || forgotLoading}
-                    className="text-sm text-[#287253] hover:text-[#1A4D38] hover:underline disabled:opacity-50"
-                  >
-                    {forgotLoading ? 'Sending reset link…' : 'Forgot password?'}
-                  </button>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={handleMagicLink}
-                      disabled={loading}
-                      className="text-sm text-[#287253] hover:text-[#1A4D38] hover:underline disabled:opacity-50"
-                    >
-                      Send magic link instead
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <Field
-                  id="signup-email"
-                  label="Email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={setEmail}
-                  icon={<Mail className="h-4 w-4 text-muted-foreground" />}
-                />
-                <Field
-                  id="signup-password"
-                  label="Password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Create a password"
-                  value={password}
-                  onChange={setPassword}
-                  minLength={AUTH_PASSWORD_MIN_LENGTH}
-                  helperText={`Use at least ${AUTH_PASSWORD_MIN_LENGTH} characters.`}
-                  icon={<Lock className="h-4 w-4 text-muted-foreground" />}
-                />
-                <Field
-                  id="signup-confirm-password"
-                  label="Confirm Password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  minLength={AUTH_PASSWORD_MIN_LENGTH}
-                  icon={<Lock className="h-4 w-4 text-muted-foreground" />}
-                />
-
-                <ErrorBlock
-                  error={error}
-                  actionLabel="Sign in here"
-                  showAction={error.includes('already exists')}
-                  onAction={() => setActiveTab('signin')}
-                />
-
-                <Button
-                  type="submit"
-                  className="w-full bg-[#287253] text-white hover:bg-[#1A4D38]"
-                  disabled={loading}
-                >
-                  {loading ? 'Creating Account...' : 'Create Account'}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="signin">{signInForm(() => setActiveTab('signup'))}</TabsContent>
+              <TabsContent value="signup">{signUpForm(() => setActiveTab('signin'))}</TabsContent>
+            </Tabs>
+          ) : resolvedMode === 'signin' ? (
+            signInForm(goToSignUp)
+          ) : (
+            signUpForm(goToSignIn)
+          )}
         </CardContent>
 
         <CardFooter className="px-8 pb-8 text-center text-sm text-muted-foreground">
