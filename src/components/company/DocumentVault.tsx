@@ -9,15 +9,20 @@ import { Button } from '@/components/ui/button'
 import { Upload, CheckCircle, FileText, Loader2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddVaultFileDialog } from '@/components/company/AddVaultFileDialog'
+import { VaultDocumentTextAction } from '@/components/company/VaultDocumentTextAction'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
 import { useVaultDocuments } from '@/hooks/useVaultDocuments'
 import { getUploadErrorMessage } from '@/lib/document-upload'
+import { deleteVaultDocument } from '@/lib/delete-vault-document'
+import { createClient } from '@/lib/supabase/client'
 import { getVaultDocument } from '@/lib/vault-documents'
 
 export function DocumentVault() {
   const { user, company } = useAuth()
   const router = useRouter()
+  const supabase = createClient()
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState<DocumentTypeKey | null>(null)
   const { data: docs = [], isFetching, isFetched, refetch } = useVaultDocuments(company?.id)
   const vaultChecking = !!company?.id && !isFetched && isFetching
 
@@ -46,6 +51,29 @@ export function DocumentVault() {
     },
   })
 
+  const handleDelete = async (docType: DocumentTypeKey) => {
+    const existing = getVaultDocument(docs, docType)
+    if (!existing) return
+
+    const label = documentTypeLabel(docType)
+    if (!window.confirm(`Delete ${label} from your Document Vault?`)) {
+      return
+    }
+
+    setDeleting(docType)
+
+    try {
+      await deleteVaultDocument(supabase, existing)
+      toast.success(`${label} deleted`)
+      void refetch()
+    } catch (err) {
+      console.error('Document delete failed:', err)
+      toast.error(`Failed to delete ${label}. Please try again.`)
+    } finally {
+      setDeleting(null)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -68,6 +96,8 @@ export function DocumentVault() {
         {CATALOG_DOCUMENT_TYPES.map(({ key, label }) => {
           const existing = getVaultDocument(docs, key)
           const isUploading = uploading === key
+          const isDeleting = deleting === key
+          const actionDisabled = isUploading || isDeleting || !company
 
           return (
             <Card key={key} className={existing ? 'border-green-200 bg-green-50' : ''}>
@@ -95,30 +125,39 @@ export function DocumentVault() {
                   </div>
                 </div>
 
-                <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
                   {existing && (
                     <Button
                       size="sm"
                       variant="ghost"
                       className="w-full sm:w-auto"
                       onClick={() => router.push(`/dashboard/documents/review/${existing.id}`)}
-                      disabled={isUploading}
+                      disabled={actionDisabled}
                     >
                       Review
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    variant={existing ? 'outline' : 'default'}
-                    className="w-full sm:w-auto"
-                    onClick={() => pick(key)}
-                    disabled={isUploading || !company}
-                  >
-                    {isUploading
-                      ? <Loader2 className="h-4 w-4 animate-spin" />
-                      : <><Upload className="h-4 w-4 mr-1" />{existing ? 'Replace' : 'Upload'}</>
-                    }
-                  </Button>
+                  <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end">
+                    <Button
+                      size="sm"
+                      variant={existing ? 'outline' : 'default'}
+                      className="w-full sm:w-auto"
+                      onClick={() => pick(key)}
+                      disabled={actionDisabled}
+                    >
+                      {isUploading
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <><Upload className="h-4 w-4 mr-1" />{existing ? 'Replace' : 'Upload'}</>
+                      }
+                    </Button>
+                    {existing ? (
+                      <VaultDocumentTextAction
+                        label={isDeleting ? 'Deleting…' : 'Delete'}
+                        onClick={() => void handleDelete(key)}
+                        disabled={actionDisabled}
+                      />
+                    ) : null}
+                  </div>
                 </div>
               </CardContent>
             </Card>

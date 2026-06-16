@@ -24,9 +24,6 @@ export const CATALOG_FIELDS = [
   { key: 'accounting_email',     label: 'Accounting Contact Email' },
   { key: 'accounting_phone',     label: 'Accounting Contact Phone' },
   
-  // Bank Reference Additions
-  { key: 'bank_reference_email', label: 'Bank Contact Email' },
-  
   // Payment Details
   { key: 'payment_terms',        label: 'Payment Terms' },
   { key: 'payment_method',       label: 'Preferred Payment Method' },
@@ -42,9 +39,22 @@ export const CATALOG_DOCUMENT_TYPES = [
   { key: 'bank_reference',           label: 'Bank Reference Letter' },
   { key: 'insurance_cert',           label: 'Certificate of Insurance' },
   { key: 'articles_of_incorporation',label: 'Articles of Incorporation' },
-  { key: 'business_license',         label: 'Business License' },
   { key: 'voided_check',             label: 'Voided Check' },
 ] as const
+
+/** Retired field keys kept for labels and validation on existing requests. */
+export const LEGACY_CATALOG_FIELD_KEYS = ['bank_reference_email'] as const
+
+/** Retired document keys kept for labels and validation on existing requests. */
+export const LEGACY_CATALOG_DOCUMENT_KEYS = ['business_license'] as const
+
+const LEGACY_FIELD_LABELS: Record<string, string> = {
+  bank_reference_email: 'Bank Contact Email',
+}
+
+const LEGACY_DOCUMENT_LABELS: Record<string, string> = {
+  business_license: 'Business License',
+}
 
 export type FieldKey = (typeof CATALOG_FIELDS)[number]["key"];
 export type DocumentTypeKey = (typeof CATALOG_DOCUMENT_TYPES)[number]["key"];
@@ -65,12 +75,12 @@ export type CompanyFieldData = Partial<Record<FieldKey, string>>;
 // Lookup helpers
 export const fieldLabel = (key: FieldKey | string): string => {
   if (isCustomSelectionKey(key)) return customSelectionLabel(key)
-  return CATALOG_FIELDS.find((f) => f.key === key)?.label ?? key
+  return CATALOG_FIELDS.find((f) => f.key === key)?.label ?? LEGACY_FIELD_LABELS[key] ?? key
 }
 
 export const documentTypeLabel = (key: DocumentTypeKey | string): string => {
   if (isCustomSelectionKey(key)) return customSelectionLabel(key)
-  return CATALOG_DOCUMENT_TYPES.find((d) => d.key === key)?.label ?? key
+  return CATALOG_DOCUMENT_TYPES.find((d) => d.key === key)?.label ?? LEGACY_DOCUMENT_LABELS[key] ?? key
 }
 
 /** Order requested catalog keys to match the send-request picker layout. */

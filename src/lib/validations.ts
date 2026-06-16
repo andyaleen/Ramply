@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import type { FieldKey, DocumentTypeKey } from './catalog'
-import { CATALOG_FIELDS, CATALOG_DOCUMENT_TYPES } from './catalog'
+import {
+  CATALOG_FIELDS,
+  CATALOG_DOCUMENT_TYPES,
+  LEGACY_CATALOG_DOCUMENT_KEYS,
+  LEGACY_CATALOG_FIELD_KEYS,
+} from './catalog'
 import { isAllowedSelectionKey } from './custom-selections'
 import { isAllowedBusinessType } from './field-inputs'
 import { LEGACY_ADDRESS_CATALOG_KEYS, normalizeFieldSelections } from './address-fields'
@@ -8,9 +13,11 @@ import { LEGACY_ADDRESS_CATALOG_KEYS, normalizeFieldSelections } from './address
 const fieldKeys = CATALOG_FIELDS.map(f => f.key) as [FieldKey, ...FieldKey[]]
 const docTypeKeys = CATALOG_DOCUMENT_TYPES.map(d => d.key) as [DocumentTypeKey, ...DocumentTypeKey[]]
 const legacyAddressKeySet = new Set<string>(LEGACY_ADDRESS_CATALOG_KEYS)
+const legacyFieldKeySet = new Set<string>(LEGACY_CATALOG_FIELD_KEYS)
+const legacyDocumentKeySet = new Set<string>(LEGACY_CATALOG_DOCUMENT_KEYS)
 
 const catalogFieldSelectionSchema = z.string().refine(
-  (key) => isAllowedSelectionKey(key, fieldKeys) || legacyAddressKeySet.has(key),
+  (key) => isAllowedSelectionKey(key, fieldKeys) || legacyAddressKeySet.has(key) || legacyFieldKeySet.has(key),
   'Invalid field selection'
 )
 
@@ -20,7 +27,7 @@ const fieldSelectionArraySchema = z
   .transform((fields) => normalizeFieldSelections(fields))
 
 const catalogDocumentSelectionSchema = z.string().refine(
-  (key) => isAllowedSelectionKey(key, docTypeKeys),
+  (key) => isAllowedSelectionKey(key, docTypeKeys) || legacyDocumentKeySet.has(key),
   'Invalid document selection'
 )
 

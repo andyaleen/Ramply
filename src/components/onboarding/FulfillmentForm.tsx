@@ -20,11 +20,13 @@ import { useDocumentUpload } from '@/hooks/useDocumentUpload'
 import { useVaultDocuments } from '@/hooks/useVaultDocuments'
 import { getUploadErrorMessage } from '@/lib/document-upload'
 import { DenyShareRequestDialog } from '@/components/onboarding/DenyShareRequestDialog'
+import { VaultDocumentTextAction } from '@/components/company/VaultDocumentTextAction'
 import {
   getVaultDocument,
   missingVaultDocumentTypes,
   vaultDocsQueryKey,
 } from '@/lib/vault-documents'
+import { deleteVaultDocument } from '@/lib/delete-vault-document'
 import {
   ADDRESS_CATALOG_KEY,
   ADDRESS_COMPONENT_KEYS,
@@ -54,6 +56,7 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
   const router = useRouter()
   const [denyDialogOpen, setDenyDialogOpen] = useState(false)
   const [pendingBlankFieldConfirm, setPendingBlankFieldConfirm] = useState(false)
+  const [removingDocType, setRemovingDocType] = useState<string | null>(null)
   const { data: vaultDocs = [], isFetching: vaultFetching, isFetched: vaultFetched } =
     useVaultDocuments(company?.id)
   const vaultChecking = !!company?.id && !vaultFetched && vaultFetching
@@ -205,6 +208,33 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
       )
     },
   })
+
+  const handleRemoveDocument = async (docType: string) => {
+    const doc = getVaultDocument(vaultDocs, docType)
+    if (!doc) return
+
+    const label = documentTypeLabel(docType)
+    if (!window.confirm(`Remove ${label} from your Document Vault?`)) {
+      return
+    }
+
+    setRemovingDocType(docType)
+
+    try {
+      await deleteVaultDocument(supabase, doc)
+      toast.success(`${label} removed`)
+      queryClient.setQueryData<CompanyDocumentRow[]>(
+        vaultDocsQueryKey(company?.id),
+        (current = []) => current.filter((existing) => existing.id !== doc.id)
+      )
+      queryClient.invalidateQueries({ queryKey: vaultDocsQueryKey(company?.id) })
+    } catch (err) {
+      console.error('Document remove failed:', err)
+      toast.error(`Failed to remove ${label}. Please try again.`)
+    } finally {
+      setRemovingDocType(null)
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -396,7 +426,9 @@ export function FulfillmentForm({ shareRequest, onComplete, onDenied }: Fulfillm
                 doc={getVaultDocument(vaultDocs, docType)}
                 vaultChecking={vaultChecking}
                 uploading={uploading === docType}
+                removing={removingDocType === docType}
                 onUpload={pick}
+                onRemove={() => void handleRemoveDocument(docType)}
               />
             ))}
           </CardContent>
@@ -458,10 +490,23 @@ interface DocRowProps {
   doc: CompanyDocumentRow | null
   vaultChecking: boolean
   uploading: boolean
+  removing: boolean
   onUpload: (docType: string) => void
+  onRemove: () => void
 }
 
-function DocRow({ docType, required, doc, vaultChecking, uploading, onUpload }: DocRowProps) {
+function DocRow({
+  docType,
+  required,
+  doc,
+  vaultChecking,
+  uploading,
+  removing,
+  onUpload,
+  onRemove,
+}: DocRowProps) {
+  const actionDisabled = uploading || removing
+
   return (
     <div className="flex items-center justify-between p-3 border rounded-md">
       <div className="flex items-center gap-2 min-w-0">
@@ -495,18 +540,25 @@ function DocRow({ docType, required, doc, vaultChecking, uploading, onUpload }: 
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 ml-3 shrink-0">
+      <div className="flex flex-col items-end gap-1 ml-3 shrink-0">
         <Button
           size="sm"
           variant={doc ? 'outline' : 'default'}
           onClick={() => onUpload(docType)}
-          disabled={uploading}
+          disabled={actionDisabled}
         >
           {uploading
             ? <Loader2 className="h-4 w-4 animate-spin" />
             : <><Upload className="h-3 w-3 mr-1" />{doc ? 'Replace' : 'Upload'}</>
           }
         </Button>
+        {doc ? (
+          <VaultDocumentTextAction
+            label={removing ? 'Removing…' : 'Remove'}
+            onClick={onRemove}
+            disabled={actionDisabled}
+          />
+        ) : null}
       </div>
     </div>
   )
