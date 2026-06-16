@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ShareRequestSchema, type ShareRequest } from '@/lib/validations'
+import { ShareRequestSchema, TemplateSchema, type ShareRequest } from '@/lib/validations'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Copy, Zap, Send } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { fetchRequestTemplates, requestTemplatesQueryKey, saveRequestTemplate } from '@/lib/request-templates'
 import { TemplateSelectionsForm } from '@/components/templates/TemplateSelectionsForm'
 import { buildTemplateSubmitUrl } from '@/lib/template-submit-link'
+import { formatTemplateValidationError } from '@/lib/template-api-errors'
 
 interface SendOnboardingRequestDialogProps {
   open: boolean
@@ -216,21 +217,30 @@ export function SendOnboardingRequestDialog({
   async function saveAsTemplate() {
     const name = templateName.trim()
     if (!name) { toast.error('Template name is required'); return }
+
+    const {
+      mandatory_fields,
+      optional_fields,
+      mandatory_documents,
+      optional_documents,
+    } = form.getValues()
+
+    const parsed = TemplateSchema.safeParse({
+      name,
+      mandatory_fields,
+      optional_fields,
+      mandatory_documents,
+      optional_documents,
+    })
+
+    if (!parsed.success) {
+      toast.error(formatTemplateValidationError(parsed.error))
+      return
+    }
+
     setSavingTemplate(true)
     try {
-      const {
-        mandatory_fields,
-        optional_fields,
-        mandatory_documents,
-        optional_documents,
-      } = form.getValues()
-      await saveRequestTemplate({
-        name,
-        mandatory_fields,
-        optional_fields,
-        mandatory_documents,
-        optional_documents,
-      })
+      await saveRequestTemplate(parsed.data)
       await queryClient.invalidateQueries({ queryKey: templatesQueryKey })
       posthog.capture('template_saved', { template_name: name })
       toast.success(`Template "${name}" saved`)

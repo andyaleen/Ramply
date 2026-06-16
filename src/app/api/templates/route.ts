@@ -1,8 +1,8 @@
 import { requireAppSession } from '@/lib/auth/require-app-session'
-import { databaseErrorResponse } from '@/lib/api-error-response'
+import { databaseErrorResponse, rpcErrorResponse } from '@/lib/api-error-response'
+import { persistRequestTemplate } from '@/lib/create-request-template'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { randomBytes } from 'crypto'
 import { TemplateSchema } from '@/lib/validations'
 
 async function requireTemplatesSession() {
@@ -61,28 +61,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
   }
 
-  const { data: company } = await supabase
+  const { data: company, error: companyError } = await supabase
     .from('companies')
     .select('id')
     .eq('owner_user_id', user.id)
-    .single()
+    .maybeSingle()
 
+  if (companyError) {
+    return databaseErrorResponse('templates.create-company', companyError, 'Failed to create template.')
+  }
   if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 400 })
 
-  const { data, error } = await supabase
-    .from('request_templates')
-    .insert({
-      company_id: company.id,
-      public_token: randomBytes(16).toString('hex'),
-      ...parsed.data,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    return databaseErrorResponse('templates.create', error, 'Failed to create template.')
+  try {
+    const data = await persistRequestTemplate(supabase, company.id, parsed.data)
+    return NextResponse.json(data, { status: 201 })
+  } catch (error) {
+    return rpcErrorResponse('templates.create', error, 'Failed to create template.')
   }
-  return NextResponse.json(data, { status: 201 })
 }
 
 /** PUT /api/templates?id=<uuid> — update an existing template */

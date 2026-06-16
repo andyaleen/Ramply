@@ -1,4 +1,5 @@
 import type { RequestTemplateRow } from '@/lib/database.types'
+import { formatTemplateApiError } from '@/lib/template-api-errors'
 import type { TemplateFormValues } from '@/lib/validations'
 
 /** React Query key scoped to the signed-in company so account switches never reuse cache. */
@@ -35,8 +36,8 @@ export async function saveRequestTemplate(
   })
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string }
-    throw new Error(typeof err.error === 'string' ? err.error : 'Failed to save template')
+    const err = await res.json().catch(() => ({})) as { error?: unknown }
+    throw new Error(formatTemplateApiError(err, 'Failed to save template'))
   }
 
   return res.json() as Promise<RequestTemplateRow>
